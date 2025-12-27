@@ -1,0 +1,35 @@
+/* Reseteamos los estilos por defecto de Vite que limitan el ancho */
+#root {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  /* El scroll lo manejarán los hijos */
+}
+
+/* Aseguramos que el body ocupe todo */
+body,
+html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #f8fafc;
+  /* Slate-50 */
+}
+
+/* Opcional: animaciones globales */
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}

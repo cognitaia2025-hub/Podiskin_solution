@@ -1,0 +1,58 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+
+# Environment variables
+.env
+.env.local
+
+# WhatsApp session data
+.wwebjs_auth/
+.wwebjs_cache/
+**/session/
+**/.wwebjs_cache/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+env/
+
+# Chromium/Puppeteer
+.local-chromium/
+**/.local-chromium/
+
+# Cache directories
+**/Cache/
+**/GPUCache/
+**/DawnCache/
+**/Code\ Cache/
+**/Service\ Worker/
+**/IndexedDB/
+**/Local\ Storage/
+**/Session\ Storage/
+**/VideoDecodeStats/
+**/WebStorage/
+**/databases/
+**/shared_proto_db/
+**/*.db
+**/*.db-journal
+
+# Otros archivos temporales
+Crashpad/
+DevToolsActivePort
+chrome_debug.log

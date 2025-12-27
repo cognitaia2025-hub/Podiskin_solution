@@ -1,0 +1,7 @@
+{
+  "name": "Gemini Live Voice Controller",
+  "description": "A React implementation of the Gemini Live API demonstrating real-time voice conversation, voice selection, and UI control (form filling and navigation) via Function Calling.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}

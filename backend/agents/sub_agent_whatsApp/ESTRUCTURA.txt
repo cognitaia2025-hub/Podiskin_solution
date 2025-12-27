@@ -1,0 +1,235 @@
+# Estructura del Sub-Agente de WhatsApp
+# ======================================
+# Este archivo documenta todos los componentes del sub-agente
+
+sub_agent_whatsApp/
+│
+├── 📄 __init__.py                    ✅ CREADO
+├── 📄 README.md                      ✅ CREADO
+├── 📄 config.py                      ✅ CREADO - Configuración completa
+├── 📄 state.py                       ✅ CREADO - Estado del agente
+├── 📄 graph.py                       ⏳ POR CREAR - Grafo principal de LangGraph
+│
+├── 📁 nodes/                         # Nodos del grafo
+│   ├── 📄 __init__.py                ✅ CREADO
+│   ├── 📄 classify_intent.py         ✅ CREADO - Clasificar intención
+│   ├── 📄 retrieve_context.py        ⏳ POR CREAR - RAG: Recuperar contexto
+│   ├── 📄 check_patient.py           ⏳ POR CREAR - Verificar si es paciente
+│   ├── 📄 handle_appointment.py      ⏳ POR CREAR - Gestionar agendamiento
+│   ├── 📄 handle_query.py            ⏳ POR CREAR - Responder consultas
+│   ├── 📄 handle_cancellation.py     ⏳ POR CREAR - Gestionar cancelaciones
+│   ├── 📄 escalate_human.py          ⏳ POR CREAR - Escalar a humano
+│   └── 📄 generate_response.py       ⏳ POR CREAR - Generar respuesta final
+│
+├── 📁 tools/                         # Herramientas del agente
+│   ├── 📄 __init__.py                ⏳ POR CREAR
+│   ├── 📄 patient_tools.py           ⏳ POR CREAR - CRUD de pacientes
+│   │   ├── search_patient()
+│   │   ├── get_patient_info()
+│   │   ├── create_patient()
+│   │   └── get_patient_history()
+│   │
+│   ├── 📄 appointment_tools.py       ⏳ POR CREAR - Gestión de citas
+│   │   ├── check_availability()
+│   │   ├── book_appointment()
+│   │   ├── cancel_appointment()
+│   │   ├── reschedule_appointment()
+│   │   └── get_available_slots()
+│   │
+│   ├── 📄 query_tools.py             ⏳ POR CREAR - Consultas de información
+│   │   ├── get_treatment_info()
+│   │   ├── get_clinic_info()
+│   │   ├── get_prices()
+│   │   └── search_faq()
+│   │
+│   └── 📄 rag_tools.py               ⏳ POR CREAR - Herramientas de RAG
+│       ├── retrieve_context()
+│       ├── index_conversation()
+│       └── search_similar_conversations()
+│
+├── 📁 utils/                         # Utilidades
+│   ├── 📄 __init__.py                ⏳ POR CREAR
+│   ├── 📄 embeddings.py              ⏳ POR CREAR - Servicio de embeddings
+│   │   ├── LocalEmbeddings class
+│   │   ├── embed_text()
+│   │   └── embed_batch()
+│   │
+│   ├── 📄 database.py                ⏳ POR CREAR - Conexión a PostgreSQL
+│   │   ├── get_db_connection()
+│   │   ├── execute_query()
+│   │   └── execute_transaction()
+│   │
+│   ├── 📄 vector_store.py            ⏳ POR CREAR - Gestión de pgvector
+│   │   ├── VectorStore class
+│   │   ├── add_documents()
+│   │   └── similarity_search()
+│   │
+│   └── 📄 metrics.py                 ⏳ POR CREAR - Métricas y logging
+│       ├── setup_logging()
+│       ├── setup_metrics()
+│       └── track_conversation()
+│
+├── 📁 tests/                         # Tests
+│   ├── 📄 __init__.py                ⏳ POR CREAR
+│   ├── 📁 nodes/                     # Tests de nodos
+│   │   ├── test_classify_intent.py
+│   │   ├── test_retrieve_context.py
+│   │   └── ...
+│   │
+│   ├── 📁 tools/                     # Tests de herramientas
+│   │   ├── test_patient_tools.py
+│   │   ├── test_appointment_tools.py
+│   │   └── ...
+│   │
+│   ├── 📁 integration/               # Tests de integración
+│   │   ├── test_full_flow.py
+│   │   └── test_rag_integration.py
+│   │
+│   └── 📁 e2e/                       # Tests end-to-end
+│       └── test_whatsapp_flow.py
+│
+└── 📁 examples/                      # Ejemplos de uso
+    ├── 📄 basic_usage.py             ⏳ POR CREAR
+    ├── 📄 custom_config.py           ⏳ POR CREAR
+    └── 📄 testing_locally.py         ⏳ POR CREAR
+
+
+# ============================================================================
+# PRIORIDADES DE IMPLEMENTACIÓN
+# ============================================================================
+
+## FASE 1: Core (Semana 1) - CRÍTICO
+1. ✅ state.py - Estado del agente
+2. ✅ config.py - Configuración
+3. ⏳ graph.py - Grafo principal
+4. ⏳ utils/database.py - Conexión a BD
+5. ⏳ utils/embeddings.py - Servicio de embeddings
+
+## FASE 2: Nodos Básicos (Semana 2) - ALTA PRIORIDAD
+6. ✅ nodes/classify_intent.py - Clasificación
+7. ⏳ nodes/retrieve_context.py - RAG
+8. ⏳ nodes/check_patient.py - Verificación de paciente
+9. ⏳ nodes/generate_response.py - Generación de respuesta
+10. ⏳ nodes/escalate_human.py - Escalamiento
+
+## FASE 3: Herramientas (Semana 3) - ALTA PRIORIDAD
+11. ⏳ tools/patient_tools.py - Herramientas de pacientes
+12. ⏳ tools/appointment_tools.py - Herramientas de citas
+13. ⏳ tools/rag_tools.py - Herramientas de RAG
+14. ⏳ utils/vector_store.py - Gestión de pgvector
+
+## FASE 4: Nodos Avanzados (Semana 4) - MEDIA PRIORIDAD
+15. ⏳ nodes/handle_appointment.py - Gestión de agendamiento
+16. ⏳ nodes/handle_query.py - Responder consultas
+17. ⏳ nodes/handle_cancellation.py - Cancelaciones
+18. ⏳ tools/query_tools.py - Herramientas de consultas
+
+## FASE 5: Testing y Refinamiento (Semana 5-6) - MEDIA PRIORIDAD
+19. ⏳ tests/* - Suite completa de tests
+20. ⏳ utils/metrics.py - Métricas y logging
+21. ⏳ examples/* - Ejemplos de uso
+22. ⏳ Documentación adicional
+
+
+# ============================================================================
+# DEPENDENCIAS ENTRE COMPONENTES
+# ============================================================================
+
+graph.py
+  ├── DEPENDE DE: state.py, config.py
+  ├── DEPENDE DE: nodes/* (todos los nodos)
+  └── DEPENDE DE: utils/database.py (para checkpointer)
+
+nodes/retrieve_context.py
+  ├── DEPENDE DE: state.py, config.py
+  ├── DEPENDE DE: tools/rag_tools.py
+  └── DEPENDE DE: utils/vector_store.py
+
+nodes/check_patient.py
+  ├── DEPENDE DE: state.py, config.py
+  └── DEPENDE DE: tools/patient_tools.py
+
+nodes/handle_appointment.py
+  ├── DEPENDE DE: state.py, config.py
+  ├── DEPENDE DE: tools/appointment_tools.py
+  └── DEPENDE DE: tools/patient_tools.py
+
+nodes/generate_response.py
+  ├── DEPENDE DE: state.py, config.py
+  └── DEPENDE DE: LLM (Anthropic)
+
+tools/rag_tools.py
+  ├── DEPENDE DE: utils/embeddings.py
+  ├── DEPENDE DE: utils/vector_store.py
+  └── DEPENDE DE: utils/database.py
+
+tools/patient_tools.py
+  └── DEPENDE DE: utils/database.py
+
+tools/appointment_tools.py
+  └── DEPENDE DE: utils/database.py
+
+utils/vector_store.py
+  ├── DEPENDE DE: utils/embeddings.py
+  └── DEPENDE DE: utils/database.py
+
+
+# ============================================================================
+# INTERFACES EXTERNAS
+# ============================================================================
+
+## Entrada (desde WhatsApp Webhook)
+- Recibe: mensaje, número, nombre del contacto
+- Crea: estado inicial
+- Ejecuta: graph.run(state)
+- Retorna: respuesta generada
+
+## Salida hacia Base de Datos
+- Consultas: pacientes, citas, tratamientos, horarios
+- Inserciones: mensajes, conversaciones, citas
+- Actualizaciones: estado de conversaciones, citas
+
+## Salida hacia pgvector (RAG)
+- Búsquedas: similitud semántica de conversaciones
+- Inserciones: indexación de nuevas conversaciones
+
+## Salida hacia Frontend (API)
+- Notificaciones: citas pendientes de confirmación
+- Alertas: escalamientos a humano
+- Actualizaciones: estado de conversaciones
+
+
+# ============================================================================
+# NOTAS DE IMPLEMENTACIÓN
+# ============================================================================
+
+1. MODULARIDAD
+   - Cada componente debe ser independiente
+   - Usar dependency injection donde sea posible
+   - Evitar imports circulares
+
+2. TESTING
+   - Cada nodo debe tener tests unitarios
+   - Cada herramienta debe tener tests de integración
+   - El grafo completo debe tener tests e2e
+
+3. LOGGING
+   - Usar logging estructurado (JSON)
+   - Incluir conversation_id en todos los logs
+   - No loggear datos sensibles (números de teléfono completos, etc.)
+
+4. ERROR HANDLING
+   - Todos los nodos deben manejar excepciones
+   - En caso de error, escalar a humano
+   - Mantener el estado consistente
+
+5. PERFORMANCE
+   - Usar async/await donde sea posible
+   - Cachear embeddings cuando sea apropiado
+   - Optimizar queries a la BD
+
+6. SEGURIDAD
+   - Validar todos los inputs
+   - Sanitizar datos antes de guardar en BD
+   - Rate limiting por contacto
+   - Timeout de conversaciones inactivas

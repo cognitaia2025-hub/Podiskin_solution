@@ -1,0 +1,191 @@
+import React, { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { clsx } from 'clsx';
+import type { MedicalRecord, FormMode } from '../types/medical';
+import { MedicalFormProvider, useMedicalForm, useFormMethods } from '../context/MedicalFormContext';
+import Header from '../components/medical/Header';
+import TopNavigation from '../components/medical/TopNavigation';
+import PatientSidebar from '../components/medical/PatientSidebar';
+import MedicalRecordForm from '../components/medical/MedicalRecordForm';
+import MayaAssistant from '../components/medical/MayaAssistant';
+import EvolutionSidebar from '../components/medical/EvolutionSidebar';
+
+// Componente interno que usa el contexto
+const MedicalAttentionContent: React.FC = () => {
+  const { formState, saveForm, submitForm, currentPatient } = useMedicalForm();
+  const methods = useFormMethods();
+  const [formMode, setFormMode] = useState<FormMode>('free');
+  const [rightPanelTab, setRightPanelTab] = useState<'maya' | 'evolution'>('maya');
+
+  // Datos de ejemplo para el paciente
+  const patientData: Partial<MedicalRecord> = {
+    id_paciente: 'p1',
+    id_podologo: '1',
+    informacion_personal: {
+      primer_nombre: 'Juan',
+      segundo_nombre: 'Carlos',
+      primer_apellido: 'Pérez',
+      segundo_apellido: 'García',
+      fecha_nacimiento: '1985-03-15',
+      sexo: 'M',
+      curp: 'PEGJ850315HDFRNN00',
+      estado_civil: 'Casado',
+      escolaridad: 'Licenciatura',
+      ocupacion: 'Ingeniero',
+      religion: 'Católica',
+      calle: 'Av. Principal',
+      numero_exterior: '123',
+      colonia: 'Centro',
+      ciudad: 'México',
+      estado: 'CDMX',
+      codigo_postal: '01000',
+      telefono_principal: '555-123-4567',
+      telefono_secundario: '555-987-6543',
+      correo_electronico: 'juan.perez@email.com',
+      como_supo_de_nosotros: 'Recomendación',
+    },
+    alergias: [
+      {
+        id: '1',
+        tipo_alergeno: 'Medicamento',
+        nombre_alergeno: 'Penicilina',
+        reaccion: 'Urticaria y dificultad respiratoria',
+        severidad: 'Grave',
+      },
+      {
+        id: '2',
+        tipo_alergeno: 'Alimento',
+        nombre_alergeno: 'Mariscos',
+        reaccion: 'Hinchazón',
+        severidad: 'Moderada',
+      },
+    ],
+    estilo_vida: {
+      dieta: 'Normal',
+      fuma: false,
+      consume_alcohol: false,
+      consume_drogas: false,
+      vacunas_completas: true,
+      frecuencia_ejercicio: '3-4 veces por semana',
+      horas_sueno: 7,
+    },
+    motivo_consulta: {
+      sintomas_principales: 'Dolor en talón derecho al caminar, especialmente por las mañanas',
+      fecha_inicio_sintomas: 'Hace 2 semanas',
+      evolucion_sintomas: 'Ha empeorado gradualmente',
+      automedicacion: 'Ibuprofeno 400mg cada 8 horas',
+    },
+  };
+
+  const handleSave = async () => {
+    try {
+      await saveForm();
+    } catch (error) {
+      console.error('Error al guardar:', error);
+    }
+  };
+
+  const handleSubmit = async () => {
+    try {
+      await submitForm();
+    } catch (error) {
+      console.error('Error al enviar:', error);
+    }
+  };
+
+  const handleModeChange = (mode: FormMode) => {
+    setFormMode(mode);
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-gray-100 overflow-hidden">
+      {/* Header */}
+      <Header
+        patientName={patientData.informacion_personal
+          ? `${patientData.informacion_personal.primer_nombre} ${patientData.informacion_personal.primer_apellido}`
+          : 'Nuevo Paciente'
+        }
+        formState={formState}
+        formMode={formMode}
+        onModeChange={handleModeChange}
+        onSave={handleSave}
+        onSubmit={handleSubmit}
+      />
+
+      {/* Top Navigation */}
+      <TopNavigation
+        activeTab="clinical"
+        onTabChange={(tabId) => console.log('Tab changed:', tabId)}
+      />
+
+      {/* Main Content - 3 Column Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Column - Patient Info */}
+        <aside className="w-80 flex-shrink-0 hidden lg:block border-r border-gray-200">
+          <PatientSidebar patientData={patientData} className="h-full" />
+        </aside>
+
+        {/* Center Column - Form */}
+        <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
+          <MedicalRecordForm
+            className="flex-1"
+            initialMode={formMode}
+          />
+        </main>
+
+        {/* Right Column - Maya/Evolution */}
+        <aside className="w-96 flex-shrink-0 hidden xl:block border-l border-gray-200">
+          {/* Toggle entre Maya y Evolución */}
+          <div className="flex border-b border-gray-200">
+            <button
+              onClick={() => setRightPanelTab('maya')}
+              className={clsx(
+                'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+                rightPanelTab === 'maya'
+                  ? 'bg-white text-gray-900 border-b-2 border-teal-500'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              Maya IA
+            </button>
+            <button
+              onClick={() => setRightPanelTab('evolution')}
+              className={clsx(
+                'flex-1 px-4 py-2 text-sm font-medium transition-colors',
+                rightPanelTab === 'evolution'
+                  ? 'bg-white text-gray-900 border-b-2 border-teal-500'
+                  : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+              )}
+            >
+              Evolución
+            </button>
+          </div>
+
+          {/* Panel content */}
+          <div className="h-[calc(100%-44px)]">
+            {rightPanelTab === 'maya' ? (
+              <MayaAssistant className="h-full rounded-none border-0" />
+            ) : (
+              <EvolutionSidebar className="h-full rounded-none border-0" />
+            )}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+};
+
+// Componente principal exportado
+const MedicalAttention: React.FC = () => {
+  return (
+    <MedicalFormProvider
+      patientId="p1"
+      podologoId="1"
+      autoSaveInterval={30000}
+    >
+      <MedicalAttentionContent />
+    </MedicalFormProvider>
+  );
+};
+
+export default MedicalAttention;

@@ -239,7 +239,7 @@ async def verificar_conflicto_horario(
     params = [
         id_podologo,
         fecha_hora_fin, fecha_hora_inicio,  # Conflicto: la cita existente termina después de que inicia la nueva
-        fecha_hora_fin, fecha_hora_fin,      # Conflicto: la cita existente inicia antes de que termine la nueva
+        fecha_hora_fin, fecha_hora_inicio,  # Conflicto: la cita existente inicia antes de que termine la nueva
         fecha_hora_inicio, fecha_hora_fin    # Conflicto: la cita existente está completamente contenida
     ]
     
@@ -333,32 +333,26 @@ async def obtener_citas(
     # Construir WHERE clause dinámicamente
     where_clauses = []
     params = []
-    param_count = 1
     
     if id_paciente:
-        where_clauses.append(f"c.id_paciente = ${param_count}")
+        where_clauses.append("c.id_paciente = %s")
         params.append(id_paciente)
-        param_count += 1
     
     if id_podologo:
-        where_clauses.append(f"c.id_podologo = ${param_count}")
+        where_clauses.append("c.id_podologo = %s")
         params.append(id_podologo)
-        param_count += 1
     
     if fecha_inicio:
-        where_clauses.append(f"DATE(c.fecha_hora_inicio) >= ${param_count}")
+        where_clauses.append("DATE(c.fecha_hora_inicio) >= %s")
         params.append(fecha_inicio)
-        param_count += 1
     
     if fecha_fin:
-        where_clauses.append(f"DATE(c.fecha_hora_inicio) <= ${param_count}")
+        where_clauses.append("DATE(c.fecha_hora_inicio) <= %s")
         params.append(fecha_fin)
-        param_count += 1
     
     if estado:
-        where_clauses.append(f"c.estado = ${param_count}")
+        where_clauses.append("c.estado = %s")
         params.append(estado)
-        param_count += 1
     
     where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
     
@@ -369,7 +363,7 @@ async def obtener_citas(
         {where_clause}
     """
     
-    # Query para obtener datos (convertir $ a % para psycopg2)
+    # Query para obtener datos
     query = f"""
         SELECT 
             c.*,
@@ -380,19 +374,15 @@ async def obtener_citas(
         LEFT JOIN podologos pod ON c.id_podologo = pod.id
         {where_clause}
         ORDER BY c.fecha_hora_inicio DESC
-        LIMIT ${param_count} OFFSET ${param_count + 1}
+        LIMIT %s OFFSET %s
     """
     
-    # Convertir marcadores $ a %s para psycopg2
-    count_query_psycopg = count_query.replace("$", "%s")
-    query_psycopg = query.replace("$", "%s")
-    
     # Agregar limit y offset a params
-    params.extend([limit, offset])
+    params_with_pagination = params + [limit, offset]
     
     # Ejecutar queries
-    count_result = await execute_query_one(count_query_psycopg.replace("%s", "%s"), tuple(params[:-2]))
-    citas = await execute_query(query_psycopg, tuple(params))
+    count_result = await execute_query_one(count_query, tuple(params))
+    citas = await execute_query(query, tuple(params_with_pagination))
     
     total = count_result["total"] if count_result else 0
     

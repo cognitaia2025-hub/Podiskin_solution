@@ -31,10 +31,10 @@ class PacienteBase(BaseModel):
     colonia: Optional[str] = None
     ciudad: Optional[str] = None
     estado: Optional[str] = None
-    codigo_postal: Optional[str] = Field(None, alias="cp", max_length=10)
+    cp: Optional[str] = Field(None, max_length=10)
     ocupacion: Optional[str] = None
     estado_civil: Optional[str] = None
-    referencia: Optional[str] = Field(None, alias="referencia_como_nos_conocio", max_length=255)
+    referencia_como_nos_conocio: Optional[str] = Field(None, max_length=255)
     
     @field_validator("curp")
     @classmethod
@@ -87,10 +87,10 @@ class PacienteUpdate(BaseModel):
     colonia: Optional[str] = None
     ciudad: Optional[str] = None
     estado: Optional[str] = None
-    codigo_postal: Optional[str] = Field(None, alias="cp", max_length=10)
+    cp: Optional[str] = Field(None, max_length=10)
     ocupacion: Optional[str] = None
     estado_civil: Optional[str] = None
-    referencia: Optional[str] = Field(None, alias="referencia_como_nos_conocio", max_length=255)
+    referencia_como_nos_conocio: Optional[str] = Field(None, max_length=255)
     activo: Optional[bool] = None
 
 
@@ -137,8 +137,8 @@ class PacienteListResponse(BaseModel):
 
 class AlergiaBase(BaseModel):
     """Base model for allergy data."""
-    tipo: Literal["Medicamento", "Alimento", "Ambiental", "Material", "Otro"] = Field(alias="tipo_alergeno")
-    nombre: str = Field(..., min_length=1, max_length=100, alias="nombre_alergeno")
+    tipo_alergeno: Literal["Medicamento", "Alimento", "Ambiental", "Material", "Otro"]
+    nombre_alergeno: str = Field(..., min_length=1, max_length=100)
     reaccion: Optional[str] = None
     severidad: Literal["Leve", "Moderada", "Grave", "Mortal"] = "Leve"
     fecha_diagnostico: Optional[date] = None

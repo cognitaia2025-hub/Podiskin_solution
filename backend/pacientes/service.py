@@ -235,10 +235,10 @@ class PacientesService:
             colonia=row["colonia"],
             ciudad=row["ciudad"],
             estado=row["estado"],
-            codigo_postal=row["cp"],
+            cp=row["cp"],
             ocupacion=row["ocupacion"],
             estado_civil=row["estado_civil"],
-            referencia=row["referencia_como_nos_conocio"],
+            referencia_como_nos_conocio=row["referencia_como_nos_conocio"],
             activo=row["activo"],
             fecha_registro=row["fecha_registro"],
             fecha_modificacion=row["fecha_modificacion"],
@@ -291,10 +291,10 @@ class PacientesService:
             paciente.colonia,
             paciente.ciudad,
             paciente.estado,
-            paciente.codigo_postal,
+            paciente.cp,
             paciente.ocupacion,
             paciente.estado_civil,
-            paciente.referencia,
+            paciente.referencia_como_nos_conocio,
             creado_por
         )
         
@@ -326,7 +326,7 @@ class PacientesService:
         params = []
         param_count = 1
         
-        update_data = paciente.model_dump(exclude_unset=True, by_alias=True)
+        update_data = paciente.model_dump(exclude_unset=True)
         
         for field, value in update_data.items():
             update_fields.append(f"{field} = ${param_count}")
@@ -467,8 +467,8 @@ class AlergiasService:
         row = await conn.fetchrow(
             query,
             paciente_id,
-            alergia.tipo,
-            alergia.nombre,
+            alergia.tipo_alergeno,
+            alergia.nombre_alergeno,
             alergia.reaccion,
             alergia.severidad,
             alergia.fecha_diagnostico,
@@ -478,8 +478,8 @@ class AlergiasService:
         return AlergiaResponse(
             id=row["id"],
             id_paciente=paciente_id,
-            tipo_alergeno=alergia.tipo,
-            nombre_alergeno=alergia.nombre,
+            tipo_alergeno=alergia.tipo_alergeno,
+            nombre_alergeno=alergia.nombre_alergeno,
             reaccion=alergia.reaccion,
             severidad=alergia.severidad,
             fecha_diagnostico=alergia.fecha_diagnostico,

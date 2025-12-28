@@ -10,7 +10,11 @@ from decimal import Decimal
 
 # Importar función de cálculo de IMC
 import sys
-sys.path.insert(0, '/home/runner/work/Podiskin_solution/Podiskin_solution/backend')
+from pathlib import Path
+
+# Add parent directory to path for imports
+backend_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(backend_dir))
 
 from tratamientos.router import calcular_imc
 

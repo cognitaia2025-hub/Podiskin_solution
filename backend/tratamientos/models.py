@@ -10,7 +10,7 @@ from decimal import Decimal
 from typing import Optional
 from enum import Enum
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # ============================================================================
@@ -124,7 +124,8 @@ class DiagnosticoCreate(BaseModel):
     codigo_cie10: Optional[str] = Field(None, pattern=r'^[A-Z]\d{2}(\.\d{1,2})?$')
     notas: Optional[str] = None
 
-    @validator('codigo_cie10')
+    @field_validator('codigo_cie10')
+    @classmethod
     def validate_codigo_cie10(cls, v):
         """Valida el formato del código CIE-10."""
         if v and not v[0].isalpha():

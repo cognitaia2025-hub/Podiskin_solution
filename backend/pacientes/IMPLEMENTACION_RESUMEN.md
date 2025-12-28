@@ -219,8 +219,8 @@ curl "http://localhost:8000/api/pacientes?page=1&limit=20&search=Juan&activo=tru
 curl -X POST "http://localhost:8000/api/pacientes/1/alergias" \
   -H "Content-Type: application/json" \
   -d '{
-    "tipo": "Medicamento",
-    "nombre": "Penicilina",
+    "tipo_alergeno": "Medicamento",
+    "nombre_alergeno": "Penicilina",
     "severidad": "Moderada",
     "reaccion": "Rash cutáneo"
   }'

@@ -143,10 +143,10 @@ curl "http://localhost:8000/api/pacientes/1"
   "colonia": "Centro",
   "ciudad": "Hermosillo",
   "estado": "Sonora",
-  "codigo_postal": "83000",
+  "cp": "83000",
   "ocupacion": "Ingeniero",
   "estado_civil": "Soltero",
-  "referencia": "Recomendación",
+  "referencia_como_nos_conocio": "Recomendación",
   "activo": true,
   "fecha_registro": "2024-01-15T10:30:00",
   "fecha_modificacion": null,
@@ -258,8 +258,8 @@ curl "http://localhost:8000/api/pacientes/1/alergias"
     {
       "id": 1,
       "id_paciente": 1,
-      "tipo": "Medicamento",
-      "nombre": "Penicilina",
+      "tipo_alergeno": "Medicamento",
+      "nombre_alergeno": "Penicilina",
       "reaccion": "Rash cutáneo",
       "severidad": "Moderada",
       "fecha_diagnostico": "2020-03-15",
@@ -284,8 +284,8 @@ Create a new allergy record for a patient.
 curl -X POST "http://localhost:8000/api/pacientes/1/alergias" \
   -H "Content-Type: application/json" \
   -d '{
-    "tipo": "Medicamento",
-    "nombre": "Aspirina",
+    "tipo_alergeno": "Medicamento",
+    "nombre_alergeno": "Aspirina",
     "reaccion": "Urticaria",
     "severidad": "Leve",
     "fecha_diagnostico": "2023-06-10"
@@ -297,8 +297,8 @@ curl -X POST "http://localhost:8000/api/pacientes/1/alergias" \
 {
   "id": 2,
   "id_paciente": 1,
-  "tipo": "Medicamento",
-  "nombre": "Aspirina",
+  "tipo_alergeno": "Medicamento",
+  "nombre_alergeno": "Aspirina",
   "reaccion": "Urticaria",
   "severidad": "Leve",
   "fecha_diagnostico": "2023-06-10",
@@ -421,16 +421,16 @@ curl -X POST "http://localhost:8000/api/pacientes/1/antecedentes" \
 - `curp` (string, 18 chars, format: 4 letters + 6 digits + H/M + 5 letters + 2 digits)
 - `telefono_secundario` (string, 10-15 digits)
 - `email` (valid email format)
-- Address fields: `calle`, `numero_exterior`, `numero_interior`, `colonia`, `ciudad`, `estado`, `codigo_postal`
+- Address fields: `calle`, `numero_exterior`, `numero_interior`, `colonia`, `ciudad`, `estado`, `cp`
 - `ocupacion` (string)
 - `estado_civil` (string)
-- `referencia` (string, max 255 chars)
+- `referencia_como_nos_conocio` (string, max 255 chars)
 
 ### Allergy Fields
 
 **Required:**
-- `tipo` (enum: "Medicamento", "Alimento", "Ambiental", "Material", "Otro")
-- `nombre` (string, 1-100 chars)
+- `tipo_alergeno` (enum: "Medicamento", "Alimento", "Ambiental", "Material", "Otro")
+- `nombre_alergeno` (string, 1-100 chars)
 - `severidad` (enum: "Leve", "Moderada", "Grave", "Mortal")
 
 **Optional:**

@@ -78,7 +78,7 @@ def sample_paciente_data() -> Dict:
         "sexo": "M",
         "telefono_principal": "6861234567",
         "email": "juan.perez@email.com",
-        "curp": "PEGJ900515HDFRRN01",
+        "curp": "PEGC900515HDFRRN01",  # Updated to match Juan Carlos Pérez García
         "tipo_sangre": "O+",
         "estado_civil": "Soltero",
         "ocupacion": "Ingeniero",
@@ -89,10 +89,12 @@ def sample_paciente_data() -> Dict:
 @pytest.fixture
 def sample_cita_data() -> Dict:
     """Sample appointment data for testing"""
+    # Use dynamic date that's always 7 days in the future
+    future_date = (datetime.now() + timedelta(days=7)).replace(hour=10, minute=0, second=0, microsecond=0)
     return {
         "id_paciente": 1,
         "id_podologo": 1,
-        "fecha_hora_inicio": "2025-12-26T10:00:00",
+        "fecha_hora_inicio": future_date.strftime("%Y-%m-%dT%H:%M:%S"),
         "tipo_cita": "Consulta",
         "motivo_consulta": "Dolor en pie derecho",
         "notas_recepcion": "Primera vez"

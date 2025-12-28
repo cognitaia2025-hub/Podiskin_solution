@@ -44,6 +44,14 @@ pydantic-settings>=2.0.0
 python-multipart>=0.0.6  # Para file uploads
 
 # ============================================================================
+# AUTHENTICATION & SECURITY
+# ============================================================================
+python-jose[cryptography]>=3.3.0  # JWT tokens
+passlib[bcrypt]>=1.7.4  # Password hashing
+bcrypt>=4.0.0  # Bcrypt backend
+slowapi>=0.1.9  # Rate limiting
+
+# ============================================================================
 # CONFIGURATION & ENV
 # ============================================================================
 python-dotenv>=1.0.0

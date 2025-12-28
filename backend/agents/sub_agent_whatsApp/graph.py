@@ -338,7 +338,7 @@ async def resume_agent_with_admin_reply(
     """
     Reanuda el agente después de que el administrador ha respondido.
 
-    Este método implementa el patrón de resume después de un interrupt.
+    Este método implementa el patrón de resume después de un escalamiento.
     Se usa cuando el grafo se pausó esperando respuesta del admin.
 
     Args:
@@ -366,23 +366,23 @@ async def resume_agent_with_admin_reply(
         # Obtener estado actual del checkpointer
         current_state = whatsapp_agent.get_state(config)
 
-        if not current_state:
+        if not current_state or not current_state.values:
             logger.error(f"No se encontró estado para thread_id: {thread_id}")
             raise ValueError(f"Thread {thread_id} no encontrado en checkpointer")
 
         # Crear estado de reanudación con la respuesta del admin
+        # Inyectamos los campos necesarios para que post_process_escalation
+        # detecte que se está reanudando con respuesta del admin
         resume_state = {
+            **current_state.values,
             "admin_reply": admin_reply,
             "escalation_ticket_id": ticket_id,
             "requires_human": False,  # Ya no requiere humano porque ya respondió
         }
 
-        # Reanudar el grafo con Command
-        from langgraph.types import Command
-
-        result = await whatsapp_agent.ainvoke(
-            Command(resume=resume_state), config=config
-        )
+        # Reanudar el grafo ejecutándolo con el estado actualizado
+        # El checkpointer se encarga de mantener el historial
+        result = await whatsapp_agent.ainvoke(resume_state, config=config)
 
         logger.info(f"Agente reanudado exitosamente (thread: {thread_id})")
 

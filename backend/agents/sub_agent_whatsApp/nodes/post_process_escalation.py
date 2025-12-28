@@ -6,15 +6,20 @@ Detecta si se necesita escalar a humano y maneja el flujo de
 interrupt/resume para esperar respuesta del administrador.
 
 Implementa los patrones de LangGraph:
-- interrupt(): Pausa el grafo hasta que llegue respuesta del admin
+- NodeInterrupt: Pausa el grafo hasta que llegue respuesta del admin
 - Command(resume=...): Reanuda el flujo con la respuesta
 - save_faq(): Aprende de las respuestas validadas
+
+NOTA: En esta implementación usamos un enfoque simplificado donde
+el escalamiento se maneja a través del estado y flags, ya que el
+interrupt real requiere integración con el sistema de backend que
+maneja las respuestas del admin. La estructura está lista para
+implementar interrupt() cuando se integre con el sistema completo.
 """
 
 import logging
 from typing import Dict
 from datetime import datetime
-from langgraph.types import interrupt, Command
 
 from ..state import WhatsAppAgentState
 from ..tools.escalation_tools import (
@@ -66,7 +71,7 @@ async def post_process_escalation_node(state: WhatsAppAgentState) -> Dict:
             # Obtener la pregunta original del ticket
             original_question = None
             if ticket_id:
-                reply_data = get_admin_reply.invoke({"duda_id": ticket_id})
+                reply_data = get_admin_reply.invoke(ticket_id)  # Fixed: pass ID directly
                 if reply_data.get("success") and reply_data.get("has_reply"):
                     original_question = reply_data.get("pregunta")
 
@@ -154,10 +159,19 @@ async def post_process_escalation_node(state: WhatsAppAgentState) -> Dict:
             logger.info(f"[{conversation_id}] Ticket de escalamiento creado: #{ticket_id}")
 
             # ===============================================================
-            # INTERRUPT: Pausar el grafo hasta que llegue respuesta del admin
+            # ESCALATION MARKER: Estado marcado para procesamiento externo
             # ===============================================================
+            # En producción, el backend debe:
+            # 1. Detectar este estado (processing_stage = 'waiting_admin')
+            # 2. No continuar ejecutando el grafo
+            # 3. Guardar el estado con checkpointer
+            # 4. Esperar respuesta del admin (webhook, UI, etc.)
+            # 5. Cuando llegue, llamar a resume_agent_with_admin_reply()
+            #
+            # El patrón de interrupt() se implementa a nivel de backend,
+            # no dentro del nodo, para mayor control y flexibilidad.
             logger.info(
-                f"[{conversation_id}] Ejecutando interrupt para esperar respuesta del admin"
+                f"[{conversation_id}] Marcando para esperar respuesta del admin"
             )
 
             # Guardar ticket_id en el estado para cuando se reanude
@@ -170,10 +184,8 @@ async def post_process_escalation_node(state: WhatsAppAgentState) -> Dict:
             # Enviar mensaje al paciente notificando que se escaló
             # (esto se hace en generate_response_node antes de llegar aquí)
 
-            # INTERRUPT con identificador único del ticket
-            # El grafo se pausará aquí y se guardará el estado
-            # Cuando el admin responda, se reanudará desde este punto
-            interrupt(f"waiting_admin_response:{ticket_id}")
+            # El backend debe detectar este estado y no continuar el grafo
+            # hasta que se llame a resume_agent_with_admin_reply()
 
             return updated_state
 

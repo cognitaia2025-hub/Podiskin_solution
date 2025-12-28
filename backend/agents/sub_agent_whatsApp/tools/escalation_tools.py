@@ -182,10 +182,12 @@ def save_faq_to_knowledge_base(
     logger.info(f"Guardando FAQ en knowledge base: {pregunta[:50]}...")
 
     try:
-        # Usar la función existente de knowledge_tools
+        # Usar la función existente de knowledge_tools (no es un @tool, es función regular)
+        # Por eso se llama directamente sin .invoke()
         kb_id = save_to_knowledge_base(pregunta, respuesta, categoria)
 
-        # Registrar auditoría
+        # Registrar auditoría y actualizar duda como aprendida
+        # Usamos una sola conexión para todas las operaciones relacionadas
         conn = _get_connection()
         try:
             with conn.cursor() as cur:

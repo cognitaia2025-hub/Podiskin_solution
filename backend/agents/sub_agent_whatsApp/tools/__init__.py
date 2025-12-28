@@ -27,6 +27,8 @@ from .query_tools import (
 
 from .escalation_tools import (
     escalate_question_to_admin,
+    get_admin_reply,
+    save_faq_to_knowledge_base,
 )
 
 from .knowledge_tools import (
@@ -50,6 +52,8 @@ __all__ = [
     "search_treatment",
     # Escalation tools
     "escalate_question_to_admin",
+    "get_admin_reply",
+    "save_faq_to_knowledge_base",
     # Knowledge base tools
     "search_knowledge_base",
 ]

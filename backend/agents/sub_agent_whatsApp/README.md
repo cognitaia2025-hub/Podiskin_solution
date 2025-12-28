@@ -9,6 +9,19 @@ Agente conversacional para atención al cliente via WhatsApp, construido con Lan
 - **Agendamiento de citas** - Flujo conversacional para agendar citas
 - **Consulta de tratamientos** - Información desde base de datos PostgreSQL
 - **Análisis de sentimiento** - Detecta urgencias y ajusta el tono
+- **🆕 Persistencia con Checkpointer** - Estado persistente para reanudar conversaciones
+- **🆕 Escalamiento con Interrupt/Resume** - Pausa el grafo hasta que el admin responda
+- **🆕 Aprendizaje Automático** - Guarda FAQs aprendidas de respuestas del admin
+- **🆕 Auditoría Completa** - Registra todas las operaciones críticas
+
+## 🎯 Patrones LangGraph Implementados
+
+✅ **Persistencia** - MemorySaver/PostgresSaver para guardar estado  
+✅ **Escalamiento** - interrupt() para pausar hasta respuesta del admin  
+✅ **Aprendizaje** - save_faq() automático después de escalamiento  
+✅ **Auditoría** - Registro completo en audit_logs  
+
+Ver documentación completa en: [`PATRONES_LANGGRAPH.md`](./PATRONES_LANGGRAPH.md)
 
 ## 📁 Estructura
 
@@ -57,12 +70,34 @@ clinic_address = "Av. Electricistas 1978, Col. Libertad, Mexicali B.C."
 
 ## 🧪 Probar el agente
 
+### Demostración de Flujos Completos
+
+```bash
+# Ver demostración interactiva de los flujos implementados
+python backend/agents/sub_agent_whatsApp/ejemplo_flujo_completo.py
+```
+
+Esta demostración muestra:
+1. Flujo normal con FAQ hit
+2. Flujo escalado con interrupt/resume
+3. Consulta similar después del aprendizaje
+4. Código real de uso
+
+### Simulador de Chat
+
 ```bash
 # Activar entorno virtual
 .\venv\Scripts\Activate.ps1
 
 # Ejecutar simulador de chat
 python chat_simulator.py
+```
+
+### Tests
+
+```bash
+# Ejecutar tests
+pytest backend/agents/sub_agent_whatsApp/tests/ -v
 ```
 
 ### Comandos del simulador

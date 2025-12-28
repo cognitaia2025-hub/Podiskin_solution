@@ -225,11 +225,25 @@ def create_whatsapp_graph(checkpointer=None) -> StateGraph:
 # INSTANCIA GLOBAL DEL GRAFO
 # ============================================================================
 
-# Nota: PostgresSaver requiere ser usado como context manager async
-# Por ahora, ejecutamos sin checkpointer para simplificar
-# TODO: Implementar checkpointer correctamente con async context manager
-checkpointer = None
-logger.info("Running without checkpointer (persistence disabled for now)")
+# Para persistencia, se recomienda usar PostgresSaver o MemorySaver
+# En producción, usar PostgresSaver con la BD de la aplicación
+# Para desarrollo/testing, usar MemorySaver
+
+# Opción 1: Sin persistencia (para pruebas rápidas)
+# checkpointer = None
+
+# Opción 2: MemorySaver (para desarrollo - persiste solo en memoria)
+from langgraph.checkpoint.memory import MemorySaver
+
+checkpointer = MemorySaver()
+logger.info("Using MemorySaver for checkpointing (development mode)")
+
+# Opción 3: PostgresSaver (para producción - requiere async context manager)
+# from langgraph.checkpoint.postgres import PostgresSaver
+# import os
+# database_url = os.getenv("DATABASE_URL")
+# # Nota: PostgresSaver se debe usar con async context manager
+# # Ver ejemplo en ejemplo de uso o en la documentación
 
 # Crear grafo global
 whatsapp_agent = create_whatsapp_graph(checkpointer=checkpointer)
@@ -316,3 +330,87 @@ async def stream_agent(state: WhatsAppAgentState, thread_id: str = None):
             f"[{conversation_id}] Error streaming agent: {str(e)}", exc_info=True
         )
         raise
+
+
+async def resume_agent_with_admin_reply(
+    thread_id: str, admin_reply: str, ticket_id: int
+) -> WhatsAppAgentState:
+    """
+    Reanuda el agente después de que el administrador ha respondido.
+
+    Este método implementa el patrón de resume después de un escalamiento.
+    Se usa cuando el grafo se pausó esperando respuesta del admin.
+
+    Args:
+        thread_id: ID del thread pausado
+        admin_reply: Respuesta del administrador
+        ticket_id: ID del ticket de escalamiento
+
+    Returns:
+        Estado final después de reanudar el grafo
+
+    Ejemplo de uso:
+        >>> # Cuando el admin responde vía webhook o UI:
+        >>> result = await resume_agent_with_admin_reply(
+        ...     thread_id="conv_123",
+        ...     admin_reply="Sí, realizamos ese tratamiento",
+        ...     ticket_id=456
+        ... )
+    """
+    logger.info(f"Reanudando agente con respuesta de admin (ticket #{ticket_id})")
+
+    try:
+        # Configuración del thread
+        config = {"configurable": {"thread_id": thread_id}}
+
+        # Obtener estado actual del checkpointer
+        current_state = whatsapp_agent.get_state(config)
+
+        if not current_state or not current_state.values:
+            logger.error(f"No se encontró estado para thread_id: {thread_id}")
+            raise ValueError(f"Thread {thread_id} no encontrado en checkpointer")
+
+        # Crear estado de reanudación con la respuesta del admin
+        # Inyectamos los campos necesarios para que post_process_escalation
+        # detecte que se está reanudando con respuesta del admin
+        resume_state = {
+            **current_state.values,
+            "admin_reply": admin_reply,
+            "escalation_ticket_id": ticket_id,
+            "requires_human": False,  # Ya no requiere humano porque ya respondió
+        }
+
+        # Reanudar el grafo ejecutándolo con el estado actualizado
+        # El checkpointer se encarga de mantener el historial
+        result = await whatsapp_agent.ainvoke(resume_state, config=config)
+
+        logger.info(f"Agente reanudado exitosamente (thread: {thread_id})")
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            f"Error reanudando agente (thread: {thread_id}): {str(e)}", exc_info=True
+        )
+        raise
+
+
+async def get_agent_state(thread_id: str) -> dict:
+    """
+    Obtiene el estado actual de un thread del agente.
+
+    Útil para verificar si un agente está pausado esperando respuesta.
+
+    Args:
+        thread_id: ID del thread
+
+    Returns:
+        Estado actual del agente o None si no existe
+    """
+    try:
+        config = {"configurable": {"thread_id": thread_id}}
+        state = whatsapp_agent.get_state(config)
+        return state
+    except Exception as e:
+        logger.error(f"Error obteniendo estado del thread {thread_id}: {e}")
+        return None

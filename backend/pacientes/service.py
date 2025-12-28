@@ -328,15 +328,8 @@ class PacientesService:
         
         update_data = paciente.model_dump(exclude_unset=True, by_alias=True)
         
-        # Map any aliased fields back to DB columns
-        field_mapping = {
-            "cp": "cp",
-            "referencia_como_nos_conocio": "referencia_como_nos_conocio"
-        }
-        
         for field, value in update_data.items():
-            db_field = field_mapping.get(field, field)
-            update_fields.append(f"{db_field} = ${param_count}")
+            update_fields.append(f"{field} = ${param_count}")
             params.append(value)
             param_count += 1
         

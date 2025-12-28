@@ -154,6 +154,12 @@ class WhatsAppAgentState(TypedDict):
     escalation_reason: Optional[str]
     """Razón del escalamiento si requires_human=True"""
 
+    escalation_ticket_id: Optional[int]
+    """ID del ticket de escalamiento creado (para interrupt/resume)"""
+
+    admin_reply: Optional[str]
+    """Respuesta del administrador (cuando se reanuda el flujo)"""
+
     # ========================================================================
     # GESTIÓN DE CITAS
     # ========================================================================
@@ -268,6 +274,8 @@ def create_initial_state(
         next_action="",
         requires_human=False,
         escalation_reason=None,
+        escalation_ticket_id=None,
+        admin_reply=None,
         # Gestión de citas
         pending_appointment=None,
         suggested_slots=[],

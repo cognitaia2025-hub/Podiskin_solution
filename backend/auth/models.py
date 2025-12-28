@@ -29,9 +29,9 @@ class LoginRequest(BaseModel):
     
     @validator('username')
     def validate_username(cls, v):
-        """Valida que el username solo contenga caracteres alfanuméricos y guiones bajos"""
-        if not re.match(r'^[a-zA-Z0-9_]+$', v):
-            raise ValueError('El nombre de usuario solo puede contener letras, números y guiones bajos')
+        """Valida que el username solo contenga caracteres alfanuméricos, guiones bajos y puntos"""
+        if not re.match(r'^[a-zA-Z0-9_.]+$', v):
+            raise ValueError('El nombre de usuario solo puede contener letras, números, guiones bajos y puntos')
         return v
     
     class Config:

@@ -16,7 +16,7 @@ from pathlib import Path
 backend_dir = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_dir))
 
-from tratamientos.router import calcular_imc
+from tratamientos import service
 
 
 def test_calculo_imc():
@@ -41,7 +41,8 @@ def test_calculo_imc():
         talla = caso["talla"]
         esperado = caso["esperado"]
         
-        imc, clasificacion = calcular_imc(peso, talla)
+        imc = service.calcular_imc(peso, talla)
+        clasificacion = service.clasificar_imc(imc)
         
         print(f"Caso {i}:")
         print(f"  Peso: {peso} kg")

@@ -1,24 +1,4 @@
 """
-
-Aplicación FastAPI principal con autenticación integrada.
-
-Para ejecutar:
-    uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-"""
-
-import os
-import logging
-from fastapi import FastAPI, Depends
-from fastapi.middleware.cors import CORSMiddleware
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
-
-# Import auth module
-from .auth import router as auth_router
-from .auth import get_current_user, require_podologo, CurrentUser
-
-# Configure logging
 Podoskin Solution - Backend API
 
 Aplicación principal FastAPI con autenticación.
@@ -33,6 +13,11 @@ from dotenv import load_dotenv
 
 # Importar módulo de autenticación
 from auth import auth_router, init_db_pool, close_db_pool, get_current_user, User
+
+# Importar routers de módulos principales
+from pacientes import router as pacientes_router
+from citas import router as citas_router
+from tratamientos import router as tratamientos_router
 
 # Cargar variables de entorno
 load_dotenv()
@@ -91,6 +76,9 @@ app.add_middleware(
 
 # Incluir routers
 app.include_router(auth_router)
+app.include_router(pacientes_router)
+app.include_router(citas_router, prefix="/citas", tags=["Citas"])
+app.include_router(tratamientos_router)
 
 
 # ============================================================================

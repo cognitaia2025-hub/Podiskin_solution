@@ -9,9 +9,9 @@ from fastapi import HTTPException, status, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 
-from .utils import decode_token
-from .database import get_user_by_username
-from .models import CurrentUser
+from .jwt_handler import verify_token
+from .database import get_user_by_username, is_user_active
+from .models import User, TokenData
 
 logger = logging.getLogger(__name__)
 
@@ -22,48 +22,6 @@ security = HTTPBearer()
 # ============================================================================
 # AUTHENTICATION MIDDLEWARE
 # ============================================================================
-
-async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security)
-) -> CurrentUser:
-    """
-    Middleware de autenticación - Verifica JWT y obtiene usuario actual
-    
-    Args:
-        credentials: Credenciales HTTP Bearer
-        
-    Returns:
-        Usuario actual autenticado
-        
-    Raises:
-        HTTPException: 401 si el token es inválido o expirado
-        HTTPException: 403 si el usuario está inactivo
-    """
-    # Extraer token
-    token = credentials.credentials
-    
-    # Decodificar token
-    payload = decode_token(token)
-    if not payload:
-Authentication Middleware
-
-Middleware para validar JWT tokens y obtener el usuario actual.
-"""
-
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from typing import Optional
-import logging
-
-from .jwt_handler import verify_token
-from .models import User, TokenData
-from .database import get_user_by_username, is_user_active
-
-logger = logging.getLogger(__name__)
-
-# Security scheme para Bearer token
-security = HTTPBearer()
-
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security)
@@ -104,22 +62,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    # Extraer username del payload
-    username: str = payload.get("sub")
-    if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token inválido: falta username",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
-    # Obtener usuario de BD
-    user_data = get_user_by_username(username)
-    if not user_data:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Usuario no encontrado",
-            headers={"WWW-Authenticate": "Bearer"},
     # Extraer username del token
     username: str = payload.get("sub")
     if username is None:
@@ -147,17 +89,8 @@ async def get_current_user(
             detail="Usuario inactivo"
         )
     
-    # Crear objeto CurrentUser
-    current_user = CurrentUser(
-        id=user_data["id"],
-        username=user_data["username"],
-        email=user_data["email"],
-        rol=user_data["rol"],
-        nombre_completo=user_data["nombre_completo"],
-        activo=user_data["activo"]
-    )
-    
-    return current_user
+    # Crear objeto User
+    return User(**user_data)
 
 
 # ============================================================================
@@ -178,7 +111,7 @@ class RoleChecker:
         """
         self.allowed_roles = allowed_roles
     
-    async def __call__(self, current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    async def __call__(self, current_user: User = Depends(get_current_user)) -> User:
         """
         Verifica que el usuario tenga uno de los roles permitidos
         
@@ -234,7 +167,7 @@ def require_any_authenticated():
 
 async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-) -> Optional[CurrentUser]:
+) -> Optional[User]:
     """
     Middleware de autenticación opcional
     
@@ -253,10 +186,7 @@ async def get_current_user_optional(
     try:
         return await get_current_user(credentials)
     except HTTPException:
-    # Crear objeto User
-    user = User(**user_data)
-    
-    return user
+        return None
 
 
 async def get_current_active_user(

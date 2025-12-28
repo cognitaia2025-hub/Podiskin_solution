@@ -2,6 +2,7 @@
 Modelos Pydantic para Autenticación
 ====================================
 
+Modelos de datos para endpoints de autenticación y autorización.
 Modelos para request/response de autenticación y usuarios.
 """
 

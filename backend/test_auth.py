@@ -1,6 +1,7 @@
 """
+
+Script de prueba para verificar el funcionamiento del sistema de auth.
 Test de Autenticación - Podoskin Solution
-==========================================
 
 Script de prueba para verificar el sistema de autenticación.
 """

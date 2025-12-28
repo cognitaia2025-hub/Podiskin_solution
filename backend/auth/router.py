@@ -1,6 +1,25 @@
 """
+
+Endpoints REST para autenticación de usuarios.
+"""
+
+from fastapi import APIRouter, HTTPException, status, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+import logging
+
+from .models import LoginRequest, LoginResponse, UserResponse
+from .utils import verify_password, create_access_token
+from .database import get_user_by_username, update_last_login
+
+logger = logging.getLogger(__name__)
+
+# Router
+router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+# Rate limiter
+limiter = Limiter(key_func=get_remote_address)
 Authentication Router
-=====================
 
 Endpoints REST para autenticación (login, logout, etc.).
 """

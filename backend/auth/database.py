@@ -8,7 +8,7 @@ Funciones para acceso a datos de usuarios.
 import os
 import logging
 from typing import Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -96,7 +96,7 @@ def update_last_login(user_id: int) -> bool:
                 SET ultimo_login = %s
                 WHERE id = %s
                 """,
-                (datetime.utcnow(), user_id)
+                (datetime.now(timezone.utc), user_id)
             )
             conn.commit()
             return True

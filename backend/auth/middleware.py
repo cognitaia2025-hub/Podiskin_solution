@@ -111,7 +111,7 @@ class RoleChecker:
         """
         self.allowed_roles = allowed_roles
     
-    async def __call__(self, current_user: CurrentUser = Depends(get_current_user)) -> CurrentUser:
+    async def __call__(self, current_user: User = Depends(get_current_user)) -> User:
         """
         Verifica que el usuario tenga uno de los roles permitidos
         

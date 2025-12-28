@@ -48,8 +48,7 @@ python-multipart>=0.0.6  # Para file uploads
 # ============================================================================
 python-jose[cryptography]>=3.3.0  # JWT tokens
 passlib[bcrypt]>=1.7.4  # Password hashing
-bcrypt>=4.0.0  # Bcrypt backend
-slowapi>=0.1.9  # Rate limiting
+bcrypt>=4.0.0  # Password hashing backend
 
 # ============================================================================
 # CONFIGURATION & ENV

@@ -3,6 +3,7 @@ Modelos Pydantic para Autenticación
 ====================================
 
 Modelos de datos para endpoints de autenticación y autorización.
+Modelos para request/response de autenticación y usuarios.
 """
 
 from pydantic import BaseModel, Field, validator
@@ -12,7 +13,7 @@ import re
 
 
 class LoginRequest(BaseModel):
-    """Request para login de usuario"""
+    """Modelo para request de login"""
     
     username: str = Field(
         ...,
@@ -29,49 +30,119 @@ class LoginRequest(BaseModel):
     
     @validator('username')
     def validate_username(cls, v):
-        """Valida formato del username"""
+        """Valida que el username solo contenga caracteres alfanuméricos, guiones bajos y puntos"""
         if not re.match(r'^[a-zA-Z0-9_.]+$', v):
-            raise ValueError('Username debe contener solo caracteres alfanuméricos, puntos y guiones bajos')
+            raise ValueError('El nombre de usuario solo puede contener letras, números, guiones bajos y puntos')
         return v
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "username": "dr.santiago",
+                "password": "password123"
+            }
+        }
 
 
 class UserResponse(BaseModel):
-    """Información del usuario en respuesta"""
+    """Modelo de datos del usuario en la respuesta"""
     
     id: int
     username: str
     email: str
     rol: str
     nombre_completo: str
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "username": "dr.santiago",
+                "email": "santiago@podoskin.com",
+                "rol": "Podologo",
+                "nombre_completo": "Dr. Santiago Ornelas"
+            }
+        }
 
 
 class LoginResponse(BaseModel):
-    """Response para login exitoso"""
+    """Modelo para response de login exitoso"""
     
-    access_token: str
-    token_type: str = "bearer"
-    expires_in: int = 3600
-    user: UserResponse
-
-
-class TokenPayload(BaseModel):
-    """Payload del JWT token"""
+    access_token: str = Field(..., description="JWT access token")
+    token_type: str = Field(default="bearer", description="Tipo de token")
+    expires_in: int = Field(default=3600, description="Tiempo de expiración en segundos")
+    user: UserResponse = Field(..., description="Datos del usuario autenticado")
     
-    sub: str  # username
-    rol: str
-    exp: int  # expiration timestamp
-    iat: int  # issued at timestamp
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "token_type": "bearer",
+                "expires_in": 3600,
+                "user": {
+                    "id": 1,
+                    "username": "dr.santiago",
+                    "email": "santiago@podoskin.com",
+                    "rol": "Podologo",
+                    "nombre_completo": "Dr. Santiago Ornelas"
+                }
+            }
+        }
 
 
-class CurrentUser(BaseModel):
-    """Usuario actual autenticado"""
+class TokenData(BaseModel):
+    """Modelo para datos contenidos en el JWT token"""
+    
+    sub: str = Field(..., description="Subject (username)")
+    rol: str = Field(..., description="Rol del usuario")
+    exp: int = Field(..., description="Timestamp de expiración")
+    iat: int = Field(..., description="Timestamp de emisión")
+
+
+class User(BaseModel):
+    """Modelo completo de usuario (para uso interno)"""
     
     id: int
-    username: str
+    nombre_usuario: str
     email: str
     rol: str
     nombre_completo: str
     activo: bool
+    ultimo_login: Optional[datetime] = None
+    fecha_registro: Optional[datetime] = None
+    password_hash: Optional[str] = None  # Solo para verificación interna
     
     class Config:
-        from_attributes = True
+        from_attributes = True  # Para Pydantic v2 (antes era orm_mode)
+
+
+class ErrorResponse(BaseModel):
+    """Modelo para respuestas de error"""
+    
+    detail: str = Field(..., description="Mensaje de error")
+    error_code: str = Field(..., description="Código de error")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "detail": "Credenciales incorrectas",
+                "error_code": "AUTH_INVALID_CREDENTIALS"
+            }
+        }
+
+
+class RateLimitResponse(BaseModel):
+    """Modelo para respuesta de rate limit excedido"""
+    
+    detail: str = Field(..., description="Mensaje de error")
+    error_code: str = Field(default="RATE_LIMIT_EXCEEDED", description="Código de error")
+    retry_after: int = Field(..., description="Segundos para reintentar")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "detail": "Demasiados intentos. Espere 60 segundos",
+                "error_code": "RATE_LIMIT_EXCEEDED",
+                "retry_after": 60
+            }
+        }

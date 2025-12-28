@@ -230,17 +230,13 @@ async def verificar_conflicto_horario(
         SELECT id FROM citas
         WHERE id_podologo = %s
         AND estado NOT IN ('Cancelada', 'No_Asistio')
-        AND (
-            (fecha_hora_inicio < %s AND fecha_hora_fin > %s)
-            OR (fecha_hora_inicio < %s AND fecha_hora_fin > %s)
-            OR (fecha_hora_inicio >= %s AND fecha_hora_fin <= %s)
-        )
+        AND fecha_hora_inicio < %s
+        AND fecha_hora_fin > %s
     """
     params = [
         id_podologo,
-        fecha_hora_fin, fecha_hora_inicio,  # Conflicto: la cita existente termina después de que inicia la nueva
-        fecha_hora_fin, fecha_hora_inicio,  # Conflicto: la cita existente inicia antes de que termine la nueva
-        fecha_hora_inicio, fecha_hora_fin    # Conflicto: la cita existente está completamente contenida
+        fecha_hora_fin,      # La cita existente inicia antes de que termine la nueva
+        fecha_hora_inicio    # La cita existente termina después de que inicie la nueva
     ]
     
     if excluir_cita_id:
@@ -528,7 +524,6 @@ async def actualizar_cita(
     # Construir la actualización dinámicamente
     updates = []
     params = []
-    param_count = 1
     
     if fecha_hora_inicio is not None:
         # Validar fecha futura
@@ -547,33 +542,27 @@ async def actualizar_cita(
         ):
             raise ValueError("Conflicto de horario: el podólogo ya tiene una cita en ese horario")
         
-        updates.append(f"fecha_hora_inicio = %s")
+        updates.append("fecha_hora_inicio = %s")
         params.append(fecha_hora_inicio)
-        param_count += 1
         
-        updates.append(f"fecha_hora_fin = %s")
+        updates.append("fecha_hora_fin = %s")
         params.append(fecha_hora_fin)
-        param_count += 1
     
     if tipo_cita is not None:
-        updates.append(f"tipo_cita = %s")
+        updates.append("tipo_cita = %s")
         params.append(tipo_cita)
-        param_count += 1
     
     if motivo_consulta is not None:
-        updates.append(f"motivo_consulta = %s")
+        updates.append("motivo_consulta = %s")
         params.append(motivo_consulta)
-        param_count += 1
     
     if notas_recepcion is not None:
-        updates.append(f"notas_recepcion = %s")
+        updates.append("notas_recepcion = %s")
         params.append(notas_recepcion)
-        param_count += 1
     
     if estado is not None:
-        updates.append(f"estado = %s")
+        updates.append("estado = %s")
         params.append(estado)
-        param_count += 1
     
     if not updates:
         # No hay nada que actualizar

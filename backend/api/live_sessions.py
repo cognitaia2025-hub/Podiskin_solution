@@ -32,7 +32,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/live", tags=["live_sessions"])
 
-# In-memory session store (use Redis in production for scalability)
+# In-memory session store
+# TODO: Replace with Redis for production to support horizontal scaling and persistence
+# Migration path: Use Redis with same data structure, add TTL on keys
 active_sessions: Dict[str, Dict[str, Any]] = {}
 
 # Session configuration
@@ -55,11 +57,6 @@ class SessionStartResponse(BaseModel):
     token: str = Field(..., description="Token efímero para la sesión")
     sessionId: str = Field(..., description="ID único de la sesión")
     expiresAt: datetime = Field(..., description="Timestamp de expiración UTC")
-
-
-class SessionStopRequest(BaseModel):
-    """Request to stop an active session"""
-    sessionId: str = Field(..., description="ID de la sesión a cerrar")
 
 
 class ToolCallRequest(BaseModel):
@@ -231,9 +228,9 @@ async def start_session(
     return session_token
 
 
-@router.post("/session/stop")
+@router.delete("/session/{session_id}")
 async def stop_session(
-    request: SessionStopRequest,
+    session_id: str,
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -245,13 +242,12 @@ async def stop_session(
     - Revokes token and cleans up resources
     
     Args:
-        request: Request with session ID to stop
+        session_id: Session ID to stop (path parameter)
         current_user: Authenticated user from JWT token
         
     Returns:
         Status message with session ID
     """
-    session_id = request.sessionId
     
     if session_id not in active_sessions:
         raise HTTPException(
@@ -294,7 +290,12 @@ async def stop_session(
 @router.post("/tool/call", response_model=ToolCallResponse)
 async def execute_tool_call(
     request: ToolCallRequest,
-    x_session_token: str = Header(..., description="Session token from X-Session-Token header"),
+    x_session_token: str = Header(
+        ..., 
+        description="Ephemeral session token for additional security. "
+                   "Obtained from /session/start endpoint. "
+                   "Client must send this custom header with each tool call."
+    ),
     current_user: User = Depends(get_current_user)
 ):
     """
@@ -305,10 +306,13 @@ async def execute_tool_call(
     - Orchestrator for COMPLEX functions requiring SubAgent processing
     
     Security:
-    - Requires valid JWT authentication
-    - Validates session token
+    - Requires valid JWT authentication (Authorization header)
+    - Requires valid session token (X-Session-Token header)
     - Validates session ownership
     - Audit logs all tool calls
+    
+    Custom Header Required:
+    - X-Session-Token: Ephemeral token from session/start response
     
     Function Classification:
     - SIMPLE: update_vital_signs, create_clinical_note, query_patient_data, 
@@ -317,7 +321,7 @@ async def execute_tool_call(
     
     Args:
         request: Tool call request with session, tool name, and arguments
-        x_session_token: Session token for validation
+        x_session_token: Session token for validation (X-Session-Token header)
         current_user: Authenticated user from JWT token
         
     Returns:
@@ -465,17 +469,23 @@ async def execute_simple_function(
     Returns:
         Dict with execution result
         
-    TODO: Implement actual REST endpoint calls for each function
+    NOTE: Current implementation returns mock data. 
+    TODO: Implement actual REST endpoint calls for each function:
+          - POST /api/patients/{patient_id}/vital-signs
+          - POST /api/appointments/{appointment_id}/clinical-note
+          - GET /api/patients/{patient_id}
+          - POST /api/patients/{patient_id}/allergies
+          - POST /api/appointments
     """
     patient_id = session['patient_id']
     appointment_id = session['appointment_id']
     user_id = session['user_id']
     
-    # TODO: Call actual REST endpoints for each function
-    # For now, return placeholder responses
+    # TODO: Replace mock responses with actual REST endpoint calls
     
     if function_name == "update_vital_signs":
         # TODO: Call POST /api/patients/{patient_id}/vital-signs
+        logger.warning(f"Mock response for {function_name} - implement actual endpoint")
         return {
             'data': {
                 'updated': True,
@@ -486,6 +496,7 @@ async def execute_simple_function(
     
     elif function_name == "create_clinical_note":
         # TODO: Call POST /api/appointments/{appointment_id}/clinical-note
+        logger.warning(f"Mock response for {function_name} - implement actual endpoint")
         return {
             'data': {
                 'note_id': str(uuid.uuid4()),
@@ -496,6 +507,7 @@ async def execute_simple_function(
     
     elif function_name == "query_patient_data":
         # TODO: Call GET /api/patients/{patient_id}
+        logger.warning(f"Mock response for {function_name} - implement actual endpoint")
         return {
             'data': {
                 'patient_id': patient_id,
@@ -506,6 +518,7 @@ async def execute_simple_function(
     
     elif function_name == "add_allergy":
         # TODO: Call POST /api/patients/{patient_id}/allergies
+        logger.warning(f"Mock response for {function_name} - implement actual endpoint")
         return {
             'data': {
                 'allergy_id': str(uuid.uuid4()),
@@ -525,6 +538,7 @@ async def execute_simple_function(
     
     elif function_name == "schedule_followup":
         # TODO: Call POST /api/appointments
+        logger.warning(f"Mock response for {function_name} - implement actual endpoint")
         return {
             'data': {
                 'appointment_id': str(uuid.uuid4()),

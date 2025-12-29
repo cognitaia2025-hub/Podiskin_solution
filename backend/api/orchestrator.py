@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 
-from backend.agents.orchestrator import execute_orchestrator
+from agents.orchestrator import execute_orchestrator
 
 router = APIRouter(prefix="/api/orchestrator", tags=["orchestrator"])
 

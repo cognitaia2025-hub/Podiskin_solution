@@ -26,8 +26,7 @@ import logging
 from auth import get_current_user, User
 
 # Import orchestrator for complex functions
-from backend.agents.orchestrator.graph import execute_orchestrator
-from backend.agents.orchestrator.config import SIMPLE_FUNCTIONS, COMPLEX_FUNCTIONS_MAPPING
+from agents.orchestrator import execute_orchestrator, SIMPLE_FUNCTIONS, COMPLEX_FUNCTIONS_MAPPING
 
 logger = logging.getLogger(__name__)
 

@@ -179,3 +179,52 @@ async def clean_database(db_session):
     """
     # TODO: Implement database cleanup
     pass
+
+
+@pytest.fixture
+def test_patient_id() -> int:
+    """Test patient ID fixture"""
+    return 1
+
+
+@pytest.fixture
+def test_appointment_id() -> int:
+    """Test appointment ID fixture"""
+    return 1
+
+
+@pytest.fixture
+def sample_tratamiento_data() -> Dict:
+    """Sample treatment data for testing"""
+    return {
+        "id_paciente": 1,
+        "id_podologo": 1,
+        "tipo_tratamiento": "Consulta general",
+        "descripcion": "Tratamiento de fascitis plantar",
+        "duracion_minutos": 45,
+        "costo": 800.00,
+        "notas": "Aplicar hielo después del tratamiento"
+    }
+
+
+@pytest.fixture
+def sample_session_data() -> Dict:
+    """Sample voice session data for testing"""
+    return {
+        "patientId": "1",
+        "appointmentId": "1",
+        "userId": "1"
+    }
+
+
+@pytest.fixture
+def sample_tool_call_data() -> Dict:
+    """Sample tool call data for testing"""
+    return {
+        "sessionId": "test-session-id",
+        "toolName": "query_patient_data",
+        "args": {
+            "patient_id": "1",
+            "field": "nombre"
+        }
+    }

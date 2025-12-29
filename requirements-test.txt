@@ -1,0 +1,138 @@
+# Requirements for Testing - Podoskin Solution Backend
+# =====================================================
+# Este archivo contiene todas las dependencias necesarias para ejecutar tests
+
+# ============================================================================
+# TESTING FRAMEWORKS
+# ============================================================================
+pytest==7.4.3                  # Framework de testing principal
+pytest-asyncio==0.21.1         # Soporte para tests async/await
+pytest-cov==4.1.0              # Cobertura de código
+pytest-mock==3.12.0            # Mocking utilities
+pytest-httpx==0.21.0           # Mocking para cliente HTTP async
+pytest-timeout==2.2.0          # Timeout para tests largos
+
+# ============================================================================
+# HTTP CLIENTS (for testing)
+# ============================================================================
+httpx==0.25.2                  # Cliente HTTP async para tests
+requests==2.31.0               # Cliente HTTP sync (backup)
+
+# ============================================================================
+# DATA GENERATION
+# ============================================================================
+faker==20.1.0                  # Datos falsos realistas
+factory-boy==3.3.0             # Factories para modelos de datos
+
+# ============================================================================
+# MOCKING & TESTING UTILITIES
+# ============================================================================
+responses==0.24.1              # Mock para requests HTTP
+freezegun==1.4.0               # Mock para datetime/timezone
+pytest-freezegun==0.4.2        # Integración freezegun con pytest
+
+# ============================================================================
+# DATABASE TESTING
+# ============================================================================
+pytest-postgresql==5.0.0       # PostgreSQL test fixtures
+testing.postgresql==1.3.0      # PostgreSQL temporal para tests
+
+# ============================================================================
+# ASYNC TESTING
+# ============================================================================
+anyio==4.2.0                   # Backend async para asyncio y trio
+trio==0.24.0                   # Async framework alternativo
+
+# ============================================================================
+# CODE QUALITY & LINTING (dev dependencies)
+# ============================================================================
+black==23.12.1                 # Formateador de código
+flake8==7.0.0                  # Linter
+mypy==1.7.1                    # Type checker
+isort==5.13.2                  # Ordenador de imports
+pylint==3.0.3                  # Linter avanzado
+
+# ============================================================================
+# COVERAGE REPORTING
+# ============================================================================
+coverage[toml]==7.4.0          # Cobertura de código
+coverage-badge==1.1.0          # Badge de cobertura
+
+# ============================================================================
+# DOCUMENTATION
+# ============================================================================
+sphinx==7.2.6                  # Generador de documentación
+sphinx-rtd-theme==2.0.0        # Tema Read the Docs
+
+# ============================================================================
+# DEPENDENCIES FROM MAIN BACKEND
+# ============================================================================
+# Nota: Estas son necesarias para ejecutar los tests
+# Duplicadas de backend/requirements.txt
+
+# FastAPI y dependencias
+fastapi==0.104.0
+uvicorn[standard]==0.24.0
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# Database
+asyncpg==0.29.0
+psycopg[binary]==3.1.0
+psycopg-pool==3.1.0
+
+# Authentication
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.1.2
+
+# LangChain y LangGraph
+langchain>=0.1.0
+langgraph>=0.0.20
+langchain-community>=0.0.20
+langchain-core>=0.1.0
+langchain-anthropic>=0.1.0
+
+# Utilities
+python-dotenv==1.0.0
+python-dateutil==2.8.2
+pytz==2024.1
+
+# ============================================================================
+# PERFORMANCE & MONITORING (optional for tests)
+# ============================================================================
+pytest-benchmark==4.0.0        # Benchmarking de tests
+pytest-xdist==3.5.0           # Ejecución paralela de tests
+
+# ============================================================================
+# DEBUGGING
+# ============================================================================
+ipdb==0.13.13                  # Debugger interactivo
+pytest-pdb==0.3.1              # Integración pdb con pytest
+
+# ============================================================================
+# REPORTING
+# ============================================================================
+pytest-html==4.1.1             # Reportes HTML
+pytest-json-report==1.5.0      # Reportes JSON
+allure-pytest==2.13.2          # Integración con Allure
+
+# ============================================================================
+# OPTIONAL: API DOCUMENTATION TESTING
+# ============================================================================
+# openapi-spec-validator==0.7.1  # Validación de OpenAPI specs
+# schemathesis==3.19.0          # Property-based testing para APIs
+
+# ============================================================================
+# NOTAS
+# ============================================================================
+# Para instalar todas las dependencias de testing:
+#   pip install -r requirements-test.txt
+#
+# Para instalar solo testing (sin dev tools):
+#   pip install pytest pytest-asyncio pytest-cov httpx faker
+#
+# Para ejecutar tests:
+#   pytest
+#   pytest --cov=backend --cov-report=html
+#   pytest -v -s tests/test_auth.py

@@ -57,13 +57,11 @@ export class SecureSessionService {
     }
 
     try {
-      await fetch(`${this.backendUrl}/api/live/session/stop`, {
-        method: 'POST',
+      await fetch(`${this.backendUrl}/api/live/session/${this.currentToken.sessionId}`, {
+        method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.getAuthToken()}`
-        },
-        body: JSON.stringify({ sessionId: this.currentToken.sessionId })
+        }
       });
     } catch (error) {
       console.error('Error stopping session:', error);

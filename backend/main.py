@@ -19,6 +19,9 @@ from pacientes import router as pacientes_router
 from citas import router as citas_router
 from tratamientos import router as tratamientos_router
 
+# Importar routers de API
+from api import live_sessions_router, orchestrator_router
+
 # Cargar variables de entorno
 load_dotenv()
 
@@ -79,6 +82,10 @@ app.include_router(auth_router)
 app.include_router(pacientes_router)
 app.include_router(citas_router, prefix="/citas", tags=["Citas"])
 app.include_router(tratamientos_router)
+
+# Incluir routers de API
+app.include_router(live_sessions_router)
+app.include_router(orchestrator_router)
 
 
 # ============================================================================

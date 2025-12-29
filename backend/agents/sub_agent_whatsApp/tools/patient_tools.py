@@ -246,3 +246,93 @@ async def register_patient(
     except Exception as e:
         logger.error(f"Error registering patient: {e}")
         return {"success": False, "error": str(e)}
+
+
+# Alias for create_patient as specified in problem statement
+create_patient = register_patient
+
+
+@tool
+async def get_patient_history(patient_id: int) -> Dict[str, Any]:
+    """
+    Obtiene el historial completo de citas de un paciente.
+
+    Args:
+        patient_id: ID del paciente
+
+    Returns:
+        Diccionario con el historial de citas del paciente
+    """
+    logger.info(f"Getting patient history: {patient_id}")
+
+    try:
+        # Verificar que el paciente existe
+        patient = await fetchrow(
+            "SELECT id, nombre_completo FROM pacientes WHERE id = %s", patient_id
+        )
+
+        if not patient:
+            return {"success": False, "error": "Paciente no encontrado"}
+
+        # Obtener historial completo de citas
+        history_query = """
+        SELECT 
+            c.id,
+            c.fecha_hora,
+            c.duracion_minutos,
+            c.estado,
+            c.tipo_servicio,
+            c.notas,
+            c.creada_por,
+            t.nombre_servicio,
+            t.precio_base
+        FROM citas c
+        LEFT JOIN tratamientos t ON c.tipo_servicio = t.nombre_servicio
+        WHERE c.id_paciente = %s
+        ORDER BY c.fecha_hora DESC
+        """
+        
+        history = await fetch(history_query, patient_id)
+
+        if not history:
+            return {
+                "success": True,
+                "patient_id": patient_id,
+                "patient_name": patient["nombre_completo"],
+                "total_appointments": 0,
+                "history": [],
+                "message": "No hay historial de citas para este paciente"
+            }
+
+        # Agrupar por estado
+        stats = {
+            "total": len(history),
+            "completadas": sum(1 for h in history if h["estado"] == "Completada"),
+            "canceladas": sum(1 for h in history if h["estado"] == "Cancelada"),
+            "programadas": sum(1 for h in history if h["estado"] == "Programada"),
+        }
+
+        return {
+            "success": True,
+            "patient_id": patient_id,
+            "patient_name": patient["nombre_completo"],
+            "total_appointments": len(history),
+            "statistics": stats,
+            "history": [
+                {
+                    "id": h["id"],
+                    "fecha": h["fecha_hora"].strftime("%Y-%m-%d"),
+                    "hora": h["fecha_hora"].strftime("%H:%M"),
+                    "estado": h["estado"],
+                    "servicio": h["tipo_servicio"],
+                    "duracion": f"{h['duracion_minutos']} min",
+                    "notas": h.get("notas"),
+                    "precio": f"${h['precio_base']:.0f} MXN" if h.get("precio_base") else None,
+                }
+                for h in history
+            ],
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting patient history: {e}")
+        return {"success": False, "error": str(e)}

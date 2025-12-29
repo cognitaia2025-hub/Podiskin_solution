@@ -48,6 +48,11 @@ from .metrics import (
     timed_node,
 )
 
+from .vector_store import (
+    VectorStore,
+    get_vector_store,
+)
+
 __all__ = [
     # Database
     "init_db_pool",
@@ -82,4 +87,7 @@ __all__ = [
     "MetricsCollector",
     "get_metrics_collector",
     "timed_node",
+    # Vector Store
+    "VectorStore",
+    "get_vector_store",
 ]

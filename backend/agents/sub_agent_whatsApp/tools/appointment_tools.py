@@ -327,3 +327,106 @@ async def get_upcoming_appointments(patient_id: int) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Error getting upcoming appointments: {e}")
         return {"error": str(e)}
+
+
+@tool
+async def reschedule_appointment(
+    appointment_id: int,
+    new_date: str,
+    new_time: str,
+    reason: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Reagenda una cita existente a una nueva fecha y hora.
+
+    Args:
+        appointment_id: ID de la cita a reagendar
+        new_date: Nueva fecha en formato YYYY-MM-DD
+        new_time: Nueva hora en formato HH:MM
+        reason: Motivo del cambio (opcional)
+
+    Returns:
+        Diccionario con resultado del reagendamiento
+    """
+    logger.info(f"Rescheduling appointment {appointment_id} to {new_date} {new_time}")
+
+    try:
+        # Parsear nueva fecha y hora
+        try:
+            new_datetime = datetime.strptime(f"{new_date} {new_time}", "%Y-%m-%d %H:%M")
+        except ValueError:
+            return {"success": False, "error": "Formato de fecha/hora inválido"}
+
+        # Verificar que no sea pasado
+        if new_datetime < datetime.now():
+            return {
+                "success": False,
+                "error": "No se pueden reagendar citas en el pasado",
+            }
+
+        # Verificar que la cita existe y no está cancelada
+        appointment = await fetchrow(
+            """
+            SELECT c.*, p.nombre_completo as paciente_nombre
+            FROM citas c
+            JOIN pacientes p ON c.id_paciente = p.id
+            WHERE c.id = %s
+            """,
+            appointment_id,
+        )
+
+        if not appointment:
+            return {"success": False, "error": "Cita no encontrada"}
+
+        if appointment["estado"] in ["Cancelada", "Completada", "No_asistio"]:
+            return {
+                "success": False,
+                "error": f"No se puede reagendar una cita con estado '{appointment['estado']}'",
+            }
+
+        # Verificar disponibilidad del nuevo horario
+        conflict_query = """
+        SELECT id FROM citas
+        WHERE fecha_hora = %s
+          AND id != %s
+          AND estado NOT IN ('Cancelada', 'No_asistio')
+        """
+        conflict = await fetchrow(conflict_query, new_datetime, appointment_id)
+
+        if conflict:
+            return {
+                "success": False,
+                "error": "El nuevo horario seleccionado no está disponible",
+            }
+
+        # Actualizar la cita
+        old_datetime = appointment["fecha_hora"]
+        update_note = f"\n[Reagendada de {old_datetime.strftime('%Y-%m-%d %H:%M')}: {reason or 'Sin motivo especificado'}]"
+
+        update_query = """
+        UPDATE citas
+        SET fecha_hora = %s,
+            notas = COALESCE(notas, '') || %s
+        WHERE id = %s
+        """
+
+        await execute(update_query, new_datetime, update_note, appointment_id)
+
+        logger.info(f"Appointment {appointment_id} rescheduled successfully")
+
+        return {
+            "success": True,
+            "message": (
+                f"Cita de {appointment['paciente_nombre']} reagendada exitosamente"
+            ),
+            "detalles": {
+                "paciente": appointment["paciente_nombre"],
+                "fecha_anterior": old_datetime.strftime("%Y-%m-%d %H:%M"),
+                "fecha_nueva": new_datetime.strftime("%Y-%m-%d %H:%M"),
+                "servicio": appointment["tipo_servicio"],
+            },
+        }
+
+    except Exception as e:
+        logger.error(f"Error rescheduling appointment: {e}")
+        return {"success": False, "error": str(e)}

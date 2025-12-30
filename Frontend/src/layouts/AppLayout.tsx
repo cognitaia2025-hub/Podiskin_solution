@@ -13,7 +13,7 @@ import DynamicLogo from '../components/DynamicLogo';
 import GlobalNavigation from '../components/GlobalNavigation';
 import { useGlobalContext } from '../context/GlobalContext';
 import { useAuth } from '../auth/AuthContext';
-import { LogOut, User } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 const AppLayout: React.FC = () => {
   const { sidebarContent } = useGlobalContext();

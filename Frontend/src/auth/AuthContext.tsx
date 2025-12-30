@@ -25,18 +25,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const checkAuth = () => {
     const storedToken = getStoredToken();
+    const storedUser = localStorage.getItem('user');
     
-    if (storedToken) {
-      setToken(storedToken);
-      // In a real app, you would validate the token with the backend
-      // For now, we'll consider the user authenticated if token exists
-      // The user data should be fetched from the backend or decoded from token
-      setIsLoading(false);
+    if (storedToken && storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser) as User;
+        setToken(storedToken);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        removeStoredToken();
+        localStorage.removeItem('user');
+      }
     } else {
       setToken(null);
       setUser(null);
-      setIsLoading(false);
     }
+    
+    setIsLoading(false);
   };
 
   useEffect(() => {
@@ -48,8 +54,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setIsLoading(true);
       const response = await authLogin({ username, password });
       
-      // Store token
+      // Store token and user
       setStoredToken(response.access_token);
+      localStorage.setItem('user', JSON.stringify(response.user));
+      
       setToken(response.access_token);
       setUser(response.user);
     } catch (error) {
@@ -69,6 +77,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     } finally {
       // Always clear local state
       removeStoredToken();
+      localStorage.removeItem('user');
       setToken(null);
       setUser(null);
       setIsLoading(false);

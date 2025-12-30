@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState } from 'react';
 import { clsx } from 'clsx';
 import type { MedicalRecord, FormMode } from '../types/medical';
-import { MedicalFormProvider, useMedicalForm, useFormMethods } from '../context/MedicalFormContext';
+import { MedicalFormProvider, useMedicalForm } from '../context/MedicalFormContext';
 import { useGlobalContext } from '../context/GlobalContext';
 import PatientSidebar from '../components/medical/PatientSidebar';
 import MedicalRecordForm from '../components/medical/MedicalRecordForm';
@@ -12,9 +11,8 @@ import { Save, Send } from 'lucide-react';
 
 // Componente interno que usa el contexto
 const MedicalAttentionContent: React.FC = () => {
-  const { formState, saveForm, submitForm, currentPatient } = useMedicalForm();
-  const { selectedPatient, selectedAppointment } = useGlobalContext();
-  const methods = useFormMethods();
+  const { formState, saveForm, submitForm } = useMedicalForm();
+  const { selectedPatient } = useGlobalContext();
   const [formMode, setFormMode] = useState<FormMode>('free');
   const [rightPanelTab, setRightPanelTab] = useState<'maya' | 'evolution'>('maya');
 

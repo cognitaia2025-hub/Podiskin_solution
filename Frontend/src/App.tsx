@@ -3,6 +3,9 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import Layout from './components/Layout';
 import AppShell from './components/AppShell';
 import { ShellProvider } from './context/ShellContext';
+import { AuthProvider } from './auth/AuthContext';
+import ProtectedRoute from './auth/ProtectedRoute';
+import LoginPage from './auth/LoginPage';
 import CalendarGrid from './components/CalendarGrid';
 import DayView from './components/DayView';
 import MonthView from './components/MonthView';
@@ -159,76 +162,86 @@ function App() {
   };
 
   return (
-    <ShellProvider>
-      <Router>
-        <Routes>
-          <Route element={<AppShell />}>
-            {/* Calendar Routes */}
-            <Route
-              path="/calendar"
-              element={
-                <Layout
-                  onCreateClick={handleCreateClick}
-                  currentView={currentView}
-                  onViewChange={setCurrentView}
-                  selectedDoctors={selectedDoctors}
-                  onDoctorFilterChange={handleDoctorFilterChange}
-                  onSearch={handleSearch}
-                >
-                  {renderCalendarView()}
-                </Layout>
-              }
-            />
+    <AuthProvider>
+      <ShellProvider>
+        <Router>
+          <Routes>
+            {/* Public Route */}
+            <Route path="/login" element={<LoginPage />} />
 
-            {/* Medical Attention Route */}
-            <Route
-              path="/medical"
-              element={<MedicalAttention />}
-            />
+            {/* Protected Routes */}
+            <Route element={
+              <ProtectedRoute>
+                <AppShell />
+              </ProtectedRoute>
+            }>
+              {/* Calendar Routes */}
+              <Route
+                path="/calendar"
+                element={
+                  <Layout
+                    onCreateClick={handleCreateClick}
+                    currentView={currentView}
+                    onViewChange={setCurrentView}
+                    selectedDoctors={selectedDoctors}
+                    onDoctorFilterChange={handleDoctorFilterChange}
+                    onSearch={handleSearch}
+                  >
+                    {renderCalendarView()}
+                  </Layout>
+                }
+              />
 
-            {/* Placeholder Routes */}
-            <Route
-              path="/records"
-              element={
-                <Layout
-                  selectedDoctors={selectedDoctors}
-                  onDoctorFilterChange={handleDoctorFilterChange}
-                >
-                  <RecordsPage />
-                </Layout>
-              }
-            />
+              {/* Medical Attention Route */}
+              <Route
+                path="/medical"
+                element={<MedicalAttention />}
+              />
 
-            <Route
-              path="/billing"
-              element={
-                <Layout
-                  selectedDoctors={selectedDoctors}
-                  onDoctorFilterChange={handleDoctorFilterChange}
-                >
-                  <BillingPage />
-                </Layout>
-              }
-            />
+              {/* Placeholder Routes */}
+              <Route
+                path="/records"
+                element={
+                  <Layout
+                    selectedDoctors={selectedDoctors}
+                    onDoctorFilterChange={handleDoctorFilterChange}
+                  >
+                    <RecordsPage />
+                  </Layout>
+                }
+              />
 
-            <Route
-              path="/finances"
-              element={
-                <Layout
-                  selectedDoctors={selectedDoctors}
-                  onDoctorFilterChange={handleDoctorFilterChange}
-                >
-                  <FinancesPage />
-                </Layout>
-              }
-            />
+              <Route
+                path="/billing"
+                element={
+                  <Layout
+                    selectedDoctors={selectedDoctors}
+                    onDoctorFilterChange={handleDoctorFilterChange}
+                  >
+                    <BillingPage />
+                  </Layout>
+                }
+              />
 
-            {/* Default Route */}
-            <Route path="/" element={<Navigate to="/calendar" replace />} />
-          </Route>
-        </Routes>
-      </Router>
-    </ShellProvider>
+              <Route
+                path="/finances"
+                element={
+                  <Layout
+                    selectedDoctors={selectedDoctors}
+                    onDoctorFilterChange={handleDoctorFilterChange}
+                  >
+                    <FinancesPage />
+                  </Layout>
+                }
+              />
+
+              {/* Default Route */}
+              <Route path="/" element={<Navigate to="/calendar" replace />} />
+            </Route>
+          </Routes>
+        </Router>
+      </ShellProvider>
+    </AuthProvider>
   );
 }
 

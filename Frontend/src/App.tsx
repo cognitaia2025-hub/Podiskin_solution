@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { startOfWeek, endOfWeek } from 'date-fns';
 import Layout from './components/Layout';
 import AppLayout from './layouts/AppLayout';
 import { GlobalProvider } from './context/GlobalContext';
@@ -19,16 +20,31 @@ import BillingPage from './pages/BillingPage';
 import FinancesPage from './pages/FinancesPage';
 import PatientsPage from './pages/PatientsPage';
 import type { ViewType } from './components/ViewSelector';
-import { getAppointments, createAppointment, getDoctors, getPatients } from './services/mockData';
+import { useAppointments } from './hooks/useAppointments';
+import { getDoctors, getPatients } from './services/mockData';
 import type { Appointment } from './services/mockData';
 
 function App() {
   const [triggerCreateAppointment, setTriggerCreateAppointment] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('week');
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [selectedDoctors, setSelectedDoctors] = useState<string[]>(['1', '2', '3']);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Use real API through custom hook
+  const { 
+    appointments, 
+    loading, 
+    createAppointment,
+    updateAppointment,
+    updateStatus,
+    fetchData 
+  } = useAppointments({
+    startDate: startOfWeek(selectedDate),
+    endDate: endOfWeek(selectedDate),
+    doctorIds: selectedDoctors,
+    autoFetch: true,
+  });
 
   const doctors = getDoctors();
   const patients = getPatients();
@@ -60,9 +76,10 @@ function App() {
     );
   };
 
+  // Refetch when filters change
   React.useEffect(() => {
-    getAppointments().then(setAppointments);
-  }, []);
+    fetchData();
+  }, [selectedDoctors, selectedDate, fetchData]);
 
   const handleCreateClick = () => {
     setTriggerCreateAppointment(true);
@@ -95,10 +112,28 @@ function App() {
   const handleSaveAppointment = async (apptData: Partial<Appointment>) => {
     if (apptData.start && apptData.end) {
       if (apptData.id) {
-        setAppointments(prev => prev.map(p => p.id === apptData.id ? { ...p, ...apptData } as Appointment : p));
+        // Update existing appointment
+        await updateAppointment(apptData.id, {
+          id_paciente: apptData.id_paciente,
+          id_podologo: apptData.id_podologo,
+          fecha_hora_inicio: apptData.start.toISOString(),
+          fecha_hora_fin: apptData.end.toISOString(),
+          tipo_cita: apptData.tipo_cita,
+          motivo_consulta: apptData.motivo_consulta,
+          notas_recepcion: apptData.notas_recepcion,
+        });
       } else {
-        const newAppt = await createAppointment(apptData as any);
-        setAppointments(prev => [...prev, newAppt]);
+        // Create new appointment
+        await createAppointment({
+          id_paciente: apptData.id_paciente!,
+          id_podologo: apptData.id_podologo!,
+          fecha_hora_inicio: apptData.start.toISOString(),
+          fecha_hora_fin: apptData.end.toISOString(),
+          tipo_cita: apptData.tipo_cita!,
+          motivo_consulta: apptData.motivo_consulta,
+          notas_recepcion: apptData.notas_recepcion,
+          es_primera_vez: apptData.es_primera_vez,
+        });
       }
     }
   };

@@ -6,6 +6,8 @@ import { GlobalProvider } from './context/GlobalContext';
 import { AuthProvider } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
 import LoginPage from './auth/LoginPage';
+import RecoverPasswordPage from './auth/RecoverPasswordPage';
+import ResetPasswordPage from './auth/ResetPasswordPage';
 import CalendarGrid from './components/CalendarGrid';
 import DayView from './components/DayView';
 import MonthView from './components/MonthView';
@@ -166,8 +168,10 @@ function App() {
       <GlobalProvider>
         <Router>
           <Routes>
-            {/* Public Route */}
+            {/* Public Routes */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/auth/recover-password" element={<RecoverPasswordPage />} />
+            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
             {/* Protected Routes */}
             <Route element={

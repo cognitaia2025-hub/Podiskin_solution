@@ -1,13 +1,20 @@
 import React, { useState, type FormEvent } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import DynamicLogo from '../components/DynamicLogo';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [showCaptcha, setShowCaptcha] = useState(false);
+  const [captchaAnswer, setCaptchaAnswer] = useState('');
+  const [captchaQuestion, setCaptchaQuestion] = useState({ num1: 0, num2: 0 });
   const [validationErrors, setValidationErrors] = useState<{
     username?: string;
     password?: string;
@@ -19,6 +26,20 @@ const LoginPage: React.FC = () => {
 
   // Get the page they were trying to access, or default to /calendar
   const from = (location.state as any)?.from?.pathname || '/calendar';
+
+  // Generate simple math CAPTCHA
+  const generateCaptcha = () => {
+    const num1 = Math.floor(Math.random() * 10) + 1;
+    const num2 = Math.floor(Math.random() * 10) + 1;
+    setCaptchaQuestion({ num1, num2 });
+    setCaptchaAnswer('');
+  };
+
+  React.useEffect(() => {
+    if (showCaptcha) {
+      generateCaptcha();
+    }
+  }, [showCaptcha]);
 
   const validateForm = (): boolean => {
     const errors: { username?: string; password?: string } = {};
@@ -48,13 +69,31 @@ const LoginPage: React.FC = () => {
       return;
     }
 
+    // Verify CAPTCHA if shown
+    if (showCaptcha) {
+      const expectedAnswer = captchaQuestion.num1 + captchaQuestion.num2;
+      if (parseInt(captchaAnswer) !== expectedAnswer) {
+        setError('CAPTCHA incorrecto. Por favor, intenta de nuevo.');
+        generateCaptcha();
+        return;
+      }
+    }
+
     setIsLoading(true);
 
     try {
-      await login(username, password);
+      await login(username, password, rememberMe);
       // Navigate to the page they were trying to access
       navigate(from, { replace: true });
     } catch (err) {
+      const newFailedAttempts = failedAttempts + 1;
+      setFailedAttempts(newFailedAttempts);
+      
+      // Show CAPTCHA after 3 failed attempts
+      if (newFailedAttempts >= 3) {
+        setShowCaptcha(true);
+      }
+      
       setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
     } finally {
       setIsLoading(false);
@@ -62,8 +101,11 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div 
+      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12 px-4 sm:px-6 lg:px-8 animate-fadeIn"
+      role="main"
+    >
+      <div className="max-w-md w-full space-y-8 animate-slideUp">
         <div>
           <div className="flex justify-center mb-6">
             <div className="transform scale-150">
@@ -79,24 +121,16 @@ const LoginPage: React.FC = () => {
         </div>
 
         <div className="bg-white py-8 px-4 shadow-xl rounded-lg sm:px-10">
-          <form className="space-y-6" onSubmit={handleSubmit}>
+          <form className="space-y-6" onSubmit={handleSubmit} aria-label="Formulario de inicio de sesión">
             {error && (
-              <div className="rounded-md bg-red-50 p-4 border border-red-200">
+              <div 
+                className="rounded-md bg-red-50 p-4 border border-red-200 animate-shake"
+                role="alert"
+                aria-live="assertive"
+              >
                 <div className="flex">
                   <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-400"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    <AlertCircle className="h-5 w-5 text-red-400" aria-hidden="true" />
                   </div>
                   <div className="ml-3">
                     <h3 className="text-sm font-medium text-red-800">{error}</h3>
@@ -126,13 +160,19 @@ const LoginPage: React.FC = () => {
                     setError('');
                   }}
                   className={`appearance-none block w-full px-3 py-2 border ${
-                    validationErrors.username ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                    validationErrors.username 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                      : username && !validationErrors.username
+                      ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                      : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                  } rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm transition-colors duration-200`}
                   placeholder="Ingresa tu usuario"
                   disabled={isLoading}
+                  aria-invalid={!!validationErrors.username}
+                  aria-describedby={validationErrors.username ? "username-error" : undefined}
                 />
                 {validationErrors.username && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p id="username-error" className="mt-2 text-sm text-red-600" role="alert">
                     {validationErrors.username}
                   </p>
                 )}
@@ -146,11 +186,11 @@ const LoginPage: React.FC = () => {
               >
                 Contraseña
               </label>
-              <div className="mt-1">
+              <div className="mt-1 relative">
                 <input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   autoComplete="current-password"
                   required
                   value={password}
@@ -159,17 +199,86 @@ const LoginPage: React.FC = () => {
                     setValidationErrors((prev) => ({ ...prev, password: undefined }));
                     setError('');
                   }}
-                  className={`appearance-none block w-full px-3 py-2 border ${
-                    validationErrors.password ? 'border-red-300' : 'border-gray-300'
-                  } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm`}
+                  className={`appearance-none block w-full px-3 py-2 pr-10 border ${
+                    validationErrors.password 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                      : password && !validationErrors.password
+                      ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
+                      : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
+                  } rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm transition-colors duration-200`}
                   placeholder="Ingresa tu contraseña"
                   disabled={isLoading}
+                  aria-invalid={!!validationErrors.password}
+                  aria-describedby={validationErrors.password ? "password-error" : undefined}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-5 w-5" aria-hidden="true" />
+                  )}
+                </button>
                 {validationErrors.password && (
-                  <p className="mt-2 text-sm text-red-600">
+                  <p id="password-error" className="mt-2 text-sm text-red-600" role="alert">
                     {validationErrors.password}
                   </p>
                 )}
+              </div>
+            </div>
+
+            {showCaptcha && (
+              <div className="animate-fadeIn">
+                <label
+                  htmlFor="captcha"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Verificación de seguridad: ¿Cuánto es {captchaQuestion.num1} + {captchaQuestion.num2}?
+                </label>
+                <div className="mt-1">
+                  <input
+                    id="captcha"
+                    name="captcha"
+                    type="number"
+                    required
+                    value={captchaAnswer}
+                    onChange={(e) => setCaptchaAnswer(e.target.value)}
+                    className="appearance-none block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Respuesta"
+                    disabled={isLoading}
+                    aria-label="Respuesta CAPTCHA"
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <input
+                  id="remember-me"
+                  name="remember-me"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded cursor-pointer"
+                  disabled={isLoading}
+                />
+                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700 cursor-pointer">
+                  Recordar sesión
+                </label>
+              </div>
+
+              <div className="text-sm">
+                <Link
+                  to="/auth/recover-password"
+                  className="font-medium text-indigo-600 hover:text-indigo-500 transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </Link>
               </div>
             </div>
 
@@ -177,9 +286,10 @@ const LoginPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                className={`w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200 ${
+                  isLoading ? 'opacity-50 cursor-not-allowed' : 'transform hover:scale-[1.02]'
                 }`}
+                aria-busy={isLoading}
               >
                 {isLoading ? (
                   <>
@@ -188,6 +298,7 @@ const LoginPage: React.FC = () => {
                       xmlns="http://www.w3.org/2000/svg"
                       fill="none"
                       viewBox="0 0 24 24"
+                      aria-hidden="true"
                     >
                       <circle
                         className="opacity-25"

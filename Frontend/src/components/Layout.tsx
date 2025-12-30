@@ -15,11 +15,11 @@ interface LayoutProps {
     onSearch?: (query: string) => void;
 }
 
-import { useShell } from '../context/ShellContext';
+import { useGlobalContext } from '../context/GlobalContext';
 
 const Layout: React.FC<LayoutProps> = ({ children, onCreateClick, currentView = 'week', onViewChange, selectedDoctors = [], onDoctorFilterChange, onTodayClick, onSearch }) => {
     const [searchValue, setSearchValue] = React.useState('');
-    const { setSidebarContent } = useShell();
+    const { setSidebarContent } = useGlobalContext();
 
     // Inject sidebar content for calendar
     React.useEffect(() => {

@@ -17,6 +17,7 @@ import MedicalAttention from './pages/MedicalAttention';
 import RecordsPage from './pages/RecordsPage';
 import BillingPage from './pages/BillingPage';
 import FinancesPage from './pages/FinancesPage';
+import PatientsPage from './pages/PatientsPage';
 import type { ViewType } from './components/ViewSelector';
 import { getAppointments, createAppointment, getDoctors, getPatients } from './services/mockData';
 import type { Appointment } from './services/mockData';
@@ -200,6 +201,12 @@ function App() {
               <Route
                 path="/medical"
                 element={<MedicalAttention />}
+              />
+
+              {/* Patients Route */}
+              <Route
+                path="/patients"
+                element={<PatientsPage />}
               />
 
               {/* Placeholder Routes */}

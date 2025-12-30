@@ -2,6 +2,7 @@ import React from 'react';
 import { User, Phone, Mail, Calendar, AlertCircle, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { MedicalRecord } from '../../types/medical';
+import { useGlobalContext } from '../../context/GlobalContext';
 
 interface PatientSidebarProps {
   patientData?: Partial<MedicalRecord>;
@@ -12,7 +13,24 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
   patientData,
   className,
 }) => {
-  const { informacion_personal, alergias, estilo_vida } = patientData || {};
+  const { selectedPatient } = useGlobalContext();
+  
+  // Use selectedPatient from context if available, otherwise use patientData prop
+  const patient = selectedPatient || patientData;
+  
+  // If using selectedPatient from context, create a mock informacion_personal
+  const informacion_personal = patient && 'name' in patient
+    ? {
+        primer_nombre: patient.name?.split(' ')[0] || '',
+        primer_apellido: patient.name?.split(' ')[1] || '',
+        telefono_principal: patient.phone,
+        correo_electronico: patient.email,
+        fecha_nacimiento: patient.fecha_nacimiento,
+      }
+    : patientData?.informacion_personal;
+  
+  const alergias = patientData?.alergias;
+  const estilo_vida = patientData?.estilo_vida;
   
   // Calcular edad desde fecha de nacimiento
   const calculateAge = (birthDate?: string): number | null => {
@@ -58,6 +76,25 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
     medium: 'bg-yellow-100 text-yellow-700 border-yellow-200',
     high: 'bg-red-100 text-red-700 border-red-200',
   };
+
+  // Empty state if no patient selected
+  if (!patient && !patientData) {
+    return (
+      <div className={clsx('h-full flex flex-col bg-white border-r border-gray-200', className)}>
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center">
+            <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No hay paciente seleccionado
+            </h3>
+            <p className="text-sm text-gray-600">
+              Selecciona un paciente de la lista para ver su información
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={clsx('h-full flex flex-col bg-white border-r border-gray-200', className)}>
@@ -190,7 +227,7 @@ const PatientSidebar: React.FC<PatientSidebarProps> = ({
       {/* Footer */}
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <div className="flex items-center justify-between text-xs text-gray-500">
-          <span>ID: {patientData?.id_paciente || 'N/A'}</span>
+          <span>ID: {(patient && 'id' in patient ? patient.id : patientData?.id_paciente) || 'N/A'}</span>
           <span className="flex items-center gap-1">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
             En consulta

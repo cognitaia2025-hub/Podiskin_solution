@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import AppShell from './components/AppShell';
-import { ShellProvider } from './context/ShellContext';
+import AppLayout from './layouts/AppLayout';
+import { GlobalProvider } from './context/GlobalContext';
 import { AuthProvider } from './auth/AuthContext';
 import ProtectedRoute from './auth/ProtectedRoute';
 import LoginPage from './auth/LoginPage';
@@ -163,7 +163,7 @@ function App() {
 
   return (
     <AuthProvider>
-      <ShellProvider>
+      <GlobalProvider>
         <Router>
           <Routes>
             {/* Public Route */}
@@ -172,7 +172,7 @@ function App() {
             {/* Protected Routes */}
             <Route element={
               <ProtectedRoute>
-                <AppShell />
+                <AppLayout />
               </ProtectedRoute>
             }>
               {/* Calendar Routes */}
@@ -240,7 +240,7 @@ function App() {
             </Route>
           </Routes>
         </Router>
-      </ShellProvider>
+      </GlobalProvider>
     </AuthProvider>
   );
 }

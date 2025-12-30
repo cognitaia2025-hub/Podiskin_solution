@@ -19,6 +19,7 @@ import RecordsPage from './pages/RecordsPage';
 import BillingPage from './pages/BillingPage';
 import FinancesPage from './pages/FinancesPage';
 import PatientsPage from './pages/PatientsPage';
+import DashboardPage from './pages/DashboardPage';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import { getDoctors, getPatients } from './services/mockData';
@@ -242,6 +243,12 @@ function App() {
               <Route
                 path="/patients"
                 element={<PatientsPage />}
+              />
+
+              {/* Dashboard Route */}
+              <Route
+                path="/dashboard"
+                element={<DashboardPage />}
               />
 
               {/* Placeholder Routes */}

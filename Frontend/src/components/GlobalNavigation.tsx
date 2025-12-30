@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp } from 'lucide-react';
+import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface NavigationTab {
@@ -12,6 +12,13 @@ interface NavigationTab {
 }
 
 const NAVIGATION_TABS: NavigationTab[] = [
+    {
+        id: 'dashboard',
+        label: 'Dashboard',
+        path: '/dashboard',
+        icon: BarChart3,
+        enabled: true,
+    },
     {
         id: 'records',
         label: 'Expedientes médicos',

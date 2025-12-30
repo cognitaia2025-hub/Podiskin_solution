@@ -90,3 +90,117 @@ export const logout = async (): Promise<void> => {
     removeStoredToken();
   }
 };
+
+export const refreshToken = async (): Promise<LoginResponse> => {
+  const token = getStoredToken();
+  
+  if (!token) {
+    throw new Error('No token available to refresh');
+  }
+
+  try {
+    const response = await authApi.post<LoginResponse>('/refresh', {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error('No se pudo renovar la sesión');
+    }
+    throw new Error('Error de conexión al renovar sesión');
+  }
+};
+
+export const verifyToken = async (): Promise<boolean> => {
+  const token = getStoredToken();
+  
+  if (!token) {
+    return false;
+  }
+
+  try {
+    await authApi.get('/verify', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+export const requestPasswordReset = async (email: string): Promise<{ message: string }> => {
+  try {
+    const response = await authApi.post<{ message: string }>('/request-password-reset', { email });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const message = error.response?.data?.detail || error.message;
+      throw new Error(message || 'Error al solicitar recuperación de contraseña');
+    }
+    throw new Error('Error de conexión');
+  }
+};
+
+export const resetPassword = async (token: string, newPassword: string): Promise<{ message: string }> => {
+  try {
+    const response = await authApi.post<{ message: string }>('/reset-password', {
+      token,
+      new_password: newPassword,
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.detail || error.message;
+
+      switch (status) {
+        case 400:
+          throw new Error('Token inválido o expirado');
+        case 422:
+          throw new Error('La contraseña no cumple con los requisitos mínimos');
+        default:
+          throw new Error(message || 'Error al restablecer contraseña');
+      }
+    }
+    throw new Error('Error de conexión');
+  }
+};
+
+export const changePassword = async (currentPassword: string, newPassword: string): Promise<{ message: string }> => {
+  const token = getStoredToken();
+  
+  if (!token) {
+    throw new Error('No hay sesión activa');
+  }
+
+  try {
+    const response = await authApi.post<{ message: string }>('/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.detail || error.message;
+
+      switch (status) {
+        case 401:
+          throw new Error('Contraseña actual incorrecta');
+        case 422:
+          throw new Error('La nueva contraseña no cumple con los requisitos mínimos');
+        default:
+          throw new Error(message || 'Error al cambiar contraseña');
+      }
+    }
+    throw new Error('Error de conexión');
+  }
+};

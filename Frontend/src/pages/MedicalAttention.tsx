@@ -1,24 +1,51 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { clsx } from 'clsx';
 import type { MedicalRecord, FormMode } from '../types/medical';
 import { MedicalFormProvider, useMedicalForm, useFormMethods } from '../context/MedicalFormContext';
-import Header from '../components/medical/Header';
-import TopNavigation from '../components/medical/TopNavigation';
+import { useGlobalContext } from '../context/GlobalContext';
 import PatientSidebar from '../components/medical/PatientSidebar';
 import MedicalRecordForm from '../components/medical/MedicalRecordForm';
 import MayaAssistant from '../components/medical/MayaAssistant';
 import EvolutionSidebar from '../components/medical/EvolutionSidebar';
+import { Save, Send } from 'lucide-react';
 
 // Componente interno que usa el contexto
 const MedicalAttentionContent: React.FC = () => {
   const { formState, saveForm, submitForm, currentPatient } = useMedicalForm();
+  const { selectedPatient, selectedAppointment } = useGlobalContext();
   const methods = useFormMethods();
   const [formMode, setFormMode] = useState<FormMode>('free');
   const [rightPanelTab, setRightPanelTab] = useState<'maya' | 'evolution'>('maya');
 
-  // Datos de ejemplo para el paciente
-  const patientData: Partial<MedicalRecord> = {
+  // Use selectedPatient from global context if available, otherwise use mock data
+  const patientData: Partial<MedicalRecord> = selectedPatient ? {
+    id_paciente: selectedPatient.id,
+    id_podologo: '1',
+    informacion_personal: {
+      primer_nombre: selectedPatient.name.split(' ')[0] || 'Paciente',
+      segundo_nombre: '',
+      primer_apellido: selectedPatient.name.split(' ')[1] || '',
+      segundo_apellido: selectedPatient.name.split(' ')[2] || '',
+      fecha_nacimiento: selectedPatient.fecha_nacimiento || '',
+      sexo: 'M',
+      curp: selectedPatient.curp || '',
+      estado_civil: selectedPatient.estado_civil || '',
+      escolaridad: '',
+      ocupacion: selectedPatient.ocupacion || '',
+      religion: '',
+      calle: '',
+      numero_exterior: '',
+      colonia: '',
+      ciudad: '',
+      estado: '',
+      codigo_postal: '',
+      telefono_principal: selectedPatient.phone || '',
+      telefono_secundario: '',
+      correo_electronico: selectedPatient.email || '',
+      como_supo_de_nosotros: '',
+    },
+  } : {
     id_paciente: 'p1',
     id_podologo: '1',
     informacion_personal: {
@@ -97,26 +124,64 @@ const MedicalAttentionContent: React.FC = () => {
     setFormMode(mode);
   };
 
+  const patientName = patientData.informacion_personal
+    ? `${patientData.informacion_personal.primer_nombre} ${patientData.informacion_personal.primer_apellido}`
+    : 'Nuevo Paciente';
+
   return (
     <div className="flex flex-col h-full bg-gray-100 overflow-hidden">
-      {/* Header */}
-      <Header
-        patientName={patientData.informacion_personal
-          ? `${patientData.informacion_personal.primer_nombre} ${patientData.informacion_personal.primer_apellido}`
-          : 'Nuevo Paciente'
-        }
-        formState={formState}
-        formMode={formMode}
-        onModeChange={handleModeChange}
-        onSave={handleSave}
-        onSubmit={handleSubmit}
-      />
-
-      {/* Top Navigation */}
-      <TopNavigation
-        activeTab="clinical"
-        onTabChange={(tabId) => console.log('Tab changed:', tabId)}
-      />
+      {/* Compact Header with patient name and actions */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">{patientName}</h1>
+          <p className="text-sm text-gray-500">Expediente Médico</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Mode selector */}
+          <div className="flex rounded-md border border-gray-300 overflow-hidden">
+            <button
+              onClick={() => handleModeChange('free')}
+              className={clsx(
+                'px-3 py-1 text-sm font-medium transition-colors',
+                formMode === 'free'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              Libre
+            </button>
+            <button
+              onClick={() => handleModeChange('guided')}
+              className={clsx(
+                'px-3 py-1 text-sm font-medium transition-colors border-l border-gray-300',
+                formMode === 'guided'
+                  ? 'bg-primary-600 text-white'
+                  : 'bg-white text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              Guiado
+            </button>
+          </div>
+          
+          {/* Action buttons */}
+          <button
+            onClick={handleSave}
+            disabled={!formState.isDirty || formState.isSaving}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Save className="w-4 h-4" />
+            Guardar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={formState.isSubmitting}
+            className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-md text-sm font-medium hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Send className="w-4 h-4" />
+            Finalizar
+          </button>
+        </div>
+      </div>
 
       {/* Main Content - 3 Column Layout */}
       <div className="flex-1 flex overflow-hidden">

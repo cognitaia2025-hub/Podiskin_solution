@@ -147,8 +147,8 @@ def main():
     else:
         cur.execute(
             """
-            INSERT INTO usuarios (nombre_usuario, password_hash, email, rol, nombre_completo, activo)
-            VALUES ('ivette.martinez', %s, 'ivette@podoskin.com', 'Recepcionista', 'Ivette Martínez García', true)
+            INSERT INTO usuarios (nombre_usuario, password_hash, email, id_rol, nombre_completo, activo)
+            VALUES ('ivette.martinez', %s, 'ivette@podoskin.com', (SELECT id FROM roles WHERE nombre_rol='Recepcionista'), 'Ivette Martínez García', true)
             RETURNING id
         """,
             (pw_hash,),

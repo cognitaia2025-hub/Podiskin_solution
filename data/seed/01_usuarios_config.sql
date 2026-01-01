@@ -53,13 +53,13 @@ END $$;
 -- Passwords: Admin123, Podologo123, Recepcio123 (PBKDF2-SHA256)
 
 -- Usuario 1: Santiago Ornelas (Admin + Podologo)
-INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, rol, activo, fecha_registro)
+INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, id_rol, activo, fecha_registro)
 SELECT 
     'santiago.ornelas',
     '$pbkdf2-sha256$29000$PMfYe8/ZW0sJYUzJufdeyw$P7e8BGo3Ubm9rD.Ji0AlwrTA9YNW1d4l6aE2wDMQ/KA',
     'Santiago de Jesús Ornelas Reynoso',
     'enfsantiagoornelas@gmail.com',
-    'Admin',
+    (SELECT id FROM roles WHERE nombre_rol = 'Admin'),
     true,
     NOW()
 WHERE NOT EXISTS (
@@ -67,13 +67,13 @@ WHERE NOT EXISTS (
 );
 
 -- Usuario 2: Joana Meraz (Podologo + Recepcionista)
-INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, rol, activo, fecha_registro)
+INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, id_rol, activo, fecha_registro)
 SELECT 
     'joana.meraz',
     '$pbkdf2-sha256$29000$.Z9TKuVcixHivJcy5twbgw$1z/PCQ1tRoZgW.qdRQW2Ek3MPYNWhm8YCJy.ZqzMkk0',
     'Joana Ibeth Meraz Arregin',
     'joana.meraz@podoskin.com',
-    'Podologo',
+    (SELECT id FROM roles WHERE nombre_rol = 'Podologo'),
     true,
     NOW()
 WHERE NOT EXISTS (
@@ -81,13 +81,13 @@ WHERE NOT EXISTS (
 );
 
 -- Usuario 3: Recepcionista adicional
-INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, rol, activo, fecha_registro)
+INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, id_rol, activo, fecha_registro)
 SELECT 
     'maria.lopez',
     '$pbkdf2-sha256$29000$BICw1vpfK6W01jrHuBciRA$QuxaUpEYF/0x277tw4d176SNRrHyrLqAfMkg6WJwTtQ',
     'María Guadalupe López García',
     'maria.lopez@podoskin.com',
-    'Recepcionista',
+    (SELECT id FROM roles WHERE nombre_rol = 'Recepcionista'),
     true,
     NOW()
 WHERE NOT EXISTS (
@@ -95,13 +95,13 @@ WHERE NOT EXISTS (
 );
 
 -- Usuario 4: Admin adicional
-INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, rol, activo, fecha_registro)
+INSERT INTO usuarios (nombre_usuario, password_hash, nombre_completo, email, id_rol, activo, fecha_registro)
 SELECT 
     'admin.sistema',
     '$pbkdf2-sha256$29000$PMfYe8/ZW0sJYUzJufdeyw$P7e8BGo3Ubm9rD.Ji0AlwrTA9YNW1d4l6aE2wDMQ/KA',
     'Administrador del Sistema',
     'admin@podoskin.com',
-    'Admin',
+    (SELECT id FROM roles WHERE nombre_rol = 'Admin'),
     true,
     NOW()
 WHERE NOT EXISTS (

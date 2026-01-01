@@ -93,17 +93,18 @@ async def get_user_by_username(username: str) -> Optional[dict]:
             await cur.execute(
                 """
                 SELECT 
-                    id,
-                    nombre_usuario,
-                    password_hash,
-                    email,
-                    rol,
-                    nombre_completo,
-                    activo,
-                    ultimo_login,
-                    fecha_registro
-                FROM usuarios
-                WHERE nombre_usuario = %s
+                    u.id,
+                    u.nombre_usuario,
+                    u.password_hash,
+                    u.email,
+                    r.nombre_rol as rol,
+                    u.nombre_completo,
+                    u.activo,
+                    u.ultimo_login,
+                    u.fecha_registro
+                FROM usuarios u
+                INNER JOIN roles r ON u.id_rol = r.id
+                WHERE u.nombre_usuario = %s
                 """,
                 (username,),
             )

@@ -844,12 +844,12 @@ Para generar pagos y movimientos de inventario para estas 363 citas.
 |-----------|----------|-------------|
 | Renta | 3 meses × $15,000 | $45,000 MXN |
 | Servicios | Luz, agua, internet | $9,000 MXN |
-| Insumos | Compras y reabastecimiento | $25,000 MXN |
+| Insumos | Compras y reabastecimiento | $23,000 MXN |
 | Marketing | Facebook Ads, material | $3,800 MXN |
 | Mantenimiento | Equipo y reparaciones | $1,400 MXN |
 | Capacitación | Cursos actualización | $2,500 MXN |
 | Otros | Papelería, limpieza, varios | $1,800 MXN |
-| **TOTAL** | **3 meses operación** | **$86,000 MXN** |
+| **TOTAL** | **3 meses operación** | **$86,500 MXN** |
 
 #### 📅 Cortes de Caja (66 registros)
 
@@ -920,29 +920,29 @@ Para generar pagos y movimientos de inventario para estas 363 citas.
 |----------|-------|
 | Renta (3 meses) | $45,000 |
 | Servicios básicos | $9,000 |
-| Insumos médicos | $25,000 |
+| Insumos médicos | $23,000 |
 | Marketing | $3,800 |
 | Mantenimiento | $1,400 |
 | Capacitación | $2,500 |
 | Otros gastos | $1,800 |
-| **TOTAL EGRESOS** | **$86,000 MXN** |
+| **TOTAL EGRESOS** | **$86,500 MXN** |
 
 #### 💎 UTILIDAD NETA
 
 ```
 Ingresos:    $217,948 MXN
-Egresos:     -$86,000 MXN
+Egresos:     -$86,500 MXN
 ────────────────────────
-UTILIDAD:    $131,948 MXN
-Margen:      60.5%
+UTILIDAD:    $131,448 MXN
+Margen:      60.3%
 ```
 
 **Análisis:**
-- Margen bruto excelente (60.5%)
-- Punto de equilibrio: ~$28,667/mes
+- Margen bruto excelente (60.3%)
+- Punto de equilibrio: ~$28,833/mes
 - Promedio ingresos mensuales: ~$72,649
-- Promedio gastos mensuales: ~$28,667
-- Utilidad mensual promedio: ~$43,983
+- Promedio gastos mensuales: ~$28,833
+- Utilidad mensual promedio: ~$43,816
 
 ### 🔍 Validaciones Incluidas
 

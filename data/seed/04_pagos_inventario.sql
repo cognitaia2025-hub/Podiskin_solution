@@ -15,9 +15,9 @@
 --   - Facturas: ~50 registros
 --
 -- COHERENCIA FINANCIERA:
---   - Ingresos totales: ~$217,948 MXN
---   - Gastos totales: $86,000 MXN
---   - Utilidad neta: ~$131,948 MXN
+--   - Ingresos totales: ~$217,948 MXN (92% de 308 citas completadas)
+--   - Gastos totales: $86,500 MXN (20 registros en 3 meses)
+--   - Utilidad neta: ~$131,448 MXN (margen 60.3%)
 -- ============================================================================
 
 -- Iniciar transacción

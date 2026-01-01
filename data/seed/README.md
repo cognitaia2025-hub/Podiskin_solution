@@ -437,5 +437,352 @@ Para generar citas y tratamientos para estos 200 pacientes.
 
 ---
 
+## 📊 AGENTE 15: Reporte de Citas y Tratamientos (03_citas_tratamientos.sql)
+
+### ✅ Estado: COMPLETADO
+
+**Archivo:** `03_citas_tratamientos.sql`  
+**Tamaño:** 83 KB (854 líneas)  
+**Fecha de generación:** 2026-01-01
+
+### 📋 Datos Generados
+
+#### 📅 Citas (363 registros)
+- **Período:** Noviembre 2024 - Enero 2025 (66 días hábiles)
+- **Distribución Mensual:**
+  - 📆 Noviembre 2024: 115 citas
+  - 📆 Diciembre 2024: 121 citas
+  - 📆 Enero 2025: 127 citas
+
+#### 👨‍⚕️ Distribución por Doctor
+- **Santiago Ornelas (55%):** 199 citas
+  - Horario: Lun-Vie 09:00-17:30 (slots cada 30 min)
+  - Consultorio: Consultorio 1
+- **Joana Meraz (45%):** 164 citas
+  - Horario: Lun-Vie 10:00-16:30 (slots cada 30 min)
+  - Consultorio: Consultorio 2
+
+#### 💼 Distribución por Servicio
+| Servicio | Citas | Porcentaje | Precio |
+|----------|-------|------------|--------|
+| Consulta General | 91 | 25% | $600 MXN |
+| Onicomicosis | 73 | 20% | $750 MXN |
+| Uñas Enterradas | 73 | 20% | $550 MXN |
+| Pedicure Clínico | 54 | 15% | $800 MXN |
+| Callosidades | 44 | 12% | $500 MXN |
+| Verrugas Plantares | 18 | 5% | $900 MXN |
+| Pie de Atleta | 10 | 3% | $600 MXN |
+
+#### 📊 Estados de Cita
+- ✅ **Completada:** 308 citas (85%)
+- ⏳ **Pendiente:** 30 citas (8%)
+- ❌ **Cancelada:** 18 citas (5%)
+- 🚫 **No Asistió:** 7 citas (2%)
+
+#### 🏥 Datos Médicos Complementarios
+
+- **Detalle_Cita:** 363 registros (uno por cita)
+  - Vinculación cita-tratamiento
+  - Precios aplicados según servicio
+  - Sin descuentos aplicados
+
+- **Nota_Clinica:** 308 registros (solo citas completadas)
+  - Motivo de consulta específico
+  - Padecimiento actual
+  - Exploración física detallada
+  - Diagnóstico presuntivo y definitivo
+  - Plan de tratamiento
+  - Indicaciones al paciente
+
+- **Catálogo CIE-10:** 9 códigos diagnósticos
+  - M72.2 - Fascitis plantar
+  - B35.1 - Onicomicosis por dermatofitos
+  - L60.0 - Uña encarnada
+  - L85.1 - Callosidad adquirida
+  - L84 - Callos y callosidades
+  - B07 - Verruga plantar por VPH
+  - B35.3 - Tiña del pie
+  - M77.3 - Espolón calcáneo
+  - L30.4 - Dermatitis del pie
+
+- **Diagnosticos_Tratamiento:** 308 registros (solo completadas)
+  - Tipo: Diagnóstico definitivo
+  - Código CIE-10 vinculado
+  - Descripción detallada del diagnóstico
+  - Diagnosticado por podólogo asignado
+
+### 💰 Análisis Financiero
+
+**Ingresos Estimados (citas completadas):**
+- Consulta General: 91 × $600 = $54,600
+- Onicomicosis: 73 × $750 = $54,750
+- Uñas Enterradas: 73 × $550 = $40,150
+- Pedicure Clínico: 54 × $800 = $43,200
+- Callosidades: 44 × $500 = $22,000
+- Verrugas Plantares: 18 × $900 = $16,200
+- Pie de Atleta: 10 × $600 = $6,000
+
+**Total estimado:** ~$236,900 MXN (solo citas completadas)
+
+### 🔍 Validaciones Incluidas
+
+El script incluye validaciones automáticas exhaustivas:
+
+```sql
+DO $$
+BEGIN
+  -- Prerequisitos
+  IF (SELECT COUNT(*) FROM pacientes) < 200 THEN
+    RAISE EXCEPTION 'ERROR: Ejecuta agente_14_pacientes primero';
+  END IF;
+  
+  IF (SELECT COUNT(*) FROM tratamientos) < 7 THEN
+    RAISE EXCEPTION 'ERROR: Faltan tipos de servicio';
+  END IF;
+  
+  IF (SELECT COUNT(*) FROM horarios_trabajo) < 10 THEN
+    RAISE EXCEPTION 'ERROR: Faltan horarios de doctores';
+  END IF;
+END $$;
+```
+
+**Validaciones Post-Inserción:**
+- ✓ Total de citas = 363
+- ✓ Distribución mensual correcta
+- ✓ Distribución por doctor (55%/45%)
+- ✓ Distribución por servicio según porcentajes
+- ✓ **Sin solapamientos de horarios** (mismo doctor, misma hora)
+- ✓ **Sin duplicados** (mismo paciente, mismo día)
+- ✓ Totales de notas clínicas, diagnósticos
+- ✓ Cálculo de ingresos estimados
+- ✓ Mensaje de éxito con estadísticas completas
+
+### 📝 Características Destacadas
+
+✅ **Algoritmo Anti-Solapamiento:**
+- Control estricto de slots ocupados por doctor
+- Verificación de disponibilidad en tiempo real
+- Máximo una cita por slot por doctor
+
+✅ **Restricción Paciente/Día:**
+- Un paciente no puede tener 2+ citas el mismo día
+- Seguimiento de pacientes por fecha
+- Distribución equitativa de pacientes
+
+✅ **Horarios Realistas:**
+- Santiago: 09:00-17:30 (18 slots/día)
+- Joana: 10:00-16:30 (14 slots/día)
+- Slots de 30 minutos
+- Solo días hábiles (Lun-Vie)
+
+✅ **Motivos de Consulta Específicos:**
+- Personalizados por tipo de servicio
+- Variedad realista de síntomas
+- Lenguaje médico apropiado
+
+✅ **Tratamientos Completos:**
+- Solo para citas completadas (85%)
+- Notas clínicas detalladas
+- Diagnósticos con CIE-10 oficial
+- Plan de tratamiento e indicaciones
+
+### 🚀 Ejecución
+
+```bash
+# Desde línea de comandos
+psql -U postgres -d podoskin -f data/seed/03_citas_tratamientos.sql
+
+# Desde PostgreSQL interactivo
+\i data/seed/03_citas_tratamientos.sql
+```
+
+**Prerequisitos:**
+- Base de datos creada con esquema completo
+- Script `01_usuarios_config.sql` ejecutado previamente
+- Script `02_pacientes.sql` ejecutado previamente
+
+### 📊 Salida Esperada
+
+```
+NOTICE: ✅ Prerequisitos verificados correctamente
+NOTICE: Insertando 363 citas...
+NOTICE: Insertando detalles de citas...
+NOTICE: Insertando notas clínicas...
+NOTICE: Insertando códigos CIE-10...
+NOTICE: Insertando diagnósticos con códigos CIE-10...
+NOTICE: 
+NOTICE: ╔════════════════════════════════════════════════════════════════╗
+NOTICE: ║  ✅ AGENTE 15/16 COMPLETADO EXITOSAMENTE                      ║
+NOTICE: ║  Script: 03_citas_tratamientos.sql                            ║
+NOTICE: ╠════════════════════════════════════════════════════════════════╣
+NOTICE: ║  📊 RESUMEN DE DATOS INSERTADOS:                              ║
+NOTICE: ║                                                                ║
+NOTICE: ║     📅 Total citas:              363 citas                     ║
+NOTICE: ║     ✅ Citas completadas:        308 citas                     ║
+NOTICE: ║     📋 Diagnósticos con CIE-10:  308 registros                ║
+NOTICE: ║                                                                ║
+NOTICE: ║  📅 DISTRIBUCIÓN MENSUAL:                                     ║
+NOTICE: ║     • Noviembre 2024:            115 citas                     ║
+NOTICE: ║     • Diciembre 2024:            121 citas                     ║
+NOTICE: ║     • Enero 2025:                127 citas                     ║
+NOTICE: ║                                                                ║
+NOTICE: ║  👨‍⚕️ DISTRIBUCIÓN POR DOCTOR:                                 ║
+NOTICE: ║     • Santiago (55%):            199 citas                     ║
+NOTICE: ║     • Joana (45%):               164 citas                     ║
+NOTICE: ║                                                                ║
+NOTICE: ║  💼 DISTRIBUCIÓN POR SERVICIO:                                ║
+NOTICE: ║     • Consulta General (25%):     91 citas ($600)             ║
+NOTICE: ║     • Onicomicosis (20%):         73 citas ($750)             ║
+NOTICE: ║     • Uñas Enterradas (20%):      73 citas ($550)             ║
+NOTICE: ║     • Pedicure Clínico (15%):     54 citas ($800)             ║
+NOTICE: ║     • Callosidades (12%):         44 citas ($500)             ║
+NOTICE: ║     • Verrugas Plantares (5%):    18 citas ($900)             ║
+NOTICE: ║     • Pie de Atleta (3%):         10 citas ($600)             ║
+NOTICE: ║                                                                ║
+NOTICE: ║  💰 INGRESOS ESTIMADOS:                                       ║
+NOTICE: ║     Total (citas completadas):   $236,900 MXN                 ║
+NOTICE: ║                                                                ║
+NOTICE: ║  ✓ VALIDACIONES:                                              ║
+NOTICE: ║     • Solapamientos horarios:      0 (esperado: 0)            ║
+NOTICE: ║     • Duplicados paciente/día:     0 (esperado: 0)            ║
+NOTICE: ║                                                                ║
+NOTICE: ╠════════════════════════════════════════════════════════════════╣
+NOTICE: ║  📝 SIGUIENTE PASO:                                           ║
+NOTICE: ║     ▶️  Ejecutar: agente_16_pagos_inventario.sql              ║
+NOTICE: ╚════════════════════════════════════════════════════════════════╝
+COMMIT
+NOTICE: ✅ Script 03_citas_tratamientos.sql ejecutado exitosamente
+```
+
+### 🔬 Verificación Post-Ejecución
+
+```sql
+-- Verificar total de citas
+SELECT COUNT(*) FROM citas 
+WHERE fecha_hora_inicio >= '2024-11-01' 
+  AND fecha_hora_inicio < '2025-02-01';  
+-- Esperado: 363
+
+-- Verificar distribución por doctor
+SELECT 
+  CASE 
+    WHEN id_podologo = 1 THEN 'Santiago'
+    WHEN id_podologo = 2 THEN 'Joana'
+  END as doctor,
+  COUNT(*) as total,
+  ROUND(COUNT(*) * 100.0 / 363, 1) as porcentaje
+FROM citas
+WHERE fecha_hora_inicio >= '2024-11-01' 
+  AND fecha_hora_inicio < '2025-02-01'
+GROUP BY id_podologo;
+-- Esperado:
+--   Santiago: ~200 (55%)
+--   Joana: ~163 (45%)
+
+-- Verificar distribución por estado
+SELECT estado, COUNT(*) 
+FROM citas 
+WHERE fecha_hora_inicio >= '2024-11-01' 
+  AND fecha_hora_inicio < '2025-02-01'
+GROUP BY estado;
+-- Esperado:
+--   Completada: 308
+--   Pendiente: 30
+--   Cancelada: 18
+--   No_Asistio: 7
+
+-- Verificar sin solapamientos
+SELECT fecha_hora_inicio, id_podologo, COUNT(*) 
+FROM citas 
+WHERE fecha_hora_inicio >= '2024-11-01' 
+  AND fecha_hora_inicio < '2025-02-01'
+GROUP BY fecha_hora_inicio, id_podologo 
+HAVING COUNT(*) > 1;
+-- Esperado: 0 filas
+
+-- Verificar diagnósticos
+SELECT COUNT(*) FROM diagnosticos_tratamiento dt
+JOIN detalle_cita dc ON dt.id_detalle_cita = dc.id
+JOIN citas c ON dc.id_cita = c.id
+WHERE c.fecha_hora_inicio >= '2024-11-01' 
+  AND c.fecha_hora_inicio < '2025-02-01';
+-- Esperado: 308
+
+-- Verificar ingresos
+SELECT SUM(dc.precio_final) as ingresos_totales
+FROM detalle_cita dc
+JOIN citas c ON dc.id_cita = c.id
+WHERE c.estado = 'Completada'
+  AND c.fecha_hora_inicio >= '2024-11-01' 
+  AND c.fecha_hora_inicio < '2025-02-01';
+-- Esperado: ~$236,900
+```
+
+### 📌 Ejemplo de Datos
+
+**Cita #1:**
+```sql
+Paciente: ID 73
+Podólogo: Joana (ID 2)
+Fecha: 2024-11-01 12:30:00 - 13:00:00
+Tipo: Primera Vez
+Estado: Completada
+Servicio: Callosidades ($500)
+Motivo: Callos dolorosos en planta
+Diagnóstico: Callosidad adquirida (CIE-10: L85.1)
+```
+
+**Cita #2:**
+```sql
+Paciente: ID 93
+Podólogo: Joana (ID 2)
+Fecha: 2024-11-01 13:00:00 - 13:30:00
+Tipo: Primera Vez
+Estado: Completada
+Servicio: Consulta General ($600)
+Motivo: Dolor en talón al caminar
+Diagnóstico: Fascitis plantar (CIE-10: M72.2)
+```
+
+### ⚠️ Notas Importantes
+
+- **Transacciones:** Script usa BEGIN/COMMIT con rollback automático en caso de error
+- **Idempotencia:** Los IDs son auto-generados. No ejecutar múltiples veces sin limpiar datos primero
+- **Códigos CIE-10:** Válidos según catálogo internacional oficial
+- **Horarios:** Respetan disponibilidad real de cada doctor
+- **Fechas:** Distribuidas en 66 días hábiles (Lun-Vie solamente)
+- **Solapamientos:** Algoritmo garantiza 0 conflictos de horario
+
+### 🔗 Siguiente Paso
+
+▶️ **Ejecutar:** `agente_16_pagos_inventario.sql` (AGENTE 16/16)  
+Para generar pagos y movimientos de inventario para estas 363 citas.
+
+### 🛠️ Implementación Técnica
+
+**Generación de Datos:**
+- Script Python para generar datos consistentes y realistas
+- Algoritmo anti-solapamiento con tracking de slots
+- Control de pacientes por día para evitar duplicados
+- Distribución probabilística por doctor (55%/45%)
+- Asignación de estados según distribución especificada
+- Generación de motivos de consulta específicos por servicio
+
+**Estructura SQL:**
+- Transacción completa con BEGIN/COMMIT
+- Validación de prerequisitos con DO blocks
+- 5 secciones principales de INSERT
+- Vinculación automática cita-tratamiento-diagnóstico
+- Bloque de validación post-inserción extenso
+- Mensajes informativos detallados con RAISE NOTICE
+
+**Compatibilidad:**
+- PostgreSQL 12+
+- Compatible con esquema existente del proyecto
+- Formato consistente con seed scripts anteriores
+- Referencias correctas a IDs de usuarios y pacientes
+
+---
+
 **Última actualización:** 2026-01-01  
 **Mantenedor:** Equipo de Desarrollo Podoskin

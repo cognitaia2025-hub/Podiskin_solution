@@ -82,9 +82,9 @@ CREATE TABLE facturas (
     rfc_emisor text NOT NULL,
     rfc_receptor text NOT NULL,
     nombre_receptor text,
-    uso_cfdi text DEFAULT 'G03',
-    metodo_pago text NOT NULL,
-    forma_pago text NOT NULL,
+    uso_cfdi text DEFAULT 'G03', -- G03=Gastos en general, G01=Adquisición de mercancías, P01=Por definir
+    metodo_pago text NOT NULL, -- Clave SAT: '01'=Efectivo, '04'=Tarjeta de crédito, '03'=Transferencia
+    forma_pago text NOT NULL, -- Descripción: 'Efectivo', 'Tarjeta de crédito', 'Transferencia'
     subtotal numeric(10,2) NOT NULL,
     iva numeric(10,2) NOT NULL,
     total numeric(10,2) NOT NULL,

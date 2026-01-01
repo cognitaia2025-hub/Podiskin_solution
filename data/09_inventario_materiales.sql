@@ -5,6 +5,38 @@
 -- ============================================================================
 
 -- ============================================================================
+-- CATÁLOGO DE PROVEEDORES
+-- ============================================================================
+
+CREATE TABLE proveedores (
+    id bigint NOT NULL,
+    nombre_comercial text NOT NULL,
+    razon_social text,
+    rfc text,
+    tipo_proveedor text,
+    telefono text,
+    email text,
+    direccion text,
+    ciudad text,
+    estado text,
+    codigo_postal text,
+    contacto_principal text,
+    dias_credito integer DEFAULT 0,
+    activo boolean DEFAULT true,
+    notas text,
+    fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE proveedores ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME proveedores_id_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+-- ============================================================================
 -- CATÁLOGO DE PRODUCTOS E INVENTARIO
 -- ============================================================================
 
@@ -42,9 +74,7 @@ CREATE TABLE inventario_productos (
     margen_ganancia numeric(5,2), -- Porcentaje
     
     -- Proveedor
-    proveedor text,
-    telefono_proveedor text,
-    email_proveedor text,
+    id_proveedor bigint,
     tiempo_reposicion_dias integer DEFAULT 7,
     
     -- Control especial
@@ -69,6 +99,21 @@ CREATE INDEX idx_inventario_categoria ON inventario_productos(categoria, activo)
 CREATE INDEX idx_inventario_codigo ON inventario_productos(codigo_producto);
 CREATE INDEX idx_inventario_stock_bajo ON inventario_productos(stock_actual, stock_minimo) 
 WHERE stock_actual <= stock_minimo AND activo = true;
+CREATE INDEX idx_inventario_proveedor ON inventario_productos(id_proveedor);
+
+-- ============================================================================
+-- CONSTRAINTS Y FOREIGN KEYS PARA PROVEEDORES E INVENTARIO
+-- ============================================================================
+
+ALTER TABLE ONLY proveedores
+    ADD CONSTRAINT proveedores_pkey PRIMARY KEY (id);
+
+CREATE INDEX idx_proveedores_nombre ON proveedores USING btree (nombre_comercial);
+CREATE INDEX idx_proveedores_activo ON proveedores USING btree (activo);
+CREATE INDEX idx_proveedores_tipo ON proveedores USING btree (tipo_proveedor);
+
+ALTER TABLE ONLY inventario_productos
+    ADD CONSTRAINT inventario_productos_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES proveedores(id);
 
 -- ============================================================================
 -- MOVIMIENTOS DE INVENTARIO
@@ -233,12 +278,13 @@ SELECT
     p.stock_actual,
     p.stock_minimo,
     (p.stock_minimo - p.stock_actual) AS cantidad_requerida,
-    p.proveedor,
-    p.telefono_proveedor,
+    prov.nombre_comercial AS proveedor,
+    prov.telefono AS telefono_proveedor,
     p.tiempo_reposicion_dias,
     p.costo_unitario,
     (p.stock_minimo - p.stock_actual) * p.costo_unitario AS costo_reposicion
 FROM inventario_productos p
+LEFT JOIN proveedores prov ON p.id_proveedor = prov.id
 WHERE p.stock_actual <= p.stock_minimo
   AND p.activo = true
 ORDER BY (p.stock_minimo - p.stock_actual) DESC;

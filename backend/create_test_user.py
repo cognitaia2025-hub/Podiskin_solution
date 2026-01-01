@@ -33,12 +33,24 @@ def create_test_user():
         # Crear usuario de prueba
         password_hash = get_password_hash("password123")
         
+        # Obtener el ID del rol 'Podologo'
+        cur.execute("SELECT id FROM roles WHERE nombre_rol = %s", ("Podologo",))
+        rol_result = cur.fetchone()
+        
+        if not rol_result:
+            print("❌ Error: Rol 'Podologo' no encontrado en la tabla roles")
+            cur.close()
+            conn.close()
+            sys.exit(1)
+        
+        id_rol = rol_result[0]
+        
         cur.execute("""
             INSERT INTO usuarios (
                 nombre_usuario, 
                 password_hash, 
                 email, 
-                rol, 
+                id_rol, 
                 nombre_completo,
                 activo
             ) VALUES (%s, %s, %s, %s, %s, %s)
@@ -47,7 +59,7 @@ def create_test_user():
             "dr.santiago",
             password_hash,
             "santiago@podoskin.com",
-            "Podologo",
+            id_rol,
             "Dr. Santiago Ornelas",
             True
         ))

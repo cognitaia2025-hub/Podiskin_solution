@@ -8,19 +8,20 @@ Sistema integral de gestión clínica para podología con asistente de voz IA, C
 |---|---------|-------------|---------------|
 | 0 | `00_inicializacion.sql` | Extensión pgvector | 0 |
 | 1 | `01_funciones.sql` | Funciones del sistema | 5 funciones |
-| 2 | `02_usuarios.sql` | Usuarios y podólogos | 2 tablas |
+| 2 | `02_usuarios.sql` | Usuarios, roles y podólogos | 3 tablas |
 | 3 | `03_pacientes.sql` | Expediente clínico | 6 tablas |
 | 4 | `04_citas_tratamientos.sql` | Agenda y pagos | 8 tablas |
+| 4.5 | `04.5_pagos_finanzas.sql` | **Gastos, cortes y facturas** | 3 tablas |
 | 5 | `05_chatbot_crm.sql` | Mensajería y CRM | 10 tablas |
 | 6 | `06_vistas.sql` | Vistas de consulta | 2 vistas |
 | 7 | `07_asistente_voz_consulta.sql` | **Asistente de voz Gemini Live** | 7 tablas + 2 vistas |
 | 8 | `08_recordatorios_automatizacion.sql` | **Recordatorios y análisis** | 2 tablas + 3 vistas |
-| 9 | `09_inventario_materiales.sql` | **Control de inventario** | 3 tablas + 4 vistas |
+| 9 | `09_inventario_materiales.sql` | **Control de inventario (con proveedores)** | 4 tablas + 4 vistas |
 | 10 | `10_dashboard_kpis.sql` | **Dashboard y KPIs** | 0 tablas + 9 vistas |
 | 11 | `11_horarios_personal.sql` | **Gestión de horarios** | 2 tablas + 2 vistas |
 | 12 | `12_documentos_impresion.sql` | **Documentos médicos e impresión** | 2 tablas + 2 vistas |
 
-**Total**: 42 tablas + 24 vistas + 15+ funciones
+**Total**: 45 tablas + 24 vistas + 15+ funciones
 
 ---
 

@@ -111,120 +111,120 @@ INSERT INTO inventario_productos (
     codigo_producto, nombre, descripcion, categoria, subcategoria,
     stock_actual, stock_minimo, stock_maximo, unidad_medida,
     costo_unitario, precio_venta, margen_ganancia,
-    proveedor, activo, registrado_por
+    id_proveedor, activo, registrado_por
 ) VALUES
   ('INST-001', 'Bisturí podológico desechable', 'Bisturí estéril de un solo uso para procedimientos podológicos', 'Instrumental', 'Instrumental quirúrgico',
-   50, 10, 100, 'pieza', 8.50, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   50, 10, 100, 'pieza', 8.50, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-002', 'Alicate para uñas profesional', 'Alicate de acero inoxidable para corte de uñas gruesas', 'Instrumental', 'Instrumental quirúrgico',
-   5, 2, 10, 'pieza', 120.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   5, 2, 10, 'pieza', 120.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-003', 'Fresadora podológica eléctrica', 'Fresadora de alta velocidad para tratamiento de callosidades', 'Equipo_Medico', 'Equipo eléctrico',
-   2, 1, 3, 'pieza', 2500.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   2, 1, 3, 'pieza', 2500.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('INST-004', 'Fresas para fresadora (set 10)', 'Set de 10 fresas diamantadas de diferentes granos', 'Instrumental', 'Accesorios',
-   15, 5, 30, 'paquete', 80.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   15, 5, 30, 'paquete', 80.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-005', 'Pinza mosquito curva', 'Pinza de acero inoxidable 12cm curva', 'Instrumental', 'Instrumental quirúrgico',
-   8, 3, 15, 'pieza', 45.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   8, 3, 15, 'pieza', 45.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-006', 'Tijeras iris curvas', 'Tijeras de precisión curvas 11cm', 'Instrumental', 'Instrumental quirúrgico',
-   6, 2, 12, 'pieza', 65.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   6, 2, 12, 'pieza', 65.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-007', 'Lima de Ortesky', 'Lima especial para tratamiento de uñas', 'Instrumental', 'Instrumental quirúrgico',
-   10, 3, 20, 'pieza', 35.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1),
+   10, 3, 20, 'pieza', 35.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1),
   ('INST-008', 'Cureta podológica doble', 'Cureta de acero con dos puntas', 'Instrumental', 'Instrumental quirúrgico',
-   7, 2, 15, 'pieza', 55.00, 0, 0, 'Instrumentos Médicos del Norte', true, 1);
+   7, 2, 15, 'pieza', 55.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Instrumentos Médicos del Norte'), true, 1);
 
 -- MEDICAMENTOS (8 productos)
 INSERT INTO inventario_productos (
     codigo_producto, nombre, descripcion, categoria, subcategoria,
     stock_actual, stock_minimo, stock_maximo, unidad_medida,
     costo_unitario, precio_venta, margen_ganancia,
-    proveedor, requiere_receta, activo, registrado_por
+    id_proveedor, requiere_receta, activo, registrado_por
 ) VALUES
   ('MED-001', 'Fluconazol 150mg', 'Antifúngico oral para onicomicosis', 'Medicamento', 'Antifúngico',
-   30, 10, 60, 'pieza', 85.00, 180.00, 111.76, 'Farmacéutica Regional', true, true, 1),
+   30, 10, 60, 'pieza', 85.00, 180.00, 111.76, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), true, true, 1),
   ('MED-002', 'Clotrimazol tópico 1%', 'Crema antifúngica 30g', 'Medicamento', 'Antifúngico',
-   25, 8, 50, 'pieza', 45.00, 95.00, 111.11, 'Farmacéutica Regional', false, true, 1),
+   25, 8, 50, 'pieza', 45.00, 95.00, 111.11, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-003', 'Terbinafina tópica 1%', 'Crema antifúngica 15g', 'Medicamento', 'Antifúngico',
-   20, 5, 40, 'pieza', 95.00, 200.00, 110.53, 'Farmacéutica Regional', false, true, 1),
+   20, 5, 40, 'pieza', 95.00, 200.00, 110.53, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-004', 'Ketoconazol champú 2%', 'Champú medicinal 120ml', 'Medicamento', 'Antifúngico',
-   18, 5, 35, 'pieza', 65.00, 140.00, 115.38, 'Farmacéutica Regional', false, true, 1),
+   18, 5, 35, 'pieza', 65.00, 140.00, 115.38, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-005', 'Betadine solución', 'Solución antiséptica 120ml', 'Medicamento', 'Antiséptico',
-   22, 8, 40, 'pieza', 38.00, 80.00, 110.53, 'Farmacéutica Regional', false, true, 1),
+   22, 8, 40, 'pieza', 38.00, 80.00, 110.53, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-006', 'Lidocaína gel 2%', 'Gel anestésico tópico 30g', 'Medicamento', 'Anestésico',
-   15, 5, 30, 'pieza', 55.00, 115.00, 109.09, 'Farmacéutica Regional', false, true, 1),
+   15, 5, 30, 'pieza', 55.00, 115.00, 109.09, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-007', 'Cicatricure gel', 'Gel para cicatrización 30g', 'Medicamento', 'Cicatrizante',
-   12, 4, 25, 'pieza', 72.00, 150.00, 108.33, 'Farmacéutica Regional', false, true, 1),
+   12, 4, 25, 'pieza', 72.00, 150.00, 108.33, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1),
   ('MED-008', 'Alcohol isopropílico 70%', 'Desinfectante 500ml', 'Medicamento', 'Antiséptico',
-   28, 10, 50, 'pieza', 22.00, 45.00, 104.55, 'Farmacéutica Regional', false, true, 1);
+   28, 10, 50, 'pieza', 22.00, 45.00, 104.55, (SELECT id FROM proveedores WHERE nombre_comercial = 'Farmacéutica Regional'), false, true, 1);
 
 -- CONSUMIBLES (8 productos)
 INSERT INTO inventario_productos (
     codigo_producto, nombre, descripcion, categoria, subcategoria,
     stock_actual, stock_minimo, stock_maximo, unidad_medida,
     costo_unitario, precio_venta, margen_ganancia,
-    proveedor, activo, registrado_por
+    id_proveedor, activo, registrado_por
 ) VALUES
   ('CONS-001', 'Guantes nitrilo M (caja 100)', 'Guantes desechables azules talla M', 'Consumible', 'Protección',
-   15, 5, 30, 'caja', 180.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   15, 5, 30, 'caja', 180.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-002', 'Gasas estériles (paq 100)', 'Gasas estériles 10x10cm', 'Material_Curacion', 'Material estéril',
-   20, 8, 40, 'paquete', 95.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   20, 8, 40, 'paquete', 95.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-003', 'Algodón en rollo 500g', 'Algodón hidrófilo estéril', 'Material_Curacion', 'Material básico',
-   10, 3, 20, 'pieza', 45.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   10, 3, 20, 'pieza', 45.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-004', 'Cubrebocas tricapa (caja 50)', 'Cubrebocas desechables con filtro', 'Consumible', 'Protección',
-   18, 6, 35, 'caja', 85.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   18, 6, 35, 'caja', 85.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-005', 'Campos quirúrgicos desechables', 'Campos estériles 50x50cm paquete 10', 'Consumible', 'Material estéril',
-   12, 4, 25, 'paquete', 120.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   12, 4, 25, 'paquete', 120.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-006', 'Toallas desechables (rollo)', 'Toallas de papel para consultorio 200 hojas', 'Consumible', 'Higiene',
-   25, 8, 50, 'pieza', 35.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   25, 8, 50, 'pieza', 35.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-007', 'Jabón antibacterial 5L', 'Jabón líquido antibacterial dispensador', 'Material_Limpieza', 'Higiene',
-   8, 3, 15, 'pieza', 95.00, 0, 0, 'Distribuidora de Consumibles', true, 1),
+   8, 3, 15, 'pieza', 95.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1),
   ('CONS-008', 'Bolsas RPBI rojas 60x90', 'Bolsas para residuos biológicos paquete 50', 'Consumible', 'Desechos',
-   14, 5, 30, 'paquete', 110.00, 0, 0, 'Distribuidora de Consumibles', true, 1);
+   14, 5, 30, 'paquete', 110.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Distribuidora de Consumibles'), true, 1);
 
 -- MATERIALES PODOLÓGICOS (8 productos)
 INSERT INTO inventario_productos (
     codigo_producto, nombre, descripcion, categoria, subcategoria,
     stock_actual, stock_minimo, stock_maximo, unidad_medida,
     costo_unitario, precio_venta, margen_ganancia,
-    proveedor, activo, registrado_por
+    id_proveedor, activo, registrado_por
 ) VALUES
   ('MAT-001', 'Esparadrapo hipoalergénico', 'Cinta adhesiva 5cm x 5m', 'Material_Curacion', 'Material adhesivo',
-   30, 10, 60, 'pieza', 25.00, 55.00, 120.00, 'Materiales Podológicos BC', true, 1),
+   30, 10, 60, 'pieza', 25.00, 55.00, 120.00, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-002', 'Fieltro ortopédico 5mm', 'Plancha de fieltro 30x40cm', 'Material_Curacion', 'Ortopedia',
-   8, 3, 20, 'pieza', 120.00, 250.00, 108.33, 'Materiales Podológicos BC', true, 1),
+   8, 3, 20, 'pieza', 120.00, 250.00, 108.33, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-003', 'Silicona podológica A+B', 'Kit de silicona para ortesis 500g', 'Material_Curacion', 'Ortopedia',
-   12, 4, 25, 'kit', 180.00, 380.00, 111.11, 'Materiales Podológicos BC', true, 1),
+   12, 4, 25, 'kit', 180.00, 380.00, 111.11, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-004', 'Vendas elásticas 10cm', 'Venda elástica cohesiva rollo 4.5m', 'Material_Curacion', 'Vendajes',
-   22, 8, 45, 'pieza', 18.00, 40.00, 122.22, 'Materiales Podológicos BC', true, 1),
+   22, 8, 45, 'pieza', 18.00, 40.00, 122.22, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-005', 'Plantillas ortopédicas EVA', 'Par de plantillas moldeables talla ajustable', 'Producto_Venta', 'Ortopedia',
-   16, 5, 35, 'par', 85.00, 350.00, 311.76, 'Materiales Podológicos BC', true, 1),
+   16, 5, 35, 'par', 85.00, 350.00, 311.76, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-006', 'Separadores de dedos silicona', 'Set 10 separadores interdigitales', 'Producto_Venta', 'Ortesis',
-   20, 8, 40, 'set', 45.00, 180.00, 300.00, 'Materiales Podológicos BC', true, 1),
+   20, 8, 40, 'set', 45.00, 180.00, 300.00, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-007', 'Protectores de juanete', 'Protector de gel pack 2 unidades', 'Producto_Venta', 'Ortesis',
-   18, 6, 35, 'pack', 38.00, 150.00, 294.74, 'Materiales Podológicos BC', true, 1),
+   18, 6, 35, 'pack', 38.00, 150.00, 294.74, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1),
   ('MAT-008', 'Cojín metatarsal', 'Almohadilla metatarsal con adhesivo pack 2', 'Producto_Venta', 'Ortesis',
-   14, 5, 30, 'pack', 32.00, 120.00, 275.00, 'Materiales Podológicos BC', true, 1);
+   14, 5, 30, 'pack', 32.00, 120.00, 275.00, (SELECT id FROM proveedores WHERE nombre_comercial = 'Materiales Podológicos BC'), true, 1);
 
 -- EQUIPAMIENTO (8 productos)
 INSERT INTO inventario_productos (
     codigo_producto, nombre, descripcion, categoria, subcategoria,
     stock_actual, stock_minimo, stock_maximo, unidad_medida,
     costo_unitario, precio_venta, margen_ganancia,
-    proveedor, activo, registrado_por
+    id_proveedor, activo, registrado_por
 ) VALUES
   ('EQUIP-001', 'Lámpara de luz fría LED', 'Lámpara con brazo flexible 12W', 'Equipo_Medico', 'Iluminación',
-   2, 1, 3, 'pieza', 1200.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   2, 1, 3, 'pieza', 1200.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-002', 'Banqueta podológica ajustable', 'Banqueta con respaldo y altura regulable', 'Equipo_Medico', 'Mobiliario',
-   2, 1, 3, 'pieza', 850.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   2, 1, 3, 'pieza', 850.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-003', 'Autoclave 18 litros', 'Esterilizador automático digital', 'Equipo_Medico', 'Esterilización',
-   1, 1, 2, 'pieza', 8500.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   1, 1, 2, 'pieza', 8500.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-004', 'Tina pediluvio con hidromasaje', 'Tina con vibración y calentamiento', 'Equipo_Medico', 'Terapia',
-   1, 1, 2, 'pieza', 2800.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   1, 1, 2, 'pieza', 2800.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-005', 'Esterilizador UV 8W', 'Caja esterilizadora con luz ultravioleta', 'Equipo_Medico', 'Esterilización',
-   1, 1, 2, 'pieza', 650.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   1, 1, 2, 'pieza', 650.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-006', 'Vitrina para instrumental', 'Vitrina de acero inoxidable con puertas', 'Equipo_Medico', 'Almacenamiento',
-   1, 1, 2, 'pieza', 1800.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   1, 1, 2, 'pieza', 1800.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-007', 'Carrito auxiliar 3 niveles', 'Carrito móvil de acero inoxidable', 'Equipo_Medico', 'Mobiliario',
-   2, 1, 3, 'pieza', 950.00, 0, 0, 'Equipos Médicos Especializados', true, 1),
+   2, 1, 3, 'pieza', 950.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1),
   ('EQUIP-008', 'Negatoscopio LED', 'Visor de placas radiográficas LED 40x30cm', 'Equipo_Medico', 'Diagnóstico',
-   1, 1, 2, 'pieza', 1100.00, 0, 0, 'Equipos Médicos Especializados', true, 1);
+   1, 1, 2, 'pieza', 1100.00, 0, 0, (SELECT id FROM proveedores WHERE nombre_comercial = 'Equipos Médicos Especializados'), true, 1);
 
 -- ============================================================================
 -- 3. MOVIMIENTOS DE INVENTARIO - ENTRADAS (30 registros)
@@ -485,26 +485,8 @@ ORDER BY DATE(p.fecha_pago);
 
 RAISE NOTICE 'Insertando proveedores...';
 
--- Crear tabla de proveedores si no existe
-CREATE TABLE IF NOT EXISTS proveedores (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    nombre_comercial text NOT NULL,
-    razon_social text,
-    rfc text,
-    tipo_proveedor text,
-    telefono text,
-    email text,
-    direccion text,
-    ciudad text,
-    estado text,
-    codigo_postal text,
-    contacto_principal text,
-    dias_credito integer DEFAULT 0,
-    activo boolean DEFAULT true,
-    notas text,
-    fecha_registro timestamp DEFAULT NOW()
-);
-
+-- Los proveedores ya están en el esquema principal (data/09_inventario_materiales.sql)
+-- Solo insertamos los datos si no existen
 INSERT INTO proveedores (
     nombre_comercial, razon_social, rfc, tipo_proveedor, 
     telefono, email, direccion, ciudad, estado, codigo_postal,

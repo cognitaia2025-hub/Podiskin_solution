@@ -176,19 +176,19 @@ BEGIN
     RAISE NOTICE 'Step 6: Resetting Sequences...';
     
     -- Reset sequences for cleaned tables
-    PERFORM setval(pg_get_serial_sequence('facturas', 'id_factura'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('cortes_caja', 'id_corte'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('gastos', 'id_gasto'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('movimientos_inventario', 'id_movimiento'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('inventario_productos', 'id_producto'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('proveedores', 'id_proveedor'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('pagos', 'id_pago'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('diagnosticos', 'id_diagnostico'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('detalle_cita', 'id_detalle'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('citas', 'id_cita'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('antecedentes_medicos', 'id_antecedente'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('alergias', 'id_alergia'), 1, false);
-    PERFORM setval(pg_get_serial_sequence('pacientes', 'id_paciente'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('facturas', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('cortes_caja', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('gastos', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('movimientos_inventario', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('inventario_productos', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('proveedores', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('pagos', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('diagnosticos', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('detalle_cita', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('citas', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('antecedentes_medicos', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('alergias', 'id'), 1, false);
+    PERFORM setval(pg_get_serial_sequence('pacientes', 'id'), 1, false);
     
     RAISE NOTICE '  ✓ All sequences reset to starting values';
     RAISE NOTICE '----------------------------------------';
@@ -240,21 +240,16 @@ BEGIN
     
     FOR user_record IN 
         SELECT 
-            u.id_usuario,
-            u.nombre,
-            u.apellido_paterno,
-            u.apellido_materno,
+            u.id,
+            u.nombre_completo,
             u.email,
             r.nombre_rol as rol
         FROM usuarios u
-        LEFT JOIN roles r ON u.id_rol = r.id_rol
-        ORDER BY u.id_usuario
+        LEFT JOIN roles r ON u.id_rol = r.id
+        ORDER BY u.id
     LOOP
-        RAISE NOTICE '  User ID: %', user_record.id_usuario;
-        RAISE NOTICE '    Name: % % %', 
-            user_record.nombre, 
-            user_record.apellido_paterno, 
-            COALESCE(user_record.apellido_materno, '');
+        RAISE NOTICE '  User ID: %', user_record.id;
+        RAISE NOTICE '    Name: %', user_record.nombre_completo;
         RAISE NOTICE '    Email: %', user_record.email;
         RAISE NOTICE '    Role: %', COALESCE(user_record.rol, 'No role assigned');
         RAISE NOTICE '';

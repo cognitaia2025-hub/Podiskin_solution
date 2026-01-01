@@ -61,9 +61,9 @@ SELECT
     COUNT(DISTINCT am.id) FILTER (WHERE am.activo = true) AS total_antecedentes,
     STRING_AGG(DISTINCT am.nombre_enfermedad, ', ') FILTER (WHERE am.activo = true AND am.tipo_categoria = 'Patologico') AS enfermedades_patologicas,
     -- Signos vitales más recientes
-    (SELECT sv.peso FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_medicion DESC LIMIT 1) AS peso_actual,
-    (SELECT sv.talla FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_medicion DESC LIMIT 1) AS talla_actual,
-    (SELECT sv.presion_sistolica || '/' || sv.presion_diastolica FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_medicion DESC LIMIT 1) AS presion_arterial,
+    (SELECT sv.peso_kg FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_registro DESC LIMIT 1) AS peso_actual,
+    (SELECT sv.talla_cm FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_registro DESC LIMIT 1) AS talla_actual,
+    (SELECT sv.ta_sistolica || '/' || sv.ta_diastolica FROM signos_vitales sv WHERE sv.id_paciente = p.id ORDER BY sv.fecha_registro DESC LIMIT 1) AS presion_arterial,
     -- Historial de citas
     COUNT(DISTINCT c.id) AS total_citas,
     COUNT(DISTINCT c.id) FILTER (WHERE c.estado = 'Completada') AS citas_completadas,
@@ -85,46 +85,5 @@ GROUP BY p.id, p.primer_nombre, p.primer_apellido, p.fecha_nacimiento, p.sexo,
 
 -- ============================================================================
 -- Vista 24: Productividad de Podólogos
--- Descripción: Analiza el desempeño y productividad de cada podólogo
+-- NOTA: Esta vista se mueve a 11_horarios_personal.sql por dependencia con horarios_trabajo
 -- ============================================================================
-CREATE VIEW productividad_podologos AS
-SELECT 
-    pod.id AS id_podologo,
-    u.nombre_completo AS nombre_podologo,
-    u.email,
-    pod.especialidad,
-    pod.activo,
-    -- Métricas de citas del mes actual
-    COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)) AS citas_mes_actual,
-    COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE) AND c.estado = 'Completada') AS citas_completadas_mes,
-    COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE) AND c.estado = 'Cancelada') AS citas_canceladas_mes,
-    COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE) AND c.estado = 'No_Asistio') AS pacientes_no_asistieron_mes,
-    -- Tasa de efectividad
-    ROUND(
-        COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE) AND c.estado = 'Completada')::NUMERIC / 
-        NULLIF(COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)), 0) * 100, 
-        2
-    ) AS tasa_completitud_mes,
-    -- Métricas de pacientes
-    COUNT(DISTINCT c.id_paciente) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)) AS pacientes_unicos_mes,
-    COUNT(DISTINCT c.id_paciente) FILTER (WHERE c.es_primera_vez = true AND c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)) AS pacientes_nuevos_mes,
-    -- Ingresos generados
-    COALESCE(SUM(p.monto_pagado) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)), 0) AS ingresos_mes,
-    COALESCE(AVG(p.monto_pagado) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE)), 0) AS ticket_promedio_mes,
-    -- Tratamientos realizados
-    COUNT(dc.id) FILTER (WHERE c.fecha_hora_inicio >= DATE_TRUNC('month', CURRENT_DATE) AND c.estado = 'Completada') AS tratamientos_realizados_mes,
-    -- Horarios disponibles
-    COUNT(ht.id) FILTER (WHERE ht.activo = true) AS dias_laborales_configurados,
-    -- Métricas históricas (últimos 3 meses)
-    COUNT(DISTINCT c.id) FILTER (WHERE c.fecha_hora_inicio >= CURRENT_DATE - INTERVAL '3 months') AS citas_ultimos_3_meses,
-    COALESCE(SUM(p.monto_pagado) FILTER (WHERE c.fecha_hora_inicio >= CURRENT_DATE - INTERVAL '3 months'), 0) AS ingresos_ultimos_3_meses,
-    -- Última actividad
-    MAX(c.fecha_hora_inicio) AS ultima_cita_atendida
-FROM podologos pod
-JOIN usuarios u ON pod.id_usuario = u.id
-LEFT JOIN citas c ON pod.id = c.id_podologo
-LEFT JOIN detalle_cita dc ON c.id = dc.id_cita
-LEFT JOIN pagos p ON c.id = p.id_cita
-LEFT JOIN horarios_trabajo ht ON pod.id = ht.id_podologo
-GROUP BY pod.id, u.nombre_completo, u.email, pod.especialidad, pod.activo
-ORDER BY citas_mes_actual DESC;

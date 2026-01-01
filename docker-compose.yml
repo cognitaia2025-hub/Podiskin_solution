@@ -1,0 +1,27 @@
+services:
+  postgres: 
+    image: pgvector/pgvector:pg14
+    container_name: podoskin_postgres
+    environment:
+      POSTGRES_DB: podoskin_db
+      POSTGRES_USER: podoskin_user
+      POSTGRES_PASSWORD: podoskin_password_123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+      - ./data:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U podoskin_user -d podoskin_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      postgres
+      -c listen_addresses='*'
+      -c password_encryption=md5
+
+volumes:
+  postgres_data: 
+

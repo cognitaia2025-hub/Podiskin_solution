@@ -263,8 +263,7 @@ ALTER TABLE ONLY evolucion_tratamiento ADD CONSTRAINT evolucion_tratamiento_id_d
 ALTER TABLE ONLY evolucion_tratamiento ADD CONSTRAINT evolucion_tratamiento_registrado_por_fkey FOREIGN KEY (registrado_por) REFERENCES podologos(id);
 ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_id_cita_fkey FOREIGN KEY (id_cita) REFERENCES citas(id);
 ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_elaborado_por_fkey FOREIGN KEY (elaborado_por) REFERENCES podologos(id);
-ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_id_cie10_presuntivo_fkey FOREIGN KEY (id_cie10_presuntivo) REFERENCES catalogo_cie10(id);
-ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_id_cie10_definitivo_fkey FOREIGN KEY (id_cie10_definitivo) REFERENCES catalogo_cie10(id);
+-- Las FK de catalogo_cie10 se agregan al final del archivo, después de crear la tabla
 ALTER TABLE ONLY consentimientos_informados ADD CONSTRAINT consentimientos_informados_id_paciente_fkey FOREIGN KEY (id_paciente) REFERENCES pacientes(id);
 ALTER TABLE ONLY consentimientos_informados ADD CONSTRAINT consentimientos_informados_id_tratamiento_fkey FOREIGN KEY (id_tratamiento) REFERENCES tratamientos(id);
 ALTER TABLE ONLY consentimientos_informados ADD CONSTRAINT consentimientos_informados_id_cita_fkey FOREIGN KEY (id_cita) REFERENCES citas(id);
@@ -295,7 +294,7 @@ CREATE TABLE catalogo_cie10 (
     notas text,
     fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT catalogo_cie10_codigo_format_check 
-        CHECK (codigo ~ '^[A-Z][0-9]{2}(\.[0-9]{1,2})?$')
+        CHECK (codigo ~ '^[A-Z][0-9]{2}(\.[0-9]{1,4})?$')
 );
 
 ALTER TABLE catalogo_cie10 ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTITY (
@@ -422,3 +421,10 @@ INSERT INTO catalogo_cie10 (codigo, descripcion, categoria, subcategoria) VALUES
 -- Otros
 ('M25.57', 'Dolor en articulación del tobillo y pie', 'Enfermedades musculoesqueléticas', 'Dolor articular'),
 ('R60.0', 'Edema localizado', 'Síntomas y signos', 'Edema');
+
+-- ============================================================================
+-- FOREIGN KEYS para catalogo_cie10 (añadidas aquí porque la tabla ya existe)
+-- ============================================================================
+
+ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_id_cie10_presuntivo_fkey FOREIGN KEY (id_cie10_presuntivo) REFERENCES catalogo_cie10(id);
+ALTER TABLE ONLY nota_clinica ADD CONSTRAINT nota_clinica_id_cie10_definitivo_fkey FOREIGN KEY (id_cie10_definitivo) REFERENCES catalogo_cie10(id);

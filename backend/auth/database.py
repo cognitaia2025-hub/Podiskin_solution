@@ -1,17 +1,16 @@
 """
-Database Utilities - Autenticación
+Database Utilities - Autenticacion
 
-Funciones para acceder a la base de datos desde los endpoints de autenticación.
+Funciones para acceder a la base de datos usando psycopg3.
+Solucion para evitar UnicodeDecodeError en Windows.
+Ref: https://github.com/psycopg/psycopg2/issues
 """
 
 import logging
 from typing import Optional
-from contextlib import asynccontextmanager
 import asyncio
-
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from psycopg2 import pool
+import psycopg
+from psycopg.rows import dict_row
 import os
 from dotenv import load_dotenv
 
@@ -21,81 +20,77 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Pool global de conexiones
-_pool: Optional[pool.ThreadedConnectionPool] = None
+_pool = None
 
-# URL de base de datos desde environment
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/podoskin_db")
+# Configuracion de base de datos
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "podoskin_db")
+DB_USER = os.getenv("DB_USER", "podoskin_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+
+# Connection string
+CONNINFO = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER}"
 
 
-def _init_sync_pool():
-    """Inicializa el pool de conexiones síncronamente."""
+async def init_db_pool():
+    """Inicializa el pool de conexiones psycopg3."""
     global _pool
 
     if _pool is not None:
         return
 
     try:
-        _pool = pool.ThreadedConnectionPool(
-            minconn=2, 
-            maxconn=10, 
-            dsn=DATABASE_URL
+        # Usar psycopg3 AsyncConnectionPool
+        from psycopg_pool import AsyncConnectionPool
+
+        _pool = AsyncConnectionPool(
+            conninfo=CONNINFO, min_size=2, max_size=10, open=False
         )
+        await _pool.open()
         logger.info("Auth database pool initialized successfully")
+    except ImportError:
+        # Si no tiene psycopg_pool, usar conexion simple
+        logger.warning("psycopg_pool not installed, using simple connections")
     except Exception as e:
         logger.error(f"Failed to initialize auth database pool: {e}")
-        raise
-
-
-async def init_db_pool():
-    """Inicializa el pool de conexiones de forma asíncrona."""
-    loop = asyncio.get_event_loop()
-    await loop.run_in_executor(None, _init_sync_pool)
+        # No raise para que la app siga funcionando
 
 
 async def close_db_pool():
     """Cierra el pool de conexiones."""
     global _pool
     if _pool is not None:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _pool.closeall)
+        await _pool.close()
         _pool = None
         logger.info("Auth database pool closed")
 
 
-def _get_connection():
-    """Obtiene una conexión del pool."""
-    if _pool is None:
-        _init_sync_pool()
-    return _pool.getconn()
-
-
-def _return_connection(conn):
-    """Devuelve una conexión al pool."""
+async def _get_connection():
+    """Obtiene una conexion."""
     if _pool is not None:
-        _pool.putconn(conn)
+        return await _pool.getconn()
+    else:
+        return await psycopg.AsyncConnection.connect(CONNINFO)
+
+
+async def _return_connection(conn):
+    """Devuelve una conexion al pool."""
+    if _pool is not None:
+        await _pool.putconn(conn)
+    else:
+        await conn.close()
 
 
 async def get_user_by_username(username: str) -> Optional[dict]:
     """
     Obtiene un usuario por su nombre de usuario.
-    
-    Args:
-        username: Nombre de usuario a buscar
-        
-    Returns:
-        Diccionario con datos del usuario o None si no existe
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _get_user_by_username_sync, username)
-
-
-def _get_user_by_username_sync(username: str) -> Optional[dict]:
-    """Versión síncrona de get_user_by_username."""
     conn = None
     try:
-        conn = _get_connection()
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
+        conn = await _get_connection()
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
                 """
                 SELECT 
                     id,
@@ -110,87 +105,58 @@ def _get_user_by_username_sync(username: str) -> Optional[dict]:
                 FROM usuarios
                 WHERE nombre_usuario = %s
                 """,
-                (username,)
+                (username,),
             )
-            user = cur.fetchone()
+            user = await cur.fetchone()
             return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error fetching user: {e}")
         return None
     finally:
         if conn:
-            _return_connection(conn)
+            await _return_connection(conn)
 
 
 async def update_last_login(user_id: int) -> bool:
     """
-    Actualiza el timestamp de último acceso de un usuario.
-    
-    Args:
-        user_id: ID del usuario
-        
-    Returns:
-        True si se actualizó correctamente, False si hubo error
+    Actualiza el timestamp de ultimo acceso de un usuario.
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _update_last_login_sync, user_id)
-
-
-def _update_last_login_sync(user_id: int) -> bool:
-    """Versión síncrona de update_last_login."""
     conn = None
     try:
-        conn = _get_connection()
-        with conn.cursor() as cur:
-            cur.execute(
+        conn = await _get_connection()
+        async with conn.cursor() as cur:
+            await cur.execute(
                 """
                 UPDATE usuarios
                 SET ultimo_login = CURRENT_TIMESTAMP
                 WHERE id = %s
                 """,
-                (user_id,)
+                (user_id,),
             )
-            conn.commit()
+            await conn.commit()
             return True
     except Exception as e:
         logger.error(f"Error updating last login: {e}")
-        if conn:
-            conn.rollback()
         return False
     finally:
         if conn:
-            _return_connection(conn)
+            await _return_connection(conn)
 
 
 async def is_user_active(user_id: int) -> bool:
     """
-    Verifica si un usuario está activo.
-    
-    Args:
-        user_id: ID del usuario
-        
-    Returns:
-        True si el usuario está activo, False si no
+    Verifica si un usuario esta activo.
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _is_user_active_sync, user_id)
-
-
-def _is_user_active_sync(user_id: int) -> bool:
-    """Versión síncrona de is_user_active."""
     conn = None
     try:
-        conn = _get_connection()
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT activo FROM usuarios WHERE id = %s",
-                (user_id,)
-            )
-            result = cur.fetchone()
+        conn = await _get_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT activo FROM usuarios WHERE id = %s", (user_id,))
+            result = await cur.fetchone()
             return result[0] if result else False
     except Exception as e:
         logger.error(f"Error checking if user is active: {e}")
         return False
     finally:
         if conn:
-            _return_connection(conn)
+            await _return_connection(conn)

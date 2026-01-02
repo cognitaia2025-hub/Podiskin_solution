@@ -11,6 +11,11 @@ const AppShell: React.FC = () => {
     const navigate = useNavigate();
     const [showUserMenu, setShowUserMenu] = useState(false);
 
+    // DEBUG: Log user object
+    console.log('[AppShell DEBUG] User object:', user);
+    console.log('[AppShell DEBUG] User rol:', user?.rol);
+    console.log('[AppShell DEBUG] Condition user?.rol === "Admin":', user?.rol === 'Admin');
+
     const handleLogout = async () => {
         await logout();
         navigate('/login');

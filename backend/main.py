@@ -18,6 +18,10 @@ from auth import auth_router, init_db_pool, close_db_pool, get_current_user, Use
 from pacientes import router as pacientes_router
 from citas import router as citas_router
 from tratamientos import router as tratamientos_router
+from roles import router as roles_router
+from proveedores import router as proveedores_router
+from gastos import router as gastos_router
+from cortes_caja import router as cortes_caja_router
 
 # Importar routers de API
 from api import live_sessions_router, orchestrator_router
@@ -101,6 +105,10 @@ app.include_router(auth_router)
 app.include_router(pacientes_router)
 app.include_router(citas_router)
 app.include_router(tratamientos_router)
+app.include_router(roles_router, prefix="/api")
+app.include_router(proveedores_router, prefix="/api")
+app.include_router(gastos_router, prefix="/api")
+app.include_router(cortes_caja_router, prefix="/api")
 
 # Incluir routers de API
 app.include_router(live_sessions_router)

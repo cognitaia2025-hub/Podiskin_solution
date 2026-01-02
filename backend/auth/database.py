@@ -93,18 +93,17 @@ async def get_user_by_username(username: str) -> Optional[dict]:
             await cur.execute(
                 """
                 SELECT 
-                    u.id,
-                    u.nombre_usuario,
-                    u.password_hash,
-                    u.email,
-                    r.nombre_rol as rol,
-                    u.nombre_completo,
-                    u.activo,
-                    u.ultimo_login,
-                    u.fecha_registro
-                FROM usuarios u
-                INNER JOIN roles r ON u.id_rol = r.id
-                WHERE u.nombre_usuario = %s
+                    id,
+                    nombre_usuario,
+                    password_hash,
+                    email,
+                    rol,
+                    nombre_completo,
+                    activo,
+                    ultimo_login,
+                    fecha_registro
+                FROM usuarios
+                WHERE nombre_usuario = %s
                 """,
                 (username,),
             )
@@ -157,6 +156,54 @@ async def is_user_active(user_id: int) -> bool:
             return result[0] if result else False
     except Exception as e:
         logger.error(f"Error checking if user is active: {e}")
+        return False
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def update_user_profile(user_id: int, updates: dict) -> bool:
+    """
+    Actualiza el perfil de un usuario.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor() as cur:
+            set_clauses = []
+            params = []
+            for key, value in updates.items():
+                set_clauses.append(f"{key} = %s")
+                params.append(value)
+            params.append(user_id)
+            query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = %s"
+            await cur.execute(query, params)
+            await conn.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Error updating user profile: {e}")
+        return False
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def update_user_password(user_id: int, password_hash: str) -> bool:
+    """
+    Actualiza la contraseña de un usuario.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor() as cur:
+            await cur.execute(
+                "UPDATE usuarios SET password_hash = %s WHERE id = %s",
+                (password_hash, user_id),
+            )
+            await conn.commit()
+            return True
+    except Exception as e:
+        logger.error(f"Error updating user password: {e}")
         return False
     finally:
         if conn:

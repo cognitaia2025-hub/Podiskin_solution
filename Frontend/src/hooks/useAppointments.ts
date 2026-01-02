@@ -6,8 +6,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
-import { 
-  getAppointments as fetchAppointments, 
+import {
+  getAppointments as fetchAppointments,
   createAppointment as apiCreateAppointment,
   updateAppointment as apiUpdateAppointment,
   updateAppointmentStatus as apiUpdateAppointmentStatus,
@@ -27,13 +27,13 @@ interface UseAppointmentsOptions {
 }
 
 export const useAppointments = (options: UseAppointmentsOptions = {}) => {
-  const { 
-    startDate, 
-    endDate, 
-    doctorIds = [], 
+  const {
+    startDate,
+    endDate,
+    doctorIds = [],
     patientId,
     status,
-    autoFetch = true 
+    autoFetch = true
   } = options;
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -43,6 +43,9 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
   /**
    * Fetch appointments from API with current filters
    */
+  // Convert arrays to strings for stable dependency comparison
+  const doctorIdsKey = doctorIds.join(',');
+
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -56,8 +59,8 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
       if (endDate) {
         params.end_date = endDate.toISOString();
       }
-      if (doctorIds.length > 0) {
-        params.doctor_id = doctorIds.join(',');
+      if (doctorIdsKey) {
+        params.doctor_id = doctorIdsKey;
       }
       if (patientId) {
         params.patient_id = patientId;
@@ -67,9 +70,12 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
       }
 
       const data = await fetchAppointments(params);
-      
+
+      // Handle both array response and {total, citas} response format
+      const appointmentsArray = Array.isArray(data) ? data : (data.citas || []);
+
       // Map backend response to frontend format
-      const mappedData = data.map((appt: any) => ({
+      const mappedData = appointmentsArray.map((appt: any) => ({
         ...appt,
         start: new Date(appt.fecha_hora_inicio),
         end: new Date(appt.fecha_hora_fin),
@@ -92,7 +98,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [startDate, endDate, doctorIds, patientId, status]);
+  }, [startDate?.getTime(), endDate?.getTime(), doctorIdsKey, patientId, status]);
 
   /**
    * Create a new appointment
@@ -100,7 +106,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
   const createAppointment = async (appointmentData: AppointmentCreateRequest): Promise<Appointment | null> => {
     try {
       setLoading(true);
-      
+
       // Check availability first
       const availability = await apiCheckDoctorAvailability({
         doctor_id: appointmentData.id_podologo,
@@ -118,7 +124,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
       }
 
       const newAppointment = await apiCreateAppointment(appointmentData);
-      
+
       // Map to frontend format
       const mappedAppointment = {
         ...newAppointment,
@@ -151,7 +157,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
    * Update an existing appointment
    */
   const updateAppointment = async (
-    id: string, 
+    id: string,
     updateData: AppointmentUpdateRequest
   ): Promise<Appointment | null> => {
     try {
@@ -173,7 +179,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
       }
 
       const updated = await apiUpdateAppointment(id, updateData);
-      
+
       // Map to frontend format
       const mappedAppointment = {
         ...updated,
@@ -189,7 +195,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
         notes: updated.notas_recepcion,
       };
 
-      setAppointments(prev => 
+      setAppointments(prev =>
         prev.map(appt => appt.id === id ? mappedAppointment : appt)
       );
       toast.success('Cita actualizada exitosamente');
@@ -208,13 +214,13 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
    * Update appointment status
    */
   const updateStatus = async (
-    id: string, 
+    id: string,
     newStatus: AppointmentStatus
   ): Promise<boolean> => {
     try {
       setLoading(true);
       const updated = await apiUpdateAppointmentStatus(id, newStatus);
-      
+
       // Map to frontend format
       const mappedAppointment = {
         ...updated,
@@ -230,10 +236,10 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
         notes: updated.notas_recepcion,
       };
 
-      setAppointments(prev => 
+      setAppointments(prev =>
         prev.map(appt => appt.id === id ? mappedAppointment : appt)
       );
-      
+
       const statusLabels: Record<AppointmentStatus, string> = {
         'Pendiente': 'pendiente',
         'Confirmada': 'confirmada',
@@ -242,7 +248,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
         'Cancelada': 'cancelada',
         'No_Asistio': 'no asistió',
       };
-      
+
       toast.success(`Cita marcada como ${statusLabels[newStatus]}`);
       return true;
     } catch (err) {

@@ -20,6 +20,9 @@ import BillingPage from './pages/BillingPage';
 import FinancesPage from './pages/FinancesPage';
 import PatientsPage from './pages/PatientsPage';
 import DashboardPage from './pages/DashboardPage';
+import AjustesPage from './pages/AjustesPage';
+import AdminPage from './pages/AdminPage';
+import PerfilPage from './pages/PerfilPage';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import { getDoctors, getPatients } from './services/mockData';
@@ -33,13 +36,13 @@ function App() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Use real API through custom hook
-  const { 
-    appointments, 
-    loading, 
+  const {
+    appointments,
+    loading,
     createAppointment,
     updateAppointment,
     updateStatus,
-    fetchData 
+    fetchData
   } = useAppointments({
     startDate: startOfWeek(selectedDate),
     endDate: endOfWeek(selectedDate),
@@ -249,6 +252,20 @@ function App() {
               <Route
                 path="/dashboard"
                 element={<DashboardPage />}
+              />
+
+              {/* Admin Menu Routes */}
+              <Route
+                path="/ajustes"
+                element={<AjustesPage />}
+              />
+              <Route
+                path="/admin"
+                element={<AdminPage />}
+              />
+              <Route
+                path="/perfil"
+                element={<PerfilPage />}
               />
 
               {/* Placeholder Routes */}

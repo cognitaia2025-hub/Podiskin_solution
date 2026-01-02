@@ -4,8 +4,8 @@ Script para generar datos mock - Clínica Podoskin (v3 FINAL)
 
 Basado en análisis COMPLETO de estructuras:
 
-USUARIOS: nombre_usuario, password_hash, email, rol, nombre_completo, activo
-  - rol: 'Admin', 'Podologo', 'Recepcionista', 'Asistente'
+USUARIOS: nombre_usuario, password_hash, email, id_rol, nombre_completo, activo
+  - id_rol: Foreign key a tabla roles (Admin, Podologo, Recepcionista, Asistente)
 
 PODOLOGOS: cedula_profesional, nombre_completo, especialidad, telefono, email, activo, id_usuario
 
@@ -125,7 +125,7 @@ def main():
     # === 1. ACTUALIZAR SANTIAGO ===
     print("\n[1/5] Actualizando Santiago...")
     cur.execute(
-        "UPDATE usuarios SET nombre_completo='Santiago De Jesús Orneles Reynoso', rol='Admin' WHERE nombre_usuario='dr.santiago'"
+        "UPDATE usuarios SET nombre_completo='Santiago De Jesús Orneles Reynoso', id_rol=(SELECT id FROM roles WHERE nombre_rol='Admin') WHERE nombre_usuario='dr.santiago'"
     )
     cur.execute(
         "UPDATE podologos SET nombre_completo='Santiago De Jesús Orneles Reynoso' WHERE id=4"
@@ -141,7 +141,7 @@ def main():
     if row:
         ivette_uid = row[0]
         cur.execute(
-            "UPDATE usuarios SET nombre_completo='Ivette Martínez García', rol='Recepcionista' WHERE id=%s",
+            "UPDATE usuarios SET nombre_completo='Ivette Martínez García', id_rol=(SELECT id FROM roles WHERE nombre_rol='Recepcionista') WHERE id=%s",
             (ivette_uid,),
         )
     else:

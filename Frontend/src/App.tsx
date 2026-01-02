@@ -23,6 +23,7 @@ import DashboardPage from './pages/DashboardPage';
 import AjustesPage from './pages/AjustesPage';
 import AdminPage from './pages/AdminPage';
 import PerfilPage from './pages/PerfilPage';
+import StaffManagement from './pages/StaffManagement';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import { getDoctors, getPatients } from './services/mockData';
@@ -262,6 +263,10 @@ function App() {
               <Route
                 path="/admin"
                 element={<AdminPage />}
+              />
+              <Route
+                path="/admin/staff"
+                element={<StaffManagement />}
               />
               <Route
                 path="/perfil"

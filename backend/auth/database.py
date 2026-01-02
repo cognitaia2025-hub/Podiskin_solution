@@ -209,3 +209,207 @@ async def update_user_password(user_id: int, password_hash: str) -> bool:
     finally:
         if conn:
             await _return_connection(conn)
+
+
+async def get_all_users(activo_only: bool = True) -> list:
+    """
+    Obtiene todos los usuarios.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor(row_factory=dict_row) as cur:
+            query = """
+                SELECT 
+                    u.id, 
+                    u.nombre_usuario, 
+                    u.nombre_completo, 
+                    u.email, 
+                    u.activo,
+                    u.ultimo_login,
+                    u.fecha_registro,
+                    r.id as id_rol,
+                    r.nombre_rol as rol
+                FROM usuarios u
+                LEFT JOIN roles r ON u.id_rol = r.id
+            """
+            
+            if activo_only:
+                query += " WHERE u.activo = true"
+            
+            query += " ORDER BY u.id"
+            
+            await cur.execute(query)
+            users = await cur.fetchall()
+            return [dict(user) for user in users] if users else []
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        return []
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def get_user_by_id(user_id: int) -> Optional[dict]:
+    """
+    Obtiene un usuario por ID.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT 
+                    u.id, 
+                    u.nombre_usuario, 
+                    u.nombre_completo, 
+                    u.email, 
+                    u.activo,
+                    u.ultimo_login,
+                    u.fecha_registro,
+                    r.id as id_rol,
+                    r.nombre_rol as rol
+                FROM usuarios u
+                LEFT JOIN roles r ON u.id_rol = r.id
+                WHERE u.id = %s
+            """,
+                (user_id,),
+            )
+            user = await cur.fetchone()
+            return dict(user) if user else None
+    except Exception as e:
+        logger.error(f"Error fetching user by id: {e}")
+        return None
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def create_user(
+    nombre_usuario: str,
+    password_hash: str,
+    nombre_completo: str,
+    email: str,
+    id_rol: int,
+    creado_por: int = None,
+) -> Optional[dict]:
+    """
+    Crea un nuevo usuario.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                INSERT INTO usuarios (
+                    nombre_usuario, 
+                    password_hash, 
+                    nombre_completo, 
+                    email, 
+                    id_rol, 
+                    activo,
+                    creado_por
+                )
+                VALUES (%s, %s, %s, %s, %s, true, %s)
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, id_rol
+            """,
+                (nombre_usuario, password_hash, nombre_completo, email, id_rol, creado_por),
+            )
+            user = await cur.fetchone()
+            await conn.commit()
+            
+            if user:
+                user_data = dict(user)
+                # Obtener nombre del rol
+                await cur.execute("SELECT nombre_rol FROM roles WHERE id = %s", (id_rol,))
+                rol = await cur.fetchone()
+                user_data["rol"] = rol["nombre_rol"] if rol else None
+                return user_data
+            return None
+    except Exception as e:
+        logger.error(f"Error creating user: {e}")
+        return None
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def update_user(
+    user_id: int,
+    nombre_completo: str = None,
+    email: str = None,
+    id_rol: int = None,
+    activo: bool = None,
+) -> Optional[dict]:
+    """
+    Actualiza un usuario existente.
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor(row_factory=dict_row) as cur:
+            updates = []
+            params = []
+            
+            if nombre_completo is not None:
+                updates.append("nombre_completo = %s")
+                params.append(nombre_completo)
+            if email is not None:
+                updates.append("email = %s")
+                params.append(email)
+            if id_rol is not None:
+                updates.append("id_rol = %s")
+                params.append(id_rol)
+            if activo is not None:
+                updates.append("activo = %s")
+                params.append(activo)
+
+            if not updates:
+                return await get_user_by_id(user_id)
+
+            params.append(user_id)
+            query = f"""
+                UPDATE usuarios 
+                SET {', '.join(updates)} 
+                WHERE id = %s 
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, id_rol
+            """
+            await cur.execute(query, params)
+            user = await cur.fetchone()
+            await conn.commit()
+            
+            if user:
+                user_data = dict(user)
+                # Obtener nombre del rol
+                await cur.execute("SELECT nombre_rol FROM roles WHERE id = %s", (user_data["id_rol"],))
+                rol = await cur.fetchone()
+                user_data["rol"] = rol["nombre_rol"] if rol else None
+                return user_data
+            return None
+    except Exception as e:
+        logger.error(f"Error updating user: {e}")
+        return None
+    finally:
+        if conn:
+            await _return_connection(conn)
+
+
+async def delete_user(user_id: int) -> bool:
+    """
+    Elimina un usuario (soft delete - pone activo=false).
+    """
+    conn = None
+    try:
+        conn = await _get_connection()
+        async with conn.cursor() as cur:
+            await cur.execute("UPDATE usuarios SET activo = false WHERE id = %s", (user_id,))
+            await conn.commit()
+            return cur.rowcount > 0
+    except Exception as e:
+        logger.error(f"Error deleting user: {e}")
+        return False
+    finally:
+        if conn:
+            await _return_connection(conn)

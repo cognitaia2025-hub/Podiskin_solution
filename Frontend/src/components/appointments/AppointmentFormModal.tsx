@@ -11,6 +11,7 @@ import { es } from 'date-fns/locale';
 import PatientAutocomplete from './PatientAutocomplete';
 import AvailabilityIndicator from './AvailabilityIndicator';
 import { checkDoctorAvailability } from '../../services/appointmentService';
+import { getServices, Service } from '../../services/catalogService';
 import type { Appointment, Doctor, AppointmentType } from '../../services/mockData';
 import type { Patient } from '../../services/patientService';
 
@@ -65,6 +66,9 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
   const [conflictingAppointments, setConflictingAppointments] = useState<Appointment[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
+  const [servicePrice, setServicePrice] = useState<number | null>(null);
 
   // Initialize form data
   useEffect(() => {
@@ -157,6 +161,21 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
     const timer = setTimeout(checkAvailability, 500);
     return () => clearTimeout(timer);
   }, [formData.id_podologo, formData.fecha_hora_inicio, formData.fecha_hora_fin, formData.id]);
+
+  useEffect(() => {
+    if (isOpen) {
+      getServices().then(setServices);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (selectedServiceId !== null) {
+      const found = services.find(s => s.id === selectedServiceId);
+      setServicePrice(found ? found.precio : null);
+    } else {
+      setServicePrice(null);
+    }
+  }, [selectedServiceId, services]);
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -406,6 +425,30 @@ const AppointmentFormModal: React.FC<AppointmentFormModalProps> = ({
               rows={2}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20 resize-none"
             />
+          </div>
+
+          {/* Service Selector */}
+          <div className="space-y-2">
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+              <FileText className="w-4 h-4 text-primary-600" />
+              Servicio <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedServiceId ?? ''}
+              onChange={e => setSelectedServiceId(Number(e.target.value))}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500/20"
+              required
+            >
+              <option value="">Selecciona un servicio...</option>
+              {services.map(service => (
+                <option key={service.id} value={service.id}>
+                  {service.nombre} ({service.duracion_minutos} min)
+                </option>
+              ))}
+            </select>
+            {servicePrice !== null && (
+              <div className="text-sm text-gray-600 mt-1">Precio: <b>${servicePrice.toFixed(2)}</b></div>
+            )}
           </div>
 
           {/* Availability Indicator */}

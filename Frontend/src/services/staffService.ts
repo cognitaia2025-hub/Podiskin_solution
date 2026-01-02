@@ -57,7 +57,7 @@ class StaffService {
    */
   async getAllStaff(activoOnly: boolean = true): Promise<StaffMember[]> {
     try {
-      const response = await api.get('/auth/users', {
+      const response = await api.get('/api/users', {
         params: { activo_only: activoOnly }
       });
       return response.data;
@@ -89,7 +89,7 @@ class StaffService {
    */
   async createStaff(data: CreateStaffRequest): Promise<StaffMember> {
     try {
-      const response = await api.post('/auth/users', data);
+      const response = await api.post('/api/users', data);
       return response.data;
     } catch (error: any) {
       console.error('Error creating staff member:', error);

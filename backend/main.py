@@ -14,17 +14,28 @@ from dotenv import load_dotenv
 # Importar módulo de autenticación
 from auth import auth_router, init_db_pool, close_db_pool, get_current_user, User
 
+# Importar módulo de usuarios
+from users import router as users_router
+
+# Importar módulo de inventario
+from inventory import router as inventory_router
+
 # Importar routers de módulos principales
-from pacientes import router as pacientes_router
-from citas import router as citas_router
-from tratamientos import router as tratamientos_router
-from roles import router as roles_router
-from proveedores import router as proveedores_router
-from gastos import router as gastos_router
-from cortes_caja import router as cortes_caja_router
+# Importar routers de módulos principales
+# Nota: Importamos desde .router explícitamente para evitar problemas si falta __init__.py
+from pacientes.router import router as pacientes_router
+from citas.router import router as citas_router
+from tratamientos.router import router as tratamientos_router
+from roles.router import router as roles_router
+from proveedores.router import router as proveedores_router
+from gastos.router import router as gastos_router
+from cortes_caja.router import router as cortes_caja_router
 
 # Importar routers de API
 from api import live_sessions_router, orchestrator_router
+
+# Importar catálogo de servicios
+from catalog.router import router as catalog_router
 
 # Cargar variables de entorno
 load_dotenv()
@@ -102,6 +113,8 @@ app.add_middleware(
 
 # Incluir routers
 app.include_router(auth_router)
+app.include_router(users_router, prefix="/api")
+app.include_router(inventory_router, prefix="/api")
 app.include_router(pacientes_router)
 app.include_router(citas_router)
 app.include_router(tratamientos_router)
@@ -109,6 +122,7 @@ app.include_router(roles_router, prefix="/api")
 app.include_router(proveedores_router, prefix="/api")
 app.include_router(gastos_router, prefix="/api")
 app.include_router(cortes_caja_router, prefix="/api")
+app.include_router(catalog_router, prefix="/api")
 
 # Incluir routers de API
 app.include_router(live_sessions_router)

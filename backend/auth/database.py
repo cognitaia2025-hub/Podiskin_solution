@@ -8,7 +8,6 @@ Ref: https://github.com/psycopg/psycopg2/issues
 
 import logging
 from typing import Optional
-import asyncio
 import psycopg
 from psycopg.rows import dict_row
 import os
@@ -97,13 +96,12 @@ async def get_user_by_username(username: str) -> Optional[dict]:
                     u.nombre_usuario,
                     u.password_hash,
                     u.email,
-                    r.nombre_rol as rol,
+                    u.rol,
                     u.nombre_completo,
                     u.activo,
                     u.ultimo_login,
                     u.fecha_registro
                 FROM usuarios u
-                INNER JOIN roles r ON u.id_rol = r.id
                 WHERE u.nombre_usuario = %s
                 """,
                 (username,),
@@ -228,17 +226,15 @@ async def get_all_users(activo_only: bool = True) -> list:
                     u.activo,
                     u.ultimo_login,
                     u.fecha_registro,
-                    r.id as id_rol,
-                    r.nombre_rol as rol
+                    u.rol
                 FROM usuarios u
-                LEFT JOIN roles r ON u.id_rol = r.id
             """
-            
+
             if activo_only:
                 query += " WHERE u.activo = true"
-            
+
             query += " ORDER BY u.id"
-            
+
             await cur.execute(query)
             users = await cur.fetchall()
             return [dict(user) for user in users] if users else []
@@ -268,10 +264,8 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
                     u.activo,
                     u.ultimo_login,
                     u.fecha_registro,
-                    r.id as id_rol,
-                    r.nombre_rol as rol
+                    u.rol
                 FROM usuarios u
-                LEFT JOIN roles r ON u.id_rol = r.id
                 WHERE u.id = %s
             """,
                 (user_id,),
@@ -291,11 +285,11 @@ async def create_user(
     password_hash: str,
     nombre_completo: str,
     email: str,
-    id_rol: int,
+    rol: str,
     creado_por: int = None,
 ) -> Optional[dict]:
     """
-    Crea un nuevo usuario.
+    Crea un nuevo usuario (rol como texto).
     """
     conn = None
     try:
@@ -308,26 +302,26 @@ async def create_user(
                     password_hash, 
                     nombre_completo, 
                     email, 
-                    id_rol, 
+                    rol, 
                     activo,
                     creado_por
                 )
                 VALUES (%s, %s, %s, %s, %s, true, %s)
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, id_rol
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, rol
             """,
-                (nombre_usuario, password_hash, nombre_completo, email, id_rol, creado_por),
+                (
+                    nombre_usuario,
+                    password_hash,
+                    nombre_completo,
+                    email,
+                    rol,
+                    creado_por,
+                ),
             )
             user = await cur.fetchone()
             await conn.commit()
-            
-            if user:
-                user_data = dict(user)
-                # Obtener nombre del rol
-                await cur.execute("SELECT nombre_rol FROM roles WHERE id = %s", (id_rol,))
-                rol = await cur.fetchone()
-                user_data["rol"] = rol["nombre_rol"] if rol else None
-                return user_data
-            return None
+
+            return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error creating user: {e}")
         return None
@@ -340,7 +334,7 @@ async def update_user(
     user_id: int,
     nombre_completo: str = None,
     email: str = None,
-    id_rol: int = None,
+    rol: str = None,
     activo: bool = None,
 ) -> Optional[dict]:
     """
@@ -352,16 +346,16 @@ async def update_user(
         async with conn.cursor(row_factory=dict_row) as cur:
             updates = []
             params = []
-            
+
             if nombre_completo is not None:
                 updates.append("nombre_completo = %s")
                 params.append(nombre_completo)
             if email is not None:
                 updates.append("email = %s")
                 params.append(email)
-            if id_rol is not None:
-                updates.append("id_rol = %s")
-                params.append(id_rol)
+            if rol is not None:
+                updates.append("rol = %s")
+                params.append(rol)
             if activo is not None:
                 updates.append("activo = %s")
                 params.append(activo)
@@ -374,20 +368,13 @@ async def update_user(
                 UPDATE usuarios 
                 SET {', '.join(updates)} 
                 WHERE id = %s 
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, id_rol
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, rol
             """
             await cur.execute(query, params)
             user = await cur.fetchone()
             await conn.commit()
-            
-            if user:
-                user_data = dict(user)
-                # Obtener nombre del rol
-                await cur.execute("SELECT nombre_rol FROM roles WHERE id = %s", (user_data["id_rol"],))
-                rol = await cur.fetchone()
-                user_data["rol"] = rol["nombre_rol"] if rol else None
-                return user_data
-            return None
+
+            return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error updating user: {e}")
         return None
@@ -404,7 +391,9 @@ async def delete_user(user_id: int) -> bool:
     try:
         conn = await _get_connection()
         async with conn.cursor() as cur:
-            await cur.execute("UPDATE usuarios SET activo = false WHERE id = %s", (user_id,))
+            await cur.execute(
+                "UPDATE usuarios SET activo = false WHERE id = %s", (user_id,)
+            )
             await conn.commit()
             return cur.rowcount > 0
     except Exception as e:

@@ -112,7 +112,7 @@ def test_create_user(token):
         return None
 
 def test_update_user(token, user_id):
-    """Test PUT /auth/users/:id."""
+    """Test PUT /api/users/:id."""
     print_section("4. UPDATE USER")
     
     if not user_id:
@@ -126,7 +126,7 @@ def test_update_user(token, user_id):
     }
     
     response = requests.put(
-        f"{BASE_URL}/auth/users/{user_id}",
+        f"{BASE_URL}/api/users/{user_id}",
         headers=headers,
         json=update_data
     )
@@ -141,7 +141,7 @@ def test_update_user(token, user_id):
         return False
 
 def test_get_user(token, user_id):
-    """Test GET /auth/users/:id."""
+    """Test GET /api/users/:id."""
     print_section("5. GET USER BY ID")
     
     if not user_id:
@@ -149,7 +149,7 @@ def test_get_user(token, user_id):
         return False
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.get(f"{BASE_URL}/auth/users/{user_id}", headers=headers)
+    response = requests.get(f"{BASE_URL}/api/users/{user_id}", headers=headers)
     
     if response.status_code == 200:
         user = response.json()
@@ -164,7 +164,7 @@ def test_get_user(token, user_id):
         return False
 
 def test_delete_user(token, user_id):
-    """Test DELETE /auth/users/:id."""
+    """Test DELETE /api/users/:id."""
     print_section("6. DELETE (DEACTIVATE) USER")
     
     if not user_id:
@@ -172,7 +172,7 @@ def test_delete_user(token, user_id):
         return False
     
     headers = {"Authorization": f"Bearer {token}"}
-    response = requests.delete(f"{BASE_URL}/auth/users/{user_id}", headers=headers)
+    response = requests.delete(f"{BASE_URL}/api/users/{user_id}", headers=headers)
     
     if response.status_code == 200:
         result = response.json()

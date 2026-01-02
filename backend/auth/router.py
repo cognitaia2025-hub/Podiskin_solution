@@ -7,7 +7,7 @@ Endpoints REST para autenticación (login, logout, etc.).
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 from fastapi.responses import JSONResponse
 import logging
-from typing import Dict, List
+from typing import Dict, Optional
 
 from .models import (
     LoginRequest,
@@ -16,7 +16,7 @@ from .models import (
     ErrorResponse,
     RateLimitResponse,
 )
-from .jwt_handler import verify_password, create_access_token, get_token_expiration, hash_password
+from .jwt_handler import verify_password, create_access_token, get_token_expiration
 from .database import get_user_by_username, update_last_login
 from .middleware import get_current_user
 
@@ -241,10 +241,7 @@ async def health_check():
 # ENDPOINTS DE PERFIL DE USUARIO
 # ============================================================================
 
-from .middleware import get_current_user
-from fastapi import Depends
 from pydantic import BaseModel, Field
-from typing import Optional
 
 
 class ProfileUpdate(BaseModel):
@@ -343,211 +340,3 @@ async def change_password(
     await update_user_password(current_user.id, new_hash)
 
     return {"message": "Contraseña actualizada correctamente"}
-
-
-# ============================================================================
-# USER MANAGEMENT ENDPOINTS (ADMIN ONLY)
-# ============================================================================
-
-from pydantic import BaseModel, Field
-from typing import Optional
-from datetime import datetime
-
-
-class UserListResponse(BaseModel):
-    """Response model for user list"""
-    id: int
-    nombre_usuario: str
-    nombre_completo: str
-    email: str
-    rol: Optional[str]
-    activo: bool
-    ultimo_login: Optional[datetime]
-    fecha_registro: Optional[datetime]
-
-
-class UserCreateRequest(BaseModel):
-    """Request model for creating a new user"""
-    nombre_usuario: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=8)
-    nombre_completo: str = Field(..., min_length=3)
-    email: str = Field(..., pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-    id_rol: int = Field(..., ge=1)
-
-
-class UserUpdateRequest(BaseModel):
-    """Request model for updating a user"""
-    nombre_completo: Optional[str] = Field(None, min_length=3)
-    email: Optional[str] = Field(None, pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-    id_rol: Optional[int] = Field(None, ge=1)
-    activo: Optional[bool] = None
-
-
-@router.get(
-    "/users",
-    response_model=List[UserListResponse],
-    summary="Listar usuarios",
-    description="Obtiene la lista de todos los usuarios del sistema. Solo administradores.",
-)
-async def list_users(
-    activo_only: bool = True,
-    current_user=Depends(get_current_user)
-):
-    """Lista todos los usuarios del sistema."""
-    # Verificar que sea admin
-    if current_user.rol != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden listar usuarios"
-        )
-    
-    from .database import get_all_users
-    users = await get_all_users(activo_only=activo_only)
-    return users
-
-
-@router.post(
-    "/users",
-    response_model=UserListResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Crear usuario",
-    description="Crea un nuevo usuario en el sistema. Solo administradores.",
-)
-async def create_user_endpoint(
-    user_data: UserCreateRequest,
-    current_user=Depends(get_current_user)
-):
-    """Crea un nuevo usuario."""
-    # Verificar que sea admin
-    if current_user.rol != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden crear usuarios"
-        )
-    
-    from .database import create_user
-    
-    # Hash de la contraseña
-    password_hash = hash_password(user_data.password)
-    
-    # Crear usuario
-    new_user = await create_user(
-        nombre_usuario=user_data.nombre_usuario,
-        password_hash=password_hash,
-        nombre_completo=user_data.nombre_completo,
-        email=user_data.email,
-        id_rol=user_data.id_rol,
-        creado_por=current_user.id
-    )
-    
-    if not new_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Error al crear usuario. El nombre de usuario o email puede estar duplicado."
-        )
-    
-    return new_user
-
-
-@router.get(
-    "/users/{user_id}",
-    response_model=UserListResponse,
-    summary="Obtener usuario",
-    description="Obtiene un usuario por su ID. Solo administradores.",
-)
-async def get_user_endpoint(
-    user_id: int,
-    current_user=Depends(get_current_user)
-):
-    """Obtiene un usuario por ID."""
-    # Verificar que sea admin
-    if current_user.rol != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden ver usuarios"
-        )
-    
-    from .database import get_user_by_id
-    user = await get_user_by_id(user_id)
-    
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    
-    return user
-
-
-@router.put(
-    "/users/{user_id}",
-    response_model=UserListResponse,
-    summary="Actualizar usuario",
-    description="Actualiza un usuario existente. Solo administradores.",
-)
-async def update_user_endpoint(
-    user_id: int,
-    user_data: UserUpdateRequest,
-    current_user=Depends(get_current_user)
-):
-    """Actualiza un usuario existente."""
-    # Verificar que sea admin
-    if current_user.rol != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden actualizar usuarios"
-        )
-    
-    from .database import update_user
-    
-    updated_user = await update_user(
-        user_id=user_id,
-        nombre_completo=user_data.nombre_completo,
-        email=user_data.email,
-        id_rol=user_data.id_rol,
-        activo=user_data.activo
-    )
-    
-    if not updated_user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    
-    return updated_user
-
-
-@router.delete(
-    "/users/{user_id}",
-    summary="Desactivar usuario",
-    description="Desactiva un usuario (soft delete). Solo administradores.",
-)
-async def delete_user_endpoint(
-    user_id: int,
-    current_user=Depends(get_current_user)
-):
-    """Desactiva un usuario (soft delete)."""
-    # Verificar que sea admin
-    if current_user.rol != "Admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Solo administradores pueden desactivar usuarios"
-        )
-    
-    # No permitir que un admin se desactive a sí mismo
-    if user_id == current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="No puedes desactivar tu propia cuenta"
-        )
-    
-    from .database import delete_user
-    success = await delete_user(user_id)
-    
-    if not success:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Usuario no encontrado"
-        )
-    
-    return {"message": "Usuario desactivado correctamente", "id": user_id}

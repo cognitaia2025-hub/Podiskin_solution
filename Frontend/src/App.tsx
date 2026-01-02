@@ -23,11 +23,14 @@ import DashboardPage from './pages/DashboardPage';
 import AjustesPage from './pages/AjustesPage';
 import AdminPage from './pages/AdminPage';
 import PerfilPage from './pages/PerfilPage';
-import StaffManagement from './pages/StaffManagement';
+import StaffManagement from './pages/admin/StaffManagement';
+import InventoryPage from './pages/admin/InventoryPage';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import { getDoctors, getPatients } from './services/mockData';
 import type { Appointment } from './services/mockData';
+
+const ServicesPage = React.lazy(() => import('./pages/admin/ServicesPage'));
 
 function App() {
   const [triggerCreateAppointment, setTriggerCreateAppointment] = useState(false);
@@ -267,6 +270,18 @@ function App() {
               <Route
                 path="/admin/staff"
                 element={<StaffManagement />}
+              />
+              <Route
+                path="/admin/inventory"
+                element={<InventoryPage />}
+              />
+              <Route
+                path="/admin/services"
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <ServicesPage />
+                  </React.Suspense>
+                }
               />
               <Route
                 path="/perfil"

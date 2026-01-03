@@ -108,12 +108,6 @@ Para evitar este problema en el futuro:
 
 ---
 
-## 💡 Nota Técnica
-
-Este problema NO está relacionado con los cambios de backend de este PR (corrección de fuga de conexiones psycopg). Es un problema común de caché en entornos de desarrollo de Vite/React que se resuelve limpiando el directorio de caché.
-
----
-
 **Fecha:** 2026-01-03  
 **Relacionado con:** PR - Fix psycopg connection leak  
 **Tipo:** Mejora de tooling frontend

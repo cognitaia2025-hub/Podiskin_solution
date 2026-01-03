@@ -3,7 +3,7 @@
  * Servicio para gestión de roles y permisos.
  */
 
-import { API_BASE_URL } from './api';
+import api from './api';
 
 export interface Role {
   id: number;
@@ -24,87 +24,29 @@ export interface RoleCreate {
  * Obtiene todos los roles.
  */
 export async function getRoles(): Promise<Role[]> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/roles`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error('Error al obtener roles');
-  }
-
-  return response.json();
+  const { data } = await api.get('/api/roles');
+  return data;
 }
 
 /**
  * Crea un nuevo rol.
  */
-export async function createRole(data: RoleCreate): Promise<Role> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/roles`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al crear rol');
-  }
-
-  return response.json();
+export async function createRole(roleData: RoleCreate): Promise<Role> {
+  const { data } = await api.post('/api/roles', roleData);
+  return data;
 }
 
 /**
  * Actualiza un rol existente.
  */
-export async function updateRole(id: number, data: Partial<RoleCreate>): Promise<Role> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/roles/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al actualizar rol');
-  }
-
-  return response.json();
+export async function updateRole(id: number, roleData: Partial<RoleCreate>): Promise<Role> {
+  const { data } = await api.put(`/api/roles/${id}`, roleData);
+  return data;
 }
 
 /**
  * Elimina un rol.
  */
 export async function deleteRole(id: number): Promise<void> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/roles/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al eliminar rol');
-  }
+  await api.delete(`/api/roles/${id}`);
 }

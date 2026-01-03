@@ -3,7 +3,7 @@
  * Conecta con el backend /api/horarios
  */
 
-import { API_BASE_URL } from './api';
+import api from './api';
 
 export interface Horario {
   id: number;
@@ -51,114 +51,41 @@ export async function getHorarios(
   idPodologo?: number,
   activo?: boolean
 ): Promise<Horario[]> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const params = new URLSearchParams();
-  if (idPodologo !== undefined) params.append('id_podologo', idPodologo.toString());
-  if (activo !== undefined) params.append('activo', activo.toString());
-
-  const url = `${API_BASE_URL}/horarios${params.toString() ? '?' + params.toString() : ''}`;
-
-  const response = await fetch(url, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error al obtener horarios: ${response.statusText}`);
-  }
-
-  return response.json();
+  const params: Record<string, any> = {};
+  if (idPodologo !== undefined) params.id_podologo = idPodologo;
+  if (activo !== undefined) params.activo = activo;
+  
+  const { data } = await api.get('/api/horarios', { params });
+  return data;
 }
 
 /**
  * Obtiene un horario específico por ID.
  */
 export async function getHorarioById(id: number): Promise<Horario> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/horarios/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Error al obtener horario: ${response.statusText}`);
-  }
-
-  return response.json();
+  const { data } = await api.get(`/api/horarios/${id}`);
+  return data;
 }
 
 /**
  * Crea un nuevo horario de trabajo.
  */
-export async function createHorario(data: HorarioCreate): Promise<Horario> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/horarios`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al crear horario');
-  }
-
-  return response.json();
+export async function createHorario(horarioData: HorarioCreate): Promise<Horario> {
+  const { data } = await api.post('/api/horarios', horarioData);
+  return data;
 }
 
 /**
  * Actualiza un horario existente.
  */
-export async function updateHorario(id: number, data: HorarioUpdate): Promise<Horario> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/horarios/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al actualizar horario');
-  }
-
-  return response.json();
+export async function updateHorario(id: number, horarioData: HorarioUpdate): Promise<Horario> {
+  const { data } = await api.put(`/api/horarios/${id}`, horarioData);
+  return data;
 }
 
 /**
  * Desactiva un horario (soft delete).
  */
 export async function deleteHorario(id: number): Promise<void> {
-  const token = localStorage.getItem('access_token');
-  if (!token) throw new Error('No hay token de autenticación');
-
-  const response = await fetch(`${API_BASE_URL}/horarios/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || 'Error al eliminar horario');
-  }
+  await api.delete(`/api/horarios/${id}`);
 }

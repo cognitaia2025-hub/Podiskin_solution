@@ -6,56 +6,78 @@ Elimina TODOS los datos de prueba pero mantiene:
 - Roles y permisos del sistema
 """
 import asyncio
-import asyncpg
+import psycopg
+import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Configuración de base de datos
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "podoskin_db")
+DB_USER = os.getenv("DB_USER", "podoskin_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
 
 async def clean_production_db():
     try:
-        conn = await asyncpg.connect(
-            host="127.0.0.1",
-            port=5432,
-            database="podoskin_db",
-            user="podoskin_user",
-            password="podoskin123"
-        )
+        # Construir connection string para psycopg
+        conninfo = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
+        conn = await psycopg.AsyncConnection.connect(conninfo)
         
         print("\n" + "="*80)
         print("🧹 LIMPIANDO BASE DE DATOS PARA PRODUCCIÓN")
         print("="*80 + "\n")
         
         # 1. Eliminar citas de prueba
-        deleted_citas = await conn.execute("DELETE FROM citas")
-        print(f"✅ Citas de prueba eliminadas")
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM citas")
+            print(f"✅ Citas de prueba eliminadas")
+        await conn.commit()
         
         # 2. Eliminar expedientes médicos
         try:
-            deleted_expedientes = await conn.execute("DELETE FROM expedientes_medicos")
-            print(f"✅ Expedientes médicos eliminados")
-        except:
-            print(f"⚠️  Tabla expedientes_medicos no existe (ok)")
+            async with conn.cursor() as cur:
+                await cur.execute("DELETE FROM expedientes_medicos")
+                print(f"✅ Expedientes médicos eliminados")
+            await conn.commit()
+        except Exception as e:
+            print(f"⚠️  Tabla expedientes_medicos no existe o error: {e}")
+            await conn.rollback()
         
         # 3. Eliminar pacientes de prueba
-        deleted_pacientes = await conn.execute("DELETE FROM pacientes")
-        print(f"✅ Pacientes de prueba eliminados")
+        async with conn.cursor() as cur:
+            await cur.execute("DELETE FROM pacientes")
+            print(f"✅ Pacientes de prueba eliminados")
+        await conn.commit()
         
         # 4. Eliminar podólogos que NO estén vinculados a usuarios del staff
         # Primero, obtener IDs de usuarios del staff
-        staff_user_ids = await conn.fetch(
-            """
-            SELECT id FROM usuarios 
-            WHERE nombre_usuario IN ('dr.santiago.ornelas', 'adm.santiago.ornelas', 'ivette.martinez', 'ibeth.martinez')
-            """
-        )
-        staff_ids = [row['id'] for row in staff_user_ids]
+        async with conn.cursor() as cur:
+            await cur.execute(
+                """
+                SELECT id FROM usuarios 
+                WHERE nombre_usuario IN ('dr.santiago.ornelas', 'adm.santiago.ornelas', 'ivette.martinez', 'ibeth.martinez')
+                """
+            )
+            staff_user_ids = await cur.fetchall()
+        
+        staff_ids = [row[0] for row in staff_user_ids]
         
         if staff_ids:
             # Eliminar podólogos que NO pertenezcan al staff
-            deleted_podologos = await conn.execute(
-                f"""
-                DELETE FROM podologos 
-                WHERE id_usuario IS NULL OR id_usuario NOT IN ({','.join(map(str, staff_ids))})
-                """
-            )
-            print(f"✅ Podólogos de prueba eliminados (staff mantenido)")
+            async with conn.cursor() as cur:
+                placeholders = ','.join(['%s'] * len(staff_ids))
+                await cur.execute(
+                    f"""
+                    DELETE FROM podologos 
+                    WHERE id_usuario IS NULL OR id_usuario NOT IN ({placeholders})
+                    """,
+                    staff_ids
+                )
+                print(f"✅ Podólogos de prueba eliminados (staff mantenido)")
+            await conn.commit()
         
         # 5. Limpiar tablas financieras si existen
         tables_to_clean = [
@@ -67,20 +89,31 @@ async def clean_production_db():
         
         for table in tables_to_clean:
             try:
-                await conn.execute(f"DELETE FROM {table}")
-                print(f"✅ {table} limpiada")
-            except:
-                pass  # Tabla no existe, ok
+                async with conn.cursor() as cur:
+                    await cur.execute(f"DELETE FROM {table}")
+                    print(f"✅ {table} limpiada")
+                await conn.commit()
+            except Exception as e:
+                print(f"⚠️  Tabla {table} no existe o error: {e}")
+                await conn.rollback()
         
         print("\n" + "="*80)
         print("VERIFICACIÓN POST-LIMPIEZA:")
         print("="*80 + "\n")
         
         # Verificar lo que quedó
-        usuarios_count = await conn.fetchval("SELECT COUNT(*) FROM usuarios")
-        pacientes_count = await conn.fetchval("SELECT COUNT(*) FROM pacientes")
-        citas_count = await conn.fetchval("SELECT COUNT(*) FROM citas")
-        roles_count = await conn.fetchval("SELECT COUNT(*) FROM roles")
+        async with conn.cursor() as cur:
+            await cur.execute("SELECT COUNT(*) FROM usuarios")
+            usuarios_count = (await cur.fetchone())[0]
+            
+            await cur.execute("SELECT COUNT(*) FROM pacientes")
+            pacientes_count = (await cur.fetchone())[0]
+            
+            await cur.execute("SELECT COUNT(*) FROM citas")
+            citas_count = (await cur.fetchone())[0]
+            
+            await cur.execute("SELECT COUNT(*) FROM roles")
+            roles_count = (await cur.fetchone())[0]
         
         print(f"👥 Usuarios (staff):     {usuarios_count}")
         print(f"🏥 Pacientes:            {pacientes_count}")
@@ -92,13 +125,16 @@ async def clean_production_db():
         print("STAFF ACTIVO:")
         print("-"*80 + "\n")
         
-        staff = await conn.fetch(
-            """
-            SELECT nombre_usuario, nombre_completo, rol, activo
-            FROM usuarios
-            ORDER BY id
-            """
-        )
+        from psycopg.rows import dict_row
+        async with conn.cursor(row_factory=dict_row) as cur:
+            await cur.execute(
+                """
+                SELECT nombre_usuario, nombre_completo, rol, activo
+                FROM usuarios
+                ORDER BY id
+                """
+            )
+            staff = await cur.fetchall()
         
         for user in staff:
             status = "✅" if user['activo'] else "❌"

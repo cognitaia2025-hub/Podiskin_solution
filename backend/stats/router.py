@@ -167,6 +167,9 @@ async def get_dashboard_stats(
             )
             upcoming = (await cur.fetchone())[0] or 0
         
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
+        
         # Ingresos (si no hay tabla de pagos, retornar 0)
         revenue_today = 0
         revenue_week = 0
@@ -240,6 +243,9 @@ async def get_appointments_trend(
                 (start_date,)
             )
             rows = await cur.fetchall()
+        
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
         
         return [
             AppointmentTrend(

@@ -200,6 +200,8 @@ async def get_dashboard_stats(
         )
         
     except Exception as e:
+        if conn:
+            await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error obteniendo estadísticas: {str(e)}"
@@ -258,6 +260,8 @@ async def get_appointments_trend(
         ]
         
     except Exception as e:
+        if conn:
+            await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error obteniendo tendencia de citas: {str(e)}"

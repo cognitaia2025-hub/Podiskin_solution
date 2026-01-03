@@ -7,6 +7,7 @@ Nota: Ejecutar desde el directorio backend:
     python test_connection_pool.py
 """
 import asyncio
+import sys
 
 from auth.database import init_db_pool, close_db_pool, _get_connection, _return_connection
 from psycopg.rows import dict_row

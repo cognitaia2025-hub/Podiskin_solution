@@ -81,6 +81,13 @@ async def clean_production_db():
                 )
                 print(f"✅ Podólogos de prueba eliminados (staff mantenido)")
             await conn.commit()
+        else:
+            # Si no se encontraron usuarios del staff, eliminar todos los podólogos
+            print("⚠️  ADVERTENCIA: No se encontraron usuarios del staff. Eliminando todos los podólogos.")
+            async with conn.cursor() as cur:
+                await cur.execute("DELETE FROM podologos")
+                print(f"✅ Todos los podólogos eliminados")
+            await conn.commit()
         
         # 5. Limpiar tablas financieras si existen
         # Nota: Usamos nombres de tabla de una lista controlada (no de entrada de usuario)

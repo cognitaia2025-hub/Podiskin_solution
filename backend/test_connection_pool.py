@@ -1,11 +1,12 @@
 """
 Script de prueba para verificar que el pool de conexiones funciona correctamente
 y que no hay fugas de conexiones.
+
+Nota: Ejecutar desde el directorio backend:
+    cd backend
+    python test_connection_pool.py
 """
 import asyncio
-import sys
-import os
-sys.path.insert(0, os.path.dirname(__file__))
 
 from auth.database import init_db_pool, close_db_pool, _get_connection, _return_connection
 from psycopg.rows import dict_row

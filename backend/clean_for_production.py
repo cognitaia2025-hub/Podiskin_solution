@@ -18,7 +18,10 @@ DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "podoskin_db")
 DB_USER = os.getenv("DB_USER", "podoskin_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+# IMPORTANTE: Cambiar la contraseña en producción
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+if not DB_PASSWORD:
+    raise ValueError("DB_PASSWORD environment variable is required. Please set it in your .env file.")
 
 async def clean_production_db():
     try:
@@ -80,6 +83,8 @@ async def clean_production_db():
             await conn.commit()
         
         # 5. Limpiar tablas financieras si existen
+        # Nota: Usamos nombres de tabla de una lista controlada (no de entrada de usuario)
+        # por lo que no hay riesgo de SQL injection aquí
         tables_to_clean = [
             'pagos',
             'gastos', 
@@ -90,7 +95,9 @@ async def clean_production_db():
         for table in tables_to_clean:
             try:
                 async with conn.cursor() as cur:
-                    await cur.execute(f"DELETE FROM {table}")
+                    # Tabla viene de lista controlada, no de entrada de usuario
+                    query = f"DELETE FROM {table}"
+                    await cur.execute(query)
                     print(f"✅ {table} limpiada")
                 await conn.commit()
             except Exception as e:

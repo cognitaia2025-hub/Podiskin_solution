@@ -1,0 +1,335 @@
+"""
+Servicio de lógica de negocio para Podólogos
+"""
+
+from typing import List, Optional
+from psycopg2.extras import RealDictCursor
+import psycopg2
+import os
+from dotenv import load_dotenv
+from .models import PodologoCreate, PodologoUpdate, PodologoResponse
+import logging
+
+load_dotenv()
+logger = logging.getLogger(__name__)
+
+# Configuración de base de datos
+DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
+DB_PORT = int(os.getenv("DB_PORT", "5432"))
+DB_NAME = os.getenv("DB_NAME", "podoskin_db")
+DB_USER = os.getenv("DB_USER", "podoskin_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+
+
+def get_db_connection():
+    """Obtener conexión a la base de datos usando psycopg2"""
+    return psycopg2.connect(
+        host=DB_HOST,
+        port=DB_PORT,
+        dbname=DB_NAME,
+        user=DB_USER,
+        password=DB_PASSWORD
+    )
+
+
+async def get_all_podologos(activo_only: bool = True) -> List[dict]:
+    """
+    Obtener todos los podólogos
+    
+    Args:
+        activo_only: Si True, solo devuelve podólogos activos
+    
+    Returns:
+        Lista de podólogos
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            query = """
+                SELECT 
+                    id, 
+                    cedula_profesional, 
+                    nombre_completo, 
+                    especialidad, 
+                    telefono, 
+                    email, 
+                    activo, 
+                    fecha_contratacion, 
+                    fecha_registro, 
+                    id_usuario
+                FROM podologos
+            """
+            
+            if activo_only:
+                query += " WHERE activo = true"
+            
+            query += " ORDER BY nombre_completo ASC"
+            
+            cursor.execute(query)
+            result = cursor.fetchall()
+            
+            logger.info(f"Retrieved {len(result)} podólogos (activo_only={activo_only})")
+            return [dict(row) for row in result]
+    
+    except Exception as e:
+        logger.error(f"Error fetching podólogos: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
+    """
+    Obtener un podólogo por ID
+    
+    Args:
+        podologo_id: ID del podólogo
+    
+    Returns:
+        Datos del podólogo o None si no existe
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                SELECT 
+                    id, 
+                    cedula_profesional, 
+                    nombre_completo, 
+                    especialidad, 
+                    telefono, 
+                    email, 
+                    activo, 
+                    fecha_contratacion, 
+                    fecha_registro, 
+                    id_usuario
+                FROM podologos
+                WHERE id = %s
+                """,
+                (podologo_id,)
+            )
+            result = cursor.fetchone()
+            
+            if result:
+                logger.info(f"Found podologo with ID {podologo_id}")
+                return dict(result)
+            else:
+                logger.warning(f"Podologo with ID {podologo_id} not found")
+                return None
+    
+    except Exception as e:
+        logger.error(f"Error fetching podologo {podologo_id}: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+async def create_podologo(podologo_data: PodologoCreate) -> dict:
+    """
+    Crear un nuevo podólogo
+    
+    Args:
+        podologo_data: Datos del podólogo a crear
+    
+    Returns:
+        Datos del podólogo creado
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                INSERT INTO podologos (
+                    cedula_profesional, 
+                    nombre_completo, 
+                    especialidad, 
+                    telefono, 
+                    email, 
+                    activo, 
+                    fecha_contratacion, 
+                    id_usuario
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING 
+                    id, 
+                    cedula_profesional, 
+                    nombre_completo, 
+                    especialidad, 
+                    telefono, 
+                    email, 
+                    activo, 
+                    fecha_contratacion, 
+                    fecha_registro, 
+                    id_usuario
+                """,
+                (
+                    podologo_data.cedula_profesional,
+                    podologo_data.nombre_completo,
+                    podologo_data.especialidad,
+                    podologo_data.telefono,
+                    podologo_data.email,
+                    podologo_data.activo,
+                    podologo_data.fecha_contratacion,
+                    podologo_data.id_usuario,
+                )
+            )
+            result = cursor.fetchone()
+            conn.commit()
+            
+            logger.info(f"Created new podologo: {result['nombre_completo']}")
+            return dict(result)
+    
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error creating podologo: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Optional[dict]:
+    """
+    Actualizar un podólogo existente
+    
+    Args:
+        podologo_id: ID del podólogo a actualizar
+        podologo_data: Datos a actualizar
+    
+    Returns:
+        Datos del podólogo actualizado o None si no existe
+    """
+    conn = get_db_connection()
+    try:
+        # Construir query dinámicamente solo con campos proporcionados
+        update_fields = []
+        params = []
+        
+        if podologo_data.cedula_profesional is not None:
+            update_fields.append("cedula_profesional = %s")
+            params.append(podologo_data.cedula_profesional)
+        
+        if podologo_data.nombre_completo is not None:
+            update_fields.append("nombre_completo = %s")
+            params.append(podologo_data.nombre_completo)
+        
+        if podologo_data.especialidad is not None:
+            update_fields.append("especialidad = %s")
+            params.append(podologo_data.especialidad)
+        
+        if podologo_data.telefono is not None:
+            update_fields.append("telefono = %s")
+            params.append(podologo_data.telefono)
+        
+        if podologo_data.email is not None:
+            update_fields.append("email = %s")
+            params.append(podologo_data.email)
+        
+        if podologo_data.activo is not None:
+            update_fields.append("activo = %s")
+            params.append(podologo_data.activo)
+        
+        if podologo_data.fecha_contratacion is not None:
+            update_fields.append("fecha_contratacion = %s")
+            params.append(podologo_data.fecha_contratacion)
+        
+        if podologo_data.id_usuario is not None:
+            update_fields.append("id_usuario = %s")
+            params.append(podologo_data.id_usuario)
+        
+        if not update_fields:
+            logger.warning(f"No fields to update for podologo {podologo_id}")
+            return await get_podologo_by_id(podologo_id)
+        
+        params.append(podologo_id)
+        
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            query = f"""
+                UPDATE podologos 
+                SET {', '.join(update_fields)}
+                WHERE id = %s
+                RETURNING 
+                    id, 
+                    cedula_profesional, 
+                    nombre_completo, 
+                    especialidad, 
+                    telefono, 
+                    email, 
+                    activo, 
+                    fecha_contratacion, 
+                    fecha_registro, 
+                    id_usuario
+            """
+            
+            cursor.execute(query, params)
+            result = cursor.fetchone()
+            conn.commit()
+            
+            if result:
+                logger.info(f"Updated podologo {podologo_id}")
+                return dict(result)
+            else:
+                logger.warning(f"Podologo {podologo_id} not found for update")
+                return None
+    
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error updating podologo {podologo_id}: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+async def delete_podologo(podologo_id: int) -> bool:
+    """
+    Eliminar un podólogo (soft delete - marca como inactivo)
+    
+    Args:
+        podologo_id: ID del podólogo a eliminar
+    
+    Returns:
+        True si se eliminó, False si no existe
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                UPDATE podologos 
+                SET activo = false 
+                WHERE id = %s
+                """,
+                (podologo_id,)
+            )
+            affected_rows = cursor.rowcount
+            conn.commit()
+            
+            if affected_rows > 0:
+                logger.info(f"Soft deleted podologo {podologo_id}")
+                return True
+            else:
+                logger.warning(f"Podologo {podologo_id} not found for deletion")
+                return False
+    
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error deleting podologo {podologo_id}: {e}")
+        raise
+    finally:
+        conn.close()
+
+
+async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
+    """
+    Obtener podólogos disponibles (activos)
+    En futuras versiones se puede integrar con calendario de citas
+    
+    Args:
+        fecha: Fecha opcional para verificar disponibilidad (formato YYYY-MM-DD)
+    
+    Returns:
+        Lista de podólogos disponibles
+    """
+    # Por ahora, simplemente devuelve todos los podólogos activos
+    # TODO: Integrar con calendario de citas para verificar disponibilidad real
+    return await get_all_podologos(activo_only=True)

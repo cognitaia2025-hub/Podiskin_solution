@@ -14,7 +14,7 @@ import {
   deleteAppointment as apiDeleteAppointment,
   checkDoctorAvailability as apiCheckDoctorAvailability,
 } from '../services/appointmentService';
-import type { Appointment, AppointmentStatus } from '../services/mockData';
+import type { Appointment, AppointmentStatus } from '../types/appointments';
 import type { AppointmentCreateRequest, AppointmentUpdateRequest } from '../services/appointmentService';
 
 interface UseAppointmentsOptions {

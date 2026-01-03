@@ -20,6 +20,9 @@ from users import router as users_router
 # Importar módulo de inventario
 from inventory import router as inventory_router
 
+# Importar módulo de podólogos
+from podologos import router as podologos_router
+
 # Importar routers de módulos principales
 # Importar routers de módulos principales
 # Nota: Importamos desde .router explícitamente para evitar problemas si falta __init__.py
@@ -115,6 +118,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(users_router, prefix="/api")
 app.include_router(inventory_router, prefix="/api")
+app.include_router(podologos_router, prefix="/api")
 app.include_router(pacientes_router)
 app.include_router(citas_router)
 app.include_router(tratamientos_router)

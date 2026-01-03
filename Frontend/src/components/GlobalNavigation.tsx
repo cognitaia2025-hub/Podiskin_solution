@@ -1,7 +1,8 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3 } from 'lucide-react';
+import { useNavigate, useLocation, NavLink } from 'react-router-dom';
+import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3, Users, Package, Coins } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useAuth } from '../auth/AuthContext';
 
 interface NavigationTab {
     id: string;
@@ -56,9 +57,31 @@ const NAVIGATION_TABS: NavigationTab[] = [
     },
 ];
 
+const ADMIN_TABS = [
+  {
+    id: 'staff',
+    label: 'Equipo',
+    path: '/admin/staff',
+    icon: Users,
+  },
+  {
+    id: 'inventory',
+    label: 'Inventario',
+    path: '/admin/inventory',
+    icon: Package,
+  },
+  {
+    id: 'services',
+    label: 'Servicios',
+    path: '/admin/services',
+    icon: Coins,
+  },
+];
+
 const GlobalNavigation: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
+    const { user } = useAuth();
 
     const isActiveTab = (path: string) => {
         return location.pathname.startsWith(path);
@@ -105,6 +128,32 @@ const GlobalNavigation: React.FC = () => {
                     );
                 })}
             </div>
+            {/* Sección Administración solo para admin/manager */}
+            {(user?.rol === 'Admin' || user?.rol === 'Manager') && (
+              <div className="flex items-center gap-1 px-4 h-full border-l border-gray-200 ml-4">
+                <span className="text-xs text-gray-400 uppercase font-bold mr-2">Administración</span>
+                {ADMIN_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  return (
+                    <NavLink
+                      key={tab.id}
+                      to={tab.path}
+                      className={({ isActive }) =>
+                        clsx(
+                          'flex items-center gap-2 px-4 h-full text-sm font-medium transition-all relative outline-none',
+                          isActive
+                            ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50/30'
+                            : 'text-gray-500 border-b-2 border-transparent hover:text-gray-800 hover:bg-gray-50/50'
+                        )
+                      }
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{tab.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
         </nav>
     );
 };

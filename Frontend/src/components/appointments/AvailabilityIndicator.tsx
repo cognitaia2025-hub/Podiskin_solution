@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { CheckCircle2, XCircle, Loader2, AlertCircle } from 'lucide-react';
-import type { Appointment } from '../../services/mockData';
+import type { Appointment } from '../../types/appointments';
 
 type AvailabilityStatus = 'idle' | 'checking' | 'available' | 'unavailable';
 

@@ -13,6 +13,7 @@ from .models import (
     LoginRequest,
     LoginResponse,
     UserResponse,
+    User,
     ErrorResponse,
     RateLimitResponse,
 )
@@ -83,19 +84,24 @@ def check_rate_limit(
     },
     summary="Iniciar sesión",
     description="""
-    Autentica un usuario con username y password, retorna JWT token.
+    Autentica un usuario con username/email/teléfono y password, retorna JWT token.
+    
+    **Identificadores aceptados:**
+    - Nombre de usuario (ej: dr.santiago)
+    - Email (ej: dr.santiago@podoskin.com)
+    - Teléfono (ej: 5551234567)
     
     **Flujo:**
     1. Valida formato de credenciales
     2. Verifica rate limit (5 intentos por minuto)
-    3. Busca usuario en base de datos
+    3. Busca usuario por username, email o teléfono
     4. Verifica contraseña con bcrypt
     5. Verifica que usuario esté activo
     6. Genera JWT token
     7. Actualiza último acceso
     8. Retorna token + datos de usuario
     
-    **Rate Limiting:** Máximo 5 intentos por minuto por usuario.
+    **Rate Limiting:** Máximo 5 intentos por minuto por identificador.
     """,
 )
 async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
@@ -104,7 +110,7 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
 
     Args:
         request: Request de FastAPI (para obtener IP)
-        credentials: Credenciales del usuario (username y password)
+        credentials: Credenciales del usuario (username/email/teléfono y password)
 
     Returns:
         LoginResponse con token JWT y datos del usuario
@@ -130,12 +136,12 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
         )
 
     # ========================================================================
-    # 2. BUSCAR USUARIO EN BASE DE DATOS
+    # 2. BUSCAR USUARIO EN BASE DE DATOS (por username, email o teléfono)
     # ========================================================================
     user_data = await get_user_by_username(username)
 
     if user_data is None:
-        logger.warning(f"Login attempt with non-existent user: {username}")
+        logger.warning(f"Login attempt with non-existent identifier: {username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas"
         )
@@ -146,7 +152,7 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     password_hash = user_data.get("password_hash")
 
     if not password_hash or not verify_password(password, password_hash):
-        logger.warning(f"Failed login attempt for user: {username}")
+        logger.warning(f"Failed login attempt for identifier: {username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales incorrectas"
         )
@@ -219,6 +225,61 @@ async def logout():
     - Invalidación de refresh tokens
     """
     return {"message": "Sesión cerrada exitosamente"}
+
+
+@router.get(
+    "/verify",
+    response_model=UserResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Token válido", "model": UserResponse},
+        401: {"description": "Token inválido o expirado", "model": ErrorResponse},
+        403: {"description": "Usuario inactivo", "model": ErrorResponse},
+    },
+    summary="Verificar token JWT",
+    description="""
+    Verifica si un token JWT es válido y retorna la información del usuario.
+    
+    **Headers requeridos:**
+    - `Authorization: Bearer <token>`
+    
+    **Retorna:**
+    - Información del usuario si el token es válido
+    
+    **Errores:**
+    - 401: Token inválido, expirado o no proporcionado
+    - 403: Usuario inactivo
+    """,
+)
+async def verify_token(current_user: "User" = Depends(get_current_user)):
+    """
+    Endpoint para verificar token JWT.
+    
+    Args:
+        current_user: Usuario actual obtenido del token (inyectado por dependency)
+    
+    Returns:
+        UserResponse con datos del usuario
+        
+    Raises:
+        HTTPException 401: Si el token es inválido
+        HTTPException 403: Si el usuario está inactivo
+    """
+    try:
+        return UserResponse(
+            id=current_user.id,
+            username=current_user.nombre_usuario,
+            email=current_user.email,
+            rol=current_user.rol,
+            nombre_completo=current_user.nombre_completo
+        )
+    except (AttributeError, TypeError) as e:
+        logger.error(f"Error creating UserResponse: {e}")
+        logger.error(f"current_user type: {type(current_user)}, data: {current_user}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error procesando datos del usuario"
+        )
 
 
 @router.get(

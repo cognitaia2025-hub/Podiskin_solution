@@ -47,41 +47,40 @@ const AppShell: React.FC = () => {
 
                 {/* Top Right Actions */}
                 <div className="flex items-center space-x-4 relative">
-                    <div className="hidden sm:flex items-center space-x-2">
-                        <button
-                            onClick={() => setShowUserMenu(!showUserMenu)}
-                            className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors"
+                    {/* Botón de usuario visible en todas las resoluciones */}
+                    <button
+                        onClick={() => setShowUserMenu(!showUserMenu)}
+                        className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-3 py-2 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-200"
+                    >
+                        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-bold ring-2 ring-white">
+                            {getUserInitials()}
+                        </div>
+                        <div className="flex flex-col items-start max-sm:hidden">
+                            <span className="text-sm font-medium text-gray-700">
+                                {user?.nombre_completo || user?.username || 'Usuario'}
+                            </span>
+                            <span className="text-xs text-gray-500 capitalize">
+                                {user?.rol || 'Usuario'}
+                            </span>
+                        </div>
+                        <svg
+                            className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
                         >
-                            <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 text-xs font-bold ring-2 ring-white">
-                                {getUserInitials()}
-                            </div>
-                            <div className="flex flex-col items-start">
-                                <span className="text-sm font-medium text-gray-700">
-                                    {user?.nombre_completo || user?.username || 'Usuario'}
-                                </span>
-                                <span className="text-xs text-gray-500 capitalize">
-                                    {user?.rol || 'Usuario'}
-                                </span>
-                            </div>
-                            <svg
-                                className={`w-4 h-4 text-gray-400 transition-transform ${showUserMenu ? 'rotate-180' : ''}`}
-                                fill="none"
-                                stroke="currentColor"
-                                viewBox="0 0 24 24"
-                            >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                        </button>
-                    </div>
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </button>
 
-                    {/* User Menu Dropdown */}
+                    {/* User Menu Dropdown - accesible en móvil y desktop */}
                     {showUserMenu && (
                         <>
                             <div
                                 className="fixed inset-0 z-10"
                                 onClick={() => setShowUserMenu(false)}
                             />
-                            <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20">
+                            <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 animate-fadeIn">
                                 <div className="px-4 py-3 border-b border-gray-200">
                                     <p className="text-sm font-medium text-gray-900">
                                         {user?.nombre_completo || user?.username}

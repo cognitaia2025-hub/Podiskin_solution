@@ -8,7 +8,7 @@
 import React, { createContext, useContext, useState, type ReactNode } from 'react';
 import type { GlobalContextValue, User } from './types';
 import type { Patient } from '../services/patientService';
-import type { Appointment } from '../services/mockData';
+import type { Appointment } from '../types/appointments';
 
 const GlobalContext = createContext<GlobalContextValue | undefined>(undefined);
 

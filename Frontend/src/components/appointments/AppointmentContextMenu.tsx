@@ -15,7 +15,7 @@ import {
   Trash2,
   Calendar
 } from 'lucide-react';
-import type { Appointment, AppointmentStatus } from '../../services/mockData';
+import type { Appointment, AppointmentStatus } from '../../types/appointments';
 
 interface AppointmentContextMenuProps {
   appointment: Appointment;

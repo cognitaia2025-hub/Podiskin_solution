@@ -13,13 +13,13 @@ import re
 
 
 class LoginRequest(BaseModel):
-    """Modelo para request de login"""
+    """Modelo para request de login - acepta username, email o teléfono"""
     
     username: str = Field(
         ...,
         min_length=3,
         max_length=50,
-        description="Nombre de usuario (3-50 caracteres, alfanumérico + _)"
+        description="Nombre de usuario, email o teléfono (3-50 caracteres)"
     )
     password: str = Field(
         ...,
@@ -30,10 +30,23 @@ class LoginRequest(BaseModel):
     
     @validator('username')
     def validate_username(cls, v):
-        """Valida que el username solo contenga caracteres alfanuméricos, guiones bajos y puntos"""
-        if not re.match(r'^[a-zA-Z0-9_.]+$', v):
-            raise ValueError('El nombre de usuario solo puede contener letras, números, guiones bajos y puntos')
-        return v
+        """
+        Valida que el identificador sea válido:
+        - Username: alfanumérico + _ + .
+        - Email: formato email válido
+        - Teléfono: solo dígitos
+        """
+        # Permitir username alfanumérico
+        if re.match(r'^[a-zA-Z0-9_.]+$', v):
+            return v
+        # Permitir email
+        if re.match(r'^[^@]+@[^@]+\.[^@]+$', v):
+            return v
+        # Permitir teléfono (solo dígitos)
+        if re.match(r'^\d+$', v):
+            return v
+        
+        raise ValueError('Debe proporcionar un nombre de usuario, email o teléfono válido')
     
     class Config:
         json_schema_extra = {

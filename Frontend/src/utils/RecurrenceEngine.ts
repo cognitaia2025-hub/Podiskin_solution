@@ -1,5 +1,5 @@
 import { RRule, Frequency } from 'rrule';
-import type { RecurrenceRule, Appointment } from './mockData';
+import type { RecurrenceRule, Appointment } from '../types/appointments';
 
 export class RecurrenceEngine {
     static generateOccurrences(

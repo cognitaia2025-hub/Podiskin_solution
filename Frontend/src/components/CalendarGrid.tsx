@@ -8,8 +8,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import EventModal from './EventModal';
-import { getAppointments, createAppointment, getDoctors, getPatients } from '../services/mockData';
-import type { Appointment, Doctor } from '../services/mockData';
+import type { Appointment, Doctor } from '../types/appointments';
+import { getDoctors } from '../services/doctorService';
+import { getPatients } from '../services/patientService';
 
 // Utility to check overlap
 const doEventsOverlap = (a: Appointment, b: Appointment) => {
@@ -160,9 +161,41 @@ const CalendarGrid: React.FC<CalendarGridProps> = ({ triggerCreate, appointments
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState<Partial<Appointment> | undefined>(undefined);
     const [activeId, setActiveId] = useState<string | null>(null);
+    const [doctors, setDoctors] = useState<Doctor[]>(propDoctors || []);
+    const [patients, setPatients] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
 
-    const doctors = propDoctors || getDoctors();
-    const patients = getPatients();
+    // Load doctors if not provided
+    useEffect(() => {
+        if (!propDoctors || propDoctors.length === 0) {
+            const loadDoctors = async () => {
+                try {
+                    const fetchedDoctors = await getDoctors();
+                    setDoctors(fetchedDoctors);
+                } catch (error) {
+                    console.error('Error loading doctors:', error);
+                }
+            };
+            loadDoctors();
+        }
+    }, [propDoctors]);
+
+    // Load patients
+    useEffect(() => {
+        const loadPatients = async () => {
+            setIsLoading(true);
+            try {
+                const response = await getPatients(1, 100);
+                setPatients(response.patients || []);
+            } catch (error) {
+                console.error('Error loading patients:', error);
+                setPatients([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPatients();
+    }, []);
 
     // Use prop appointments if available, otherwise use local state (legacy behavior support)
     const appointments = propAppointments || localAppointments;

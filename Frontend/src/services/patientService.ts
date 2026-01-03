@@ -35,8 +35,8 @@ export const getPatients = async (
   perPage: number = 50
 ): Promise<PatientListResponse> => {
   try {
-    const response = await api.get('/patients', {
-      params: { page, per_page: perPage },
+    const response = await api.get('/pacientes', {
+      params: { page, limit: perPage },
     });
     return response.data;
   } catch (error) {
@@ -50,7 +50,7 @@ export const getPatients = async (
  */
 export const getPatientById = async (id: string): Promise<Patient> => {
   try {
-    const response = await api.get(`/patients/${id}`);
+    const response = await api.get(`/pacientes/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching patient ${id}:`, error);
@@ -63,7 +63,7 @@ export const getPatientById = async (id: string): Promise<Patient> => {
  */
 export const createPatient = async (patient: Partial<Patient>): Promise<Patient> => {
   try {
-    const response = await api.post('/patients', patient);
+    const response = await api.post('/pacientes', patient);
     return response.data;
   } catch (error) {
     console.error('Error creating patient:', error);
@@ -79,7 +79,7 @@ export const updatePatient = async (
   patient: Partial<Patient>
 ): Promise<Patient> => {
   try {
-    const response = await api.put(`/patients/${id}`, patient);
+    const response = await api.put(`/pacientes/${id}`, patient);
     return response.data;
   } catch (error) {
     console.error(`Error updating patient ${id}:`, error);
@@ -92,7 +92,7 @@ export const updatePatient = async (
  */
 export const deletePatient = async (id: string): Promise<void> => {
   try {
-    await api.delete(`/patients/${id}`);
+    await api.delete(`/pacientes/${id}`);
   } catch (error) {
     console.error(`Error deleting patient ${id}:`, error);
     throw error;
@@ -104,8 +104,8 @@ export const deletePatient = async (id: string): Promise<void> => {
  */
 export const searchPatients = async (query: string): Promise<Patient[]> => {
   try {
-    const response = await api.get('/patients/search', {
-      params: { q: query },
+    const response = await api.get('/pacientes', {
+      params: { search: query },
     });
     return response.data;
   } catch (error) {

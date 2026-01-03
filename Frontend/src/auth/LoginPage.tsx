@@ -45,9 +45,9 @@ const LoginPage: React.FC = () => {
     const errors: { username?: string; password?: string } = {};
 
     if (!username.trim()) {
-      errors.username = 'El nombre de usuario es requerido';
+      errors.username = 'El usuario, email o teléfono es requerido';
     } else if (username.length < 3) {
-      errors.username = 'El nombre de usuario debe tener al menos 3 caracteres';
+      errors.username = 'Debe tener al menos 3 caracteres';
     }
 
     if (!password) {
@@ -144,7 +144,7 @@ const LoginPage: React.FC = () => {
                 htmlFor="username"
                 className="block text-sm font-medium text-gray-700"
               >
-                Usuario
+                Usuario, Email o Teléfono
               </label>
               <div className="mt-1">
                 <input
@@ -166,7 +166,7 @@ const LoginPage: React.FC = () => {
                       ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
                       : 'border-gray-300 focus:ring-indigo-500 focus:border-indigo-500'
                   } rounded-md shadow-sm placeholder-gray-400 focus:outline-none sm:text-sm transition-colors duration-200`}
-                  placeholder="Ingresa tu usuario"
+                  placeholder="usuario, email o teléfono"
                   disabled={isLoading}
                   aria-invalid={!!validationErrors.username}
                   aria-describedby={validationErrors.username ? "username-error" : undefined}

@@ -18,11 +18,11 @@ class DatabaseConnection:
         """Create database connection pool."""
         if self.pool is None:
             self.pool = await asyncpg.create_pool(
-                host=os.getenv("DB_HOST", "localhost"),
+                host=os.getenv("DB_HOST", "127.0.0.1"),
                 port=int(os.getenv("DB_PORT", "5432")),
-                user=os.getenv("DB_USER", "postgres"),
-                password=os.getenv("DB_PASSWORD", ""),
-                database=os.getenv("DB_NAME", "podoskin"),
+                user=os.getenv("DB_USER", "podoskin_user"),
+                password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
+                database=os.getenv("DB_NAME", "podoskin_db"),
                 min_size=2,
                 max_size=10,
             )

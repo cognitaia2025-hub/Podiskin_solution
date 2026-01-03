@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useGlobalContext } from '../context/GlobalContext';
 import { getPatientById } from '../services/patientService';
 import { toast } from 'react-toastify';
-import type { Appointment } from '../services/mockData';
+import type { Appointment } from '../types/appointments';
 
 /**
  * Custom hook for handling appointment clicks

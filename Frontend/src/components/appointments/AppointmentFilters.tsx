@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { Filter } from 'lucide-react';
-import type { AppointmentStatus, AppointmentType } from '../../services/mockData';
+import type { AppointmentStatus, AppointmentType } from '../../types/appointments';
 
 interface AppointmentFiltersProps {
   statusFilter: AppointmentStatus[];

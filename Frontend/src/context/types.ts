@@ -5,7 +5,7 @@
  */
 
 import type { Patient } from '../services/patientService';
-import type { Appointment } from '../services/mockData';
+import type { Appointment } from '../types/appointments';
 
 export interface User {
   id: number;

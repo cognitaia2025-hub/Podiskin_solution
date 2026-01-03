@@ -5,7 +5,7 @@
  */
 
 import api from './api';
-import type { Appointment, AppointmentStatus, AppointmentType } from './mockData';
+import type { Appointment, AppointmentStatus, AppointmentType } from '../types/appointments';
 
 export interface AppointmentCreateRequest {
   id_paciente: string;

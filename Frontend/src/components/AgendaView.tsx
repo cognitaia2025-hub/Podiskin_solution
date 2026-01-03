@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format, isSameDay, startOfDay, setHours, setMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Appointment, Doctor, Patient } from '../services/mockData';
+import type { Appointment, Doctor, Patient } from '../types/appointments';
 import EventModal from './EventModal';
 import { Clock, User, FileText, Calendar } from 'lucide-react';
 

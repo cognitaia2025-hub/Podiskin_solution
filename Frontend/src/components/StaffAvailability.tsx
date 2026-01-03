@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format, startOfWeek, addDays, eachDayOfInterval, isSameDay, setHours, setMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Appointment, Doctor, Patient } from '../services/mockData';
+import type { Appointment, Doctor, Patient } from '../types/appointments';
 import { User, Clock } from 'lucide-react';
 import EventModal from './EventModal';
 

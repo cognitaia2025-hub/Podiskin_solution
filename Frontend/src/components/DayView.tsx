@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Appointment, Doctor, Patient } from '../services/mockData';
+import type { Appointment, Doctor, Patient } from '../types/appointments';
 import EventModal from './EventModal';
 import { setHours, setMinutes } from 'date-fns';
 

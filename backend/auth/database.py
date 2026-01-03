@@ -83,7 +83,12 @@ async def _return_connection(conn):
 
 async def get_user_by_username(username: str) -> Optional[dict]:
     """
-    Obtiene un usuario por su nombre de usuario.
+    Obtiene un usuario por su nombre de usuario, email o teléfono.
+    
+    Busca en:
+    - usuarios.nombre_usuario
+    - usuarios.email
+    - podologos.telefono (mediante JOIN)
     """
     conn = None
     try:
@@ -102,9 +107,13 @@ async def get_user_by_username(username: str) -> Optional[dict]:
                     u.ultimo_login,
                     u.fecha_registro
                 FROM usuarios u
-                WHERE u.nombre_usuario = %s
+                LEFT JOIN podologos p ON u.id = p.id_usuario
+                WHERE u.nombre_usuario = %s 
+                   OR u.email = %s
+                   OR p.telefono = %s
+                LIMIT 1
                 """,
-                (username,),
+                (username, username, username),
             )
             user = await cur.fetchone()
             return dict(user) if user else None

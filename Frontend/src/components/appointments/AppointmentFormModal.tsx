@@ -12,7 +12,7 @@ import PatientAutocomplete from './PatientAutocomplete';
 import AvailabilityIndicator from './AvailabilityIndicator';
 import { checkDoctorAvailability } from '../../services/appointmentService';
 import { getServices, Service } from '../../services/catalogService';
-import type { Appointment, Doctor, AppointmentType } from '../../services/mockData';
+import type { Appointment, Doctor, AppointmentType } from '../../types/appointments';
 import type { Patient } from '../../services/patientService';
 
 interface AppointmentFormModalProps {

@@ -39,11 +39,14 @@ class UserListResponse(BaseModel):
     nombre_usuario: str
     nombre_completo: str
     email: str
-    rol: Optional[str]
-    id_rol: Optional[int]
+    rol: Optional[str] = None
+    id_rol: Optional[int] = None
     activo: bool
-    ultimo_login: Optional[datetime]
-    fecha_registro: Optional[datetime]
+    ultimo_login: Optional[datetime] = None
+    fecha_registro: Optional[datetime] = None
+    
+    class Config:
+        from_attributes = True
 
 
 class UserCreateRequest(BaseModel):

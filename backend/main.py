@@ -14,6 +14,9 @@ from dotenv import load_dotenv
 # Importar módulo de autenticación
 from auth import auth_router, init_db_pool, close_db_pool, get_current_user, User
 
+# Importar base de datos general (databases library)
+from db import database
+
 # Importar módulo de usuarios
 from users import router as users_router
 
@@ -70,6 +73,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize auth database pool: {e}")
 
+    # Conectar base de datos general (databases library)
+    try:
+        await database.connect()
+        logger.info("General database (databases) connected")
+    except Exception as e:
+        logger.error(f"Failed to connect general database: {e}")
+
     # Inicializar pool de citas (usa psycopg2 sincrono)
     try:
         from citas.database import init_db_pool as init_citas_pool
@@ -88,6 +98,13 @@ async def lifespan(app: FastAPI):
         logger.info("Auth database pool closed")
     except Exception as e:
         logger.error(f"Error closing auth database pool: {e}")
+
+    # Desconectar base de datos general
+    try:
+        await database.disconnect()
+        logger.info("General database (databases) disconnected")
+    except Exception as e:
+        logger.error(f"Error disconnecting general database: {e}")
 
     try:
         from citas.database import close_db_pool as close_citas_pool

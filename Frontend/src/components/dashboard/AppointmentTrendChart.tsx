@@ -22,13 +22,24 @@ interface AppointmentTrendChartProps {
 }
 
 const AppointmentTrendChart: React.FC<AppointmentTrendChartProps> = ({ data }) => {
+  // Validar que data existe y es un arreglo
+  const chartData = Array.isArray(data) ? data : [];
+  
   return (
     <div className="bg-white rounded-lg shadow p-6">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         📈 Citas de los últimos 30 días
       </h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
+      {chartData.length === 0 ? (
+        <div className="flex items-center justify-center h-[300px] text-gray-400">
+          <div className="text-center">
+            <p className="text-lg mb-2">📅 No hay datos de citas aún</p>
+            <p className="text-sm">Los datos aparecerán cuando se programen citas</p>
+          </div>
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={chartData}>
           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
           <XAxis
             dataKey="fecha"
@@ -87,6 +98,7 @@ const AppointmentTrendChart: React.FC<AppointmentTrendChartProps> = ({ data }) =
           />
         </LineChart>
       </ResponsiveContainer>
+      )}
     </div>
   );
 };

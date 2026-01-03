@@ -8,28 +8,178 @@
  * - Expense breakdown
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { Navigate } from 'react-router-dom';
 import KPICard from '../components/dashboard/KPICard';
-import {
-    mockKPIs,
-    mockGastos,
-    mockCortesCaja,
-    mockIngresosMensuales,
-    getCategoriaColor,
-} from '../services/adminMockData';
+import { API_BASE_URL } from '../services/api';
 
 type DateRange = '7d' | '30d' | '90d' | '12m';
+
+interface KPIData {
+  ingresos_mes: number;
+  gastos_mes: number;
+  citas_mes: number;
+  pacientes_nuevos: number;
+  ingresos_tendencia: number;
+  gastos_tendencia: number;
+  citas_tendencia: number;
+  pacientes_tendencia: number;
+}
+
+interface Gasto {
+  id: string;
+  fecha: string;
+  categoria: string;
+  concepto: string;
+  monto: number;
+}
+
+interface CorteCaja {
+  id: string;
+  fecha: string;
+  total_ingresos: number;
+  total_gastos: number;
+  saldo_efectivo: number;
+  cerrado_por: string;
+}
+
+// --- Helper Reemplazado (Antes estaba en mockData) ---
+const getCategoriaColor = (categoria: string): string => {
+  const colors: Record<string, string> = {
+    'Insumos': 'bg-blue-100 text-blue-800',
+    'Medicamentos': 'bg-green-100 text-green-800',
+    'Instrumental': 'bg-purple-100 text-purple-800',
+    'Papelería': 'bg-gray-100 text-gray-800',
+    'Limpieza': 'bg-yellow-100 text-yellow-800',
+    'Mobiliario': 'bg-indigo-100 text-indigo-800',
+    'Epp': 'bg-red-100 text-red-800',
+    'Ortopodología': 'bg-pink-100 text-pink-800'
+  };
+  return colors[categoria] || 'bg-gray-100 text-gray-800';
+};
+// -----------------------------------------------------
 
 const AdminPage: React.FC = () => {
     const { user } = useAuth();
     const [dateRange, setDateRange] = useState<DateRange>('30d');
+    
+    const [kpis, setKpis] = useState<KPIData>({
+      ingresos_mes: 0,
+      gastos_mes: 0,
+      citas_mes: 0,
+      pacientes_nuevos: 0,
+      ingresos_tendencia: 0,
+      gastos_tendencia: 0,
+      citas_tendencia: 0,
+      pacientes_tendencia: 0
+    });
+    const [gastos, setGastos] = useState<Gasto[]>([]);
+    const [cortesCaja, setCortesCaja] = useState<CorteCaja[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     // Redirect non-admin users
     if (user?.rol !== 'Admin') {
         return <Navigate to="/calendar" replace />;
     }
+    
+    // Cargar datos al montar el componente
+    useEffect(() => {
+        const loadDashboardData = async () => {
+            setLoading(true);
+            setError(null);
+            
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                setError('No hay token de autenticación');
+                setLoading(false);
+                return;
+            }
+
+            const headers = {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            };
+
+            try {
+                // Calcular fechas
+                const hoy = new Date();
+                const primerDiaMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                const ultimoDiaMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+
+                // 1. Obtener gastos del mes
+                let gastosMes = 0;
+                let gastosData: Gasto[] = [];
+                try {
+                    const gastosResponse = await fetch(
+                        `${API_BASE_URL}/gastos?desde=${primerDiaMes.toISOString().split('T')[0]}&hasta=${ultimoDiaMes.toISOString().split('T')[0]}`,
+                        { headers }
+                    );
+                    if (gastosResponse.ok) {
+                        gastosData = await gastosResponse.json();
+                        gastosMes = gastosData.reduce((sum, g) => sum + (g.monto || 0), 0);
+                        setGastos(gastosData);
+                    }
+                } catch (err) {
+                    console.error('Error al obtener gastos:', err);
+                }
+
+                // 2. Obtener cortes de caja del mes (ingresos)
+                let ingresosMes = 0;
+                let cortesData: CorteCaja[] = [];
+                try {
+                    const cortesResponse = await fetch(`${API_BASE_URL}/cortes-caja`, { headers });
+                    if (cortesResponse.ok) {
+                        cortesData = await cortesResponse.json();
+                        // Filtrar cortes del mes actual
+                        const cortesDelMes = cortesData.filter(c => {
+                            const fechaCorte = new Date(c.fecha);
+                            return fechaCorte >= primerDiaMes && fechaCorte <= ultimoDiaMes;
+                        });
+                        ingresosMes = cortesDelMes.reduce((sum, c) => sum + (c.total_ingresos || 0), 0);
+                        setCortesCaja(cortesData);
+                    }
+                } catch (err) {
+                    console.error('Error al obtener cortes de caja:', err);
+                }
+
+                // 3. Obtener citas del mes
+                let citasMes = 0;
+                try {
+                    const citasResponse = await fetch(
+                        `${API_BASE_URL}/appointments?start_date=${primerDiaMes.toISOString()}&end_date=${ultimoDiaMes.toISOString()}`,
+                        { headers }
+                    );
+                    if (citasResponse.ok) {
+                        const citasData: any[] = await citasResponse.json();
+                        citasMes = citasData.length;
+                    }
+                } catch (err) {
+                    console.error('Error al obtener citas:', err);
+                }
+
+                // Actualizar KPIs
+                setKpis({
+                    ingresos_mes: ingresosMes,
+                    gastos_mes: gastosMes,
+                    citas_mes: citasMes,
+                    pacientes_nuevos: 0, // TODO: Implementar endpoint
+                    ingresos_tendencia: 0, // TODO: Calcular tendencia
+                    gastos_tendencia: 0,
+                    citas_tendencia: 0,
+                    pacientes_tendencia: 0,
+                });
+            } catch (err: any) {
+                setError(err.message || 'Error al cargar datos del dashboard');
+                console.error('Error loading dashboard data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadDashboardData();
+    }, [dateRange]);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('es-MX', {
@@ -40,12 +190,30 @@ const AdminPage: React.FC = () => {
     };
 
     // Calculate expense breakdown by category
-    const gastosPorCategoria = mockGastos.reduce((acc, gasto) => {
+    const gastosPorCategoria = gastos.reduce((acc, gasto) => {
         acc[gasto.categoria] = (acc[gasto.categoria] || 0) + gasto.monto;
         return acc;
     }, {} as Record<string, number>);
 
-    const totalGastos = Object.values(gastosPorCategoria).reduce((a, b) => a + b, 0);
+    const totalGastos = Object.values(gastosPorCategoria).reduce((a, b) => (a as number) + (b as number), 0);
+    
+    if (loading) {
+        return (
+            <div className="min-h-full p-6 flex justify-center items-center">
+                <p className="text-gray-500">Cargando dashboard...</p>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <div className="min-h-full p-6">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                    Error: {error}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-full p-6">
@@ -74,46 +242,46 @@ const AdminPage: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <KPICard
                     title="Ingresos del Mes"
-                    value={formatCurrency(mockKPIs.ingresos_mes)}
+                    value={formatCurrency(kpis.ingresos_mes)}
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                     }
-                    trend={{ value: mockKPIs.ingresos_tendencia, isPositive: mockKPIs.ingresos_tendencia > 0 }}
+                    trend={{ value: kpis.ingresos_tendencia, isPositive: kpis.ingresos_tendencia > 0 }}
                     color="green"
                 />
                 <KPICard
                     title="Gastos del Mes"
-                    value={formatCurrency(mockKPIs.gastos_mes)}
+                    value={formatCurrency(kpis.gastos_mes)}
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
                         </svg>
                     }
-                    trend={{ value: Math.abs(mockKPIs.gastos_tendencia), isPositive: mockKPIs.gastos_tendencia < 0 }}
+                    trend={{ value: Math.abs(kpis.gastos_tendencia), isPositive: kpis.gastos_tendencia < 0 }}
                     color="orange"
                 />
                 <KPICard
                     title="Citas del Mes"
-                    value={mockKPIs.citas_mes}
+                    value={kpis.citas_mes}
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     }
-                    trend={{ value: mockKPIs.citas_tendencia, isPositive: mockKPIs.citas_tendencia > 0 }}
+                    trend={{ value: kpis.citas_tendencia, isPositive: kpis.citas_tendencia > 0 }}
                     color="blue"
                 />
                 <KPICard
                     title="Pacientes Nuevos"
-                    value={mockKPIs.pacientes_nuevos}
+                    value={kpis.pacientes_nuevos}
                     icon={
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
                         </svg>
                     }
-                    trend={{ value: mockKPIs.pacientes_tendencia, isPositive: mockKPIs.pacientes_tendencia > 0 }}
+                    trend={{ value: kpis.pacientes_tendencia, isPositive: kpis.pacientes_tendencia > 0 }}
                     color="purple"
                 />
             </div>
@@ -122,38 +290,8 @@ const AdminPage: React.FC = () => {
                 {/* Revenue Chart - Simple Bar representation */}
                 <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Ingresos vs Gastos (Últimos 6 meses)</h3>
-                    <div className="space-y-4">
-                        {mockIngresosMensuales.map((mes) => (
-                            <div key={mes.mes} className="space-y-2">
-                                <div className="flex justify-between text-sm">
-                                    <span className="font-medium text-gray-700">{mes.mes}</span>
-                                    <div className="flex space-x-4">
-                                        <span className="text-green-600">{formatCurrency(mes.ingresos)}</span>
-                                        <span className="text-red-600">-{formatCurrency(mes.gastos)}</span>
-                                    </div>
-                                </div>
-                                <div className="flex space-x-1 h-6">
-                                    <div
-                                        className="bg-green-500 rounded-l"
-                                        style={{ width: `${(mes.ingresos / 50000) * 100}%` }}
-                                    />
-                                    <div
-                                        className="bg-red-400 rounded-r"
-                                        style={{ width: `${(mes.gastos / 50000) * 100}%` }}
-                                    />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                    <div className="mt-4 flex items-center justify-end space-x-4 text-sm">
-                        <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-green-500 rounded" />
-                            <span className="text-gray-600">Ingresos</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <div className="w-3 h-3 bg-red-400 rounded" />
-                            <span className="text-gray-600">Gastos</span>
-                        </div>
+                    <div className="flex items-center justify-center h-64 text-gray-500">
+                        <p>Gráfico de tendencias próximamente</p>
                     </div>
                 </div>
 
@@ -161,9 +299,12 @@ const AdminPage: React.FC = () => {
                 <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-lg font-semibold text-gray-800 mb-4">Desglose de Gastos</h3>
                     <div className="space-y-3">
-                        {Object.entries(gastosPorCategoria)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([categoria, monto]) => (
+                        {Object.entries(gastosPorCategoria).length === 0 ? (
+                            <p className="text-center text-gray-500 py-4">No hay gastos registrados</p>
+                        ) : (
+                            Object.entries(gastosPorCategoria)
+                                .sort((a, b) => (b[1] as number) - (a[1] as number))
+                                .map(([categoria, monto]) => (
                                 <div key={categoria} className="flex items-center justify-between">
                                     <div className="flex items-center space-x-2">
                                         <span className={`inline-flex px-2 py-0.5 text-xs rounded-full ${getCategoriaColor(categoria as any)}`}>
@@ -171,13 +312,14 @@ const AdminPage: React.FC = () => {
                                         </span>
                                     </div>
                                     <div className="flex items-center space-x-2">
-                                        <span className="text-sm font-medium text-gray-900">{formatCurrency(monto)}</span>
+                                        <span className="text-sm font-medium text-gray-900">{formatCurrency(monto as number)}</span>
                                         <span className="text-xs text-gray-500">
-                                            ({((monto / totalGastos) * 100).toFixed(0)}%)
+                                            ({(((monto as number) / totalGastos) * 100).toFixed(0)}%)
                                         </span>
                                     </div>
                                 </div>
-                            ))}
+                            ))
+                        )}
                     </div>
                     <div className="mt-4 pt-4 border-t border-gray-200">
                         <div className="flex justify-between font-semibold">
@@ -205,28 +347,35 @@ const AdminPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {mockCortesCaja.map((corte) => (
+                        {cortesCaja.length === 0 ? (
+                            <tr>
+                                <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                                    No hay cortes de caja registrados
+                                </td>
+                            </tr>
+                        ) : (
+                            cortesCaja.slice(0, 10).map((corte) => (
                             <tr key={corte.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    {new Date(corte.fecha_corte).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
+                                    {new Date(corte.fecha).toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {formatCurrency(corte.saldo_inicial)}
+                                    {formatCurrency(corte.saldo_efectivo || 0)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-medium">
                                     +{formatCurrency(corte.total_ingresos)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-red-600">
-                                    -{formatCurrency(corte.gastos_dia)}
+                                    -{formatCurrency(corte.total_gastos)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                                    {formatCurrency(corte.saldo_final)}
+                                    {formatCurrency((corte.saldo_efectivo || 0) + corte.total_ingresos - corte.total_gastos)}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                                    {corte.usuario_cierre}
+                                    {corte.cerrado_por}
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>
@@ -249,7 +398,14 @@ const AdminPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {mockGastos.map((gasto) => (
+                        {gastos.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                    No hay gastos registrados este mes
+                                </td>
+                            </tr>
+                        ) : (
+                            gastos.slice(0, 10).map((gasto) => (
                             <tr key={gasto.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                     {new Date(gasto.fecha).toLocaleDateString('es-MX')}
@@ -264,7 +420,7 @@ const AdminPage: React.FC = () => {
                                     {formatCurrency(gasto.monto)}
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>

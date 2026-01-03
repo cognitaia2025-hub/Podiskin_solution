@@ -62,9 +62,12 @@ const AppointmentsByStatusChart: React.FC<AppointmentsByStatusChartProps> = ({ d
 
   // Filter out zero values
   const filteredData = chartData.filter(item => item.value > 0);
+  
+  const total = chartData.reduce((sum, d) => sum + d.value, 0);
 
   const renderLabel = (entry: any) => {
-    const percent = ((entry.value / chartData.reduce((sum, d) => sum + d.value, 0)) * 100).toFixed(0);
+    if (total === 0) return '0%';
+    const percent = ((entry.value / total) * 100).toFixed(0);
     return `${percent}%`;
   };
 

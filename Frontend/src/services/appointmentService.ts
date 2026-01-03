@@ -13,6 +13,7 @@ export interface AppointmentCreateRequest {
   fecha_hora_inicio: string; // ISO string
   fecha_hora_fin: string; // ISO string
   tipo_cita: AppointmentType;
+  motivo_consulta?: string;
   es_primera_vez?: boolean;
   notas_recepcion?: string;
   color?: string;

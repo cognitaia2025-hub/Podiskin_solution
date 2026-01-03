@@ -253,3 +253,18 @@ class InventoryService {
 }
 
 export const inventoryService = new InventoryService();
+
+// Export convenience functions
+export const getProducts = (params?: {
+    limit?: number;
+    offset?: number;
+    categoria?: string;
+    activo?: boolean;
+}) => inventoryService.getProducts(params);
+
+export const getProductById = (productId: number) => inventoryService.getProductById(productId);
+export const createProduct = (data: CreateProductRequest) => inventoryService.createProduct(data);
+export const updateProduct = (productId: number, data: UpdateProductRequest) => inventoryService.updateProduct(productId, data);
+export const deleteProduct = (productId: number) => inventoryService.deleteProduct(productId);
+export const adjustStock = (productId: number, data: StockAdjustmentRequest) => inventoryService.adjustStock(productId, data);
+export const getLowStockAlerts = () => inventoryService.getLowStockAlerts();

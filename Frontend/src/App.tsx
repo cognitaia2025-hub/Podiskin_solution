@@ -84,10 +84,8 @@ function AppContent() {
   // Use real API through custom hook
   const {
     appointments,
-    loading,
     createAppointment,
     updateAppointment,
-    updateStatus,
     fetchData
   } = useAppointments({
     startDate: startOfWeek(selectedDate),

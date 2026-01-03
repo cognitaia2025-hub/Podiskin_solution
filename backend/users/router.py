@@ -52,14 +52,14 @@ class UserCreateRequest(BaseModel):
     password: str = Field(..., min_length=8)
     nombre_completo: str = Field(..., min_length=3)
     email: str = Field(..., pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-    id_rol: int = Field(..., ge=1)
+    rol: str = Field(..., pattern=r'^(Admin|Podologo|Recepcionista|Asistente)$')
 
 
 class UserUpdateRequest(BaseModel):
     """Request model for updating a user"""
     nombre_completo: Optional[str] = Field(None, min_length=3)
     email: Optional[str] = Field(None, pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
-    id_rol: Optional[int] = Field(None, ge=1)
+    rol: Optional[str] = Field(None, pattern=r'^(Admin|Podologo|Recepcionista|Asistente)$')
     activo: Optional[bool] = None
 
 
@@ -120,7 +120,7 @@ async def create_user_endpoint(
         password_hash=password_hash,
         nombre_completo=user_data.nombre_completo,
         email=user_data.email,
-        id_rol=user_data.id_rol,
+        rol=user_data.rol,
         creado_por=current_user.id
     )
     
@@ -175,7 +175,7 @@ async def update_user_endpoint(
         user_id=user_id,
         nombre_completo=user_data.nombre_completo,
         email=user_data.email,
-        id_rol=user_data.id_rol,
+        rol=user_data.rol,
         activo=user_data.activo
     )
     

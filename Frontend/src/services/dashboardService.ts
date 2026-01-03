@@ -60,7 +60,7 @@ export interface RevenueTrend {
  * Obtener estadísticas generales del dashboard
  */
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const response = await api.get('/stats/dashboard');
+  const response = await api.get('/api/stats/dashboard');
   return response.data;
 };
 
@@ -68,7 +68,7 @@ export const getDashboardStats = async (): Promise<DashboardStats> => {
  * Obtener tendencia de citas (últimos N días)
  */
 export const getAppointmentTrend = async (days: number = 30): Promise<AppointmentTrend[]> => {
-  const response = await api.get(`/stats/appointments-trend?days=${days}`);
+  const response = await api.get(`/api/stats/appointments-trend?days=${days}`);
   return response.data;
 };
 
@@ -76,7 +76,7 @@ export const getAppointmentTrend = async (days: number = 30): Promise<Appointmen
  * Obtener tendencia de ingresos (último año)
  */
 export const getRevenueTrend = async (): Promise<RevenueTrend[]> => {
-  const response = await api.get('/stats/revenue-trend');
+  const response = await api.get('/api/stats/revenue-trend');
   return response.data;
 };
 

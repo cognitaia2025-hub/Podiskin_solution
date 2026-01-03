@@ -9,29 +9,64 @@
  * - Horarios
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { Navigate } from 'react-router-dom';
-import {
-    mockRoles,
-    mockPersonal,
-    mockProveedores,
-    mockProductos,
-    mockHorarios,
-    getCategoriaColor,
-    getProveedorNombre,
-    type Role,
-    type Personal,
-    type Proveedor,
-    type Producto,
-    type Horario,
-} from '../services/adminMockData';
+import { 
+  getStaff, 
+  type StaffMember as UserFromService 
+} from '../services/staffService';
+import { 
+  getHorarios, 
+  type Horario as HorarioFromService 
+} from '../services/horariosService';
+import { 
+  getRoles, 
+  type Role 
+} from '../services/rolesService';
+import { 
+  getProveedores, 
+  type Proveedor 
+} from '../services/proveedoresService';
+import { 
+  getProducts, 
+  type ProductListItem 
+} from '../services/inventoryService';
+
+// Alias para evitar conflictos de nombres
+type User = UserFromService;
+type Horario = HorarioFromService;
+
+// --- Helper Reemplazado (Antes estaba en mockData) ---
+const getCategoriaColor = (categoria: string): string => {
+  const colors: Record<string, string> = {
+    'Insumos': 'bg-blue-100 text-blue-800',
+    'Medicamentos': 'bg-green-100 text-green-800',
+    'Instrumental': 'bg-purple-100 text-purple-800',
+    'Papelería': 'bg-gray-100 text-gray-800',
+    'Limpieza': 'bg-yellow-100 text-yellow-800',
+    'Mobiliario': 'bg-indigo-100 text-indigo-800',
+    'Epp': 'bg-red-100 text-red-800',
+    'Ortopodología': 'bg-pink-100 text-pink-800'
+  };
+  return colors[categoria] || 'bg-gray-100 text-gray-800';
+};
+// -----------------------------------------------------
 
 type TabType = 'roles' | 'personal' | 'proveedores' | 'productos' | 'horarios';
 
 const AjustesPage: React.FC = () => {
     const { user } = useAuth();
     const [activeTab, setActiveTab] = useState<TabType>('roles');
+    
+    // Estados para datos reales de API
+    const [roles, setRoles] = useState<Role[]>([]);
+    const [personal, setPersonal] = useState<User[]>([]);
+    const [proveedores, setProveedores] = useState<Proveedor[]>([]);
+    const [productos, setProductos] = useState<ProductListItem[]>([]);
+    const [horarios, setHorarios] = useState<Horario[]>([]);
+    
+    const [loading, setLoading] = useState(false);
 
     // Redirect non-admin users
     if (user?.rol !== 'Admin') {
@@ -85,6 +120,43 @@ const AjustesPage: React.FC = () => {
             ),
         },
     ];
+    
+    // Efecto para cargar datos según la pestaña activa
+    useEffect(() => {
+        const loadData = async () => {
+            setLoading(true);
+            try {
+                switch (activeTab) {
+                    case 'personal':
+                        const usersData = await getStaff();
+                        setPersonal(usersData);
+                        break;
+                    case 'horarios':
+                        const horariosData = await getHorarios();
+                        setHorarios(horariosData);
+                        break;
+                    case 'roles':
+                        const rolesData = await getRoles();
+                        setRoles(rolesData);
+                        break;
+                    case 'proveedores':
+                        const proveedoresData = await getProveedores();
+                        setProveedores(proveedoresData);
+                        break;
+                    case 'productos':
+                        const productosResponse = await getProducts();
+                        setProductos(productosResponse.productos || []);
+                        break;
+                }
+            } catch (err: any) {
+                console.error('Error loading data:', err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadData();
+    }, [activeTab]);
 
     const renderRolesTab = () => (
         <div className="space-y-4">
@@ -108,7 +180,14 @@ const AjustesPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {mockRoles.map((role) => (
+                        {roles.length === 0 ? (
+                            <tr>
+                                <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                                    {loading ? 'Cargando roles...' : 'No hay roles disponibles'}
+                                </td>
+                            </tr>
+                        ) : (
+                            roles.map((role) => (
                             <tr key={role.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="font-medium text-gray-900">{role.nombre_rol}</span>
@@ -116,11 +195,15 @@ const AjustesPage: React.FC = () => {
                                 <td className="px-6 py-4 text-sm text-gray-600">{role.descripcion}</td>
                                 <td className="px-6 py-4">
                                     <div className="flex flex-wrap gap-1">
-                                        {role.permisos?.map((permiso, idx) => (
-                                            <span key={idx} className="inline-flex px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
-                                                {permiso}
-                                            </span>
-                                        ))}
+                                        {role.permisos && Object.keys(role.permisos).length > 0 ? (
+                                            Object.keys(role.permisos).slice(0, 3).map((key) => (
+                                                <span key={key} className="inline-flex px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-700">
+                                                    {key}
+                                                </span>
+                                            ))
+                                        ) : (
+                                            <span className="text-xs text-gray-400">Sin permisos</span>
+                                        )}
                                     </div>
                                 </td>
                                 <td className="px-6 py-4 text-right space-x-2">
@@ -128,7 +211,7 @@ const AjustesPage: React.FC = () => {
                                     <button className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>
@@ -152,23 +235,28 @@ const AjustesPage: React.FC = () => {
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Teléfono</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rol</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Estado</th>
                             <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {mockPersonal.map((persona) => (
+                        {personal.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                    {loading ? 'Cargando personal...' : 'No hay usuarios disponibles'}
+                                </td>
+                            </tr>
+                        ) : (
+                            personal.map((persona) => (
                             <tr key={persona.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="font-medium text-gray-900">{persona.nombre_completo}</span>
                                 </td>
                                 <td className="px-6 py-4 text-sm text-gray-600">{persona.email}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">{persona.telefono}</td>
                                 <td className="px-6 py-4">
                                     <span className="inline-flex px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
-                                        {persona.rol}
+                                        {persona.rol || 'Sin rol'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -183,7 +271,7 @@ const AjustesPage: React.FC = () => {
                                     </button>
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>
@@ -201,8 +289,17 @@ const AjustesPage: React.FC = () => {
                     <span>Nuevo Proveedor</span>
                 </button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {mockProveedores.map((proveedor) => (
+            {loading ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                    Cargando proveedores...
+                </div>
+            ) : proveedores.length === 0 ? (
+                <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                    No hay proveedores registrados
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {proveedores.map((proveedor) => (
                     <div key={proveedor.id} className={`bg-white rounded-lg shadow p-4 border-l-4 ${proveedor.activo ? 'border-green-500' : 'border-gray-300'}`}>
                         <div className="flex justify-between items-start mb-3">
                             <h4 className="font-semibold text-gray-900">{proveedor.nombre_comercial}</h4>
@@ -237,7 +334,8 @@ const AjustesPage: React.FC = () => {
                         </div>
                     </div>
                 ))}
-            </div>
+                </div>
+            )}
         </div>
     );
 
@@ -266,7 +364,20 @@ const AjustesPage: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                        {mockProductos.map((producto) => (
+                        {loading ? (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                    Cargando productos...
+                                </td>
+                            </tr>
+                        ) : productos.length === 0 ? (
+                            <tr>
+                                <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
+                                    No hay productos registrados
+                                </td>
+                            </tr>
+                        ) : (
+                            productos.map((producto) => (
                             <tr key={producto.id} className="hover:bg-gray-50">
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <span className="font-medium text-gray-900">{producto.nombre}</span>
@@ -288,69 +399,99 @@ const AjustesPage: React.FC = () => {
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-sm text-gray-600">${producto.precio_compra.toFixed(2)}</td>
-                                <td className="px-6 py-4 text-sm font-medium text-gray-900">${producto.precio_venta.toFixed(2)}</td>
-                                <td className="px-6 py-4 text-sm text-gray-600">
-                                    {producto.proveedor_id ? getProveedorNombre(producto.proveedor_id) : '-'}
-                                </td>
+                                <td className="px-6 py-4 text-sm text-gray-600">${(producto.costo_unitario || 0).toFixed(2)}</td>
+                                <td className="px-6 py-4 text-sm font-medium text-gray-900">${(producto.precio_venta || 0).toFixed(2)}</td>
+                                <td className="px-6 py-4 text-sm text-gray-600">-</td>
                                 <td className="px-6 py-4 text-right space-x-2">
                                     <button className="text-primary-600 hover:text-primary-800 text-sm">Editar</button>
                                     <button className="text-red-600 hover:text-red-800 text-sm">Eliminar</button>
                                 </td>
                             </tr>
-                        ))}
+                        )))}
                     </tbody>
                 </table>
             </div>
         </div>
     );
 
-    const renderHorariosTab = () => (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold text-gray-800">Horarios de Atención</h3>
-                <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center space-x-2">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    <span>Nuevo Horario</span>
-                </button>
-            </div>
+    const renderHorariosTab = () => {
+        if (loading) {
+            return (
+                <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                    Cargando horarios...
+                </div>
+            );
+        }
 
-            {/* Group by podologist */}
-            {Array.from(new Set(mockHorarios.map(h => h.podologo_id))).map(podologoId => {
-                const horarios = mockHorarios.filter(h => h.podologo_id === podologoId);
-                const nombrePodologo = horarios[0]?.podologo_nombre;
+        if (horarios.length === 0) {
+            return (
+                <div className="space-y-4">
+                    <div className="flex justify-between items-center">
+                        <h3 className="text-lg font-semibold text-gray-800">Horarios de Atención</h3>
+                        <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center space-x-2">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            <span>Nuevo Horario</span>
+                        </button>
+                    </div>
+                    <div className="bg-white rounded-lg shadow p-8 text-center text-gray-500">
+                        No hay horarios configurados
+                    </div>
+                </div>
+            );
+        }
 
-                return (
-                    <div key={podologoId} className="bg-white rounded-lg shadow overflow-hidden">
-                        <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
-                            <h4 className="font-medium text-gray-900">{nombrePodologo}</h4>
-                        </div>
-                        <div className="p-4">
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                                {horarios.map((horario) => (
-                                    <div
-                                        key={horario.id}
-                                        className={`p-3 rounded-lg border text-center ${horario.activo ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
-                                            }`}
-                                    >
-                                        <p className="font-medium text-gray-900 text-sm">{horario.dia_semana}</p>
-                                        <p className="text-xs text-gray-600 mt-1">
-                                            {horario.hora_inicio} - {horario.hora_fin}
-                                        </p>
-                                        <button className="mt-2 text-xs text-primary-600 hover:text-primary-800">
-                                            Editar
-                                        </button>
-                                    </div>
-                                ))}
+        return (
+            <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold text-gray-800">Horarios de Atención</h3>
+                    <button className="px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors text-sm font-medium flex items-center space-x-2">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span>Nuevo Horario</span>
+                    </button>
+                </div>
+
+                {/* Group by podologist */}
+                {Array.from(new Set(horarios.map(h => h.id_podologo))).map(podologoId => {
+                    const horariosDelPodologo = horarios.filter(h => h.id_podologo === podologoId);
+                    const nombrePodologo = horariosDelPodologo[0]?.nombre_podologo;
+
+                    return (
+                        <div key={podologoId} className="bg-white rounded-lg shadow overflow-hidden">
+                            <div className="bg-gray-50 px-6 py-3 border-b border-gray-200">
+                                <h4 className="font-medium text-gray-900">{nombrePodologo}</h4>
+                            </div>
+                            <div className="p-4">
+                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-2">
+                                    {horariosDelPodologo.map((horario) => (
+                                        <div
+                                            key={horario.id}
+                                            className={`p-3 rounded-lg border text-center ${horario.activo ? 'border-green-200 bg-green-50' : 'border-gray-200 bg-gray-50'
+                                                }`}
+                                        >
+                                            <p className="font-medium text-gray-900 text-sm">{horario.dia_semana_nombre}</p>
+                                            <p className="text-xs text-gray-600 mt-1">
+                                                {horario.hora_inicio.substring(0, 5)} - {horario.hora_fin.substring(0, 5)}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                {horario.duracion_cita_minutos} min/cita
+                                            </p>
+                                            <button className="mt-2 text-xs text-primary-600 hover:text-primary-800">
+                                                Editar
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                    </div>
-                );
-            })}
-        </div>
-    );
+                    );
+                })}
+            </div>
+        );
+    };
 
     const renderTabContent = () => {
         switch (activeTab) {

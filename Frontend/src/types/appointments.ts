@@ -41,6 +41,7 @@ export interface Appointment {
     estado: AppointmentStatus;
     es_primera_vez: boolean;
     tipo_cita: AppointmentType;
+    motivo_consulta?: string;
     notas_recepcion?: string;
     creado_por?: string;
     color?: string; // Hex color code

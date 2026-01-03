@@ -40,6 +40,12 @@ from api import live_sessions_router, orchestrator_router
 # Importar catálogo de servicios
 from catalog.router import router as catalog_router
 
+# Importar horarios
+from horarios.router import router as horarios_router
+
+# Importar estadísticas
+from stats.router import router as stats_router
+
 # Cargar variables de entorno
 load_dotenv()
 
@@ -127,6 +133,8 @@ app.include_router(proveedores_router, prefix="/api")
 app.include_router(gastos_router, prefix="/api")
 app.include_router(cortes_caja_router, prefix="/api")
 app.include_router(catalog_router, prefix="/api")
+app.include_router(horarios_router, prefix="/api")
+app.include_router(stats_router, prefix="/api")
 
 # Incluir routers de API
 app.include_router(live_sessions_router)

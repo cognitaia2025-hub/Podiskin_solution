@@ -20,12 +20,9 @@ import type {
   RevenueTrend,
 } from '../services/dashboardService';
 import {
-  // getDashboardStats,
-  // getAppointmentTrend,
-  // getRevenueTrend,
-  getMockDashboardStats,
-  getMockAppointmentTrend,
-  getMockRevenueTrend,
+  getDashboardStats,
+  getAppointmentTrend,
+  getRevenueTrend,
 } from '../services/dashboardService';
 
 const DashboardPage: React.FC = () => {
@@ -43,22 +40,37 @@ const DashboardPage: React.FC = () => {
     try {
       setIsLoading(true);
 
-      // TODO: Replace with real API calls when backend is ready
-      // const [statsData, apptTrend, revTrend] = await Promise.all([
-      //   getDashboardStats(),
-      //   getAppointmentTrend(30),
-      //   getRevenueTrend(),
-      // ]);
+      const [statsData, apptTrend, revTrend] = await Promise.all([
+        getDashboardStats(),
+        getAppointmentTrend(30),
+        getRevenueTrend(),
+      ]);
 
-      // Using mock data for development
-      await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-      const statsData = getMockDashboardStats();
-      const apptTrend = getMockAppointmentTrend();
-      const revTrend = getMockRevenueTrend();
-
-      setStats(statsData);
-      setAppointmentTrend(apptTrend);
-      setRevenueTrend(revTrend);
+      // Validación: asegurar que siempre tengamos datos válidos
+      setStats(statsData || {
+        total_patients: 0,
+        active_patients: 0,
+        new_patients_this_month: 0,
+        total_appointments_today: 0,
+        total_appointments_week: 0,
+        total_appointments_month: 0,
+        appointments_by_status: {
+          pendiente: 0,
+          confirmada: 0,
+          completada: 0,
+          cancelada: 0,
+          no_asistio: 0
+        },
+        revenue_today: 0,
+        revenue_week: 0,
+        revenue_month: 0,
+        revenue_year: 0,
+        top_treatments: [],
+        ocupacion_porcentaje: 0,
+        upcoming_appointments: 0
+      });
+      setAppointmentTrend(apptTrend || []);
+      setRevenueTrend(revTrend || []);
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading dashboard:', error);

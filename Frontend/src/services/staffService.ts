@@ -145,3 +145,9 @@ class StaffService {
 }
 
 export const staffService = new StaffService();
+
+// Export convenience functions
+export const getStaff = () => staffService.getStaff();
+export const createStaff = (data: CreateStaffRequest) => staffService.createStaff(data);
+export const updateStaff = (id: number, data: UpdateStaffRequest) => staffService.updateStaff(id, data);
+export const deleteStaff = (id: number) => staffService.deleteStaff(id);

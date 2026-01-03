@@ -44,7 +44,7 @@ async def init_db_pool():
         from psycopg_pool import AsyncConnectionPool
 
         _pool = AsyncConnectionPool(
-            conninfo=CONNINFO, min_size=2, max_size=10, open=False
+            conninfo=CONNINFO, min_size=5, max_size=20, open=False
         )
         await _pool.open()
         logger.info("Auth database pool initialized successfully")
@@ -116,9 +116,13 @@ async def get_user_by_username(username: str) -> Optional[dict]:
                 (username, username, username),
             )
             user = await cur.fetchone()
-            return dict(user) if user else None
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
+        return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error fetching user: {e}")
+        if conn:
+            await conn.rollback()
         return None
     finally:
         if conn:
@@ -161,9 +165,13 @@ async def is_user_active(user_id: int) -> bool:
         async with conn.cursor() as cur:
             await cur.execute("SELECT activo FROM usuarios WHERE id = %s", (user_id,))
             result = await cur.fetchone()
-            return result[0] if result else False
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
+        return result[0] if result else False
     except Exception as e:
         logger.error(f"Error checking if user is active: {e}")
+        if conn:
+            await conn.rollback()
         return False
     finally:
         if conn:
@@ -246,9 +254,13 @@ async def get_all_users(activo_only: bool = True) -> list:
 
             await cur.execute(query)
             users = await cur.fetchall()
-            return [dict(user) for user in users] if users else []
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
+        return [dict(user) for user in users] if users else []
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
+        if conn:
+            await conn.rollback()
         return []
     finally:
         if conn:
@@ -280,9 +292,13 @@ async def get_user_by_id(user_id: int) -> Optional[dict]:
                 (user_id,),
             )
             user = await cur.fetchone()
-            return dict(user) if user else None
+        # Cerrar transacción de solo lectura
+        await conn.rollback()
+        return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error fetching user by id: {e}")
+        if conn:
+            await conn.rollback()
         return None
     finally:
         if conn:

@@ -305,14 +305,6 @@ async def logout(current_user: User = Depends(get_current_user)):
     Returns:
         Mensaje de confirmación
     """
-    from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-    from fastapi import Request
-    
-    # Obtener el token del header de autorización
-    # Necesitamos acceder al request para extraer el token
-    # Como alternativa, podríamos pasar el token directamente
-    # pero para mantener consistencia usamos el patrón de dependency
-    
     logger.info(f"User {current_user.nombre_usuario} logged out")
     
     return {

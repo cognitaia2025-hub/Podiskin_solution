@@ -18,7 +18,7 @@ from auth import get_current_user, User
 from db import database
 from pacientes.service import AlergiasService, AntecedentesService
 from pacientes.models import AlergiaCreate, AntecedenteCreate
-from pacientes.database import get_db_connection
+from pacientes.database import db as pacientes_db
 
 router = APIRouter(prefix="/api/medical-records", tags=["medical-records"])
 
@@ -286,7 +286,7 @@ async def update_alergias_section(patient_id: int, data: dict, user_id: int):
     alergias = data.get('alergias', [])
     results = []
     
-    async with await get_db_connection() as conn:
+    async with pacientes_db.get_connection() as conn:
         for alergia_data in alergias:
             alergia = AlergiaCreate(**alergia_data)
             result = await AlergiasService.create_alergia(conn, patient_id, alergia)
@@ -303,7 +303,7 @@ async def update_antecedentes_section(patient_id: int, data: dict, user_id: int)
     antecedentes = data.get('antecedentes', [])
     results = []
     
-    async with await get_db_connection() as conn:
+    async with pacientes_db.get_connection() as conn:
         for antecedente_data in antecedentes:
             antecedente = AntecedenteCreate(**antecedente_data)
             result = await AntecedentesService.create_antecedente(conn, patient_id, antecedente)

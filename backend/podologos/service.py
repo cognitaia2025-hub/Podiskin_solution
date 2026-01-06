@@ -3,6 +3,7 @@ Servicio de lógica de negocio para Podólogos
 """
 
 from typing import List, Optional
+from datetime import datetime as dt, date
 from psycopg2.extras import RealDictCursor
 import psycopg2
 import os
@@ -329,8 +330,6 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
     Returns:
         Lista de podólogos disponibles con información de slots
     """
-    from datetime import datetime as dt, date
-    
     # Si no se proporciona fecha, usar hoy
     if not fecha:
         fecha_obj = date.today()

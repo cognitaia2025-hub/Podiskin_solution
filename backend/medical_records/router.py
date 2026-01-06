@@ -5,7 +5,6 @@ Endpoints para gestión de expedientes médicos
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, date
-import asyncpg
 
 from .schemas import (
     PatientSearchResponse,

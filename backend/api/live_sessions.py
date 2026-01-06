@@ -30,7 +30,7 @@ from auth import get_current_user, User
 from agents.orchestrator import execute_orchestrator, SIMPLE_FUNCTIONS, COMPLEX_FUNCTIONS_MAPPING
 
 # Import database
-from db import database
+from pacientes.database import db as pacientes_db
 
 # Import services for tool execution
 from tratamientos.service import create_signos_vitales, calcular_imc, clasificar_imc
@@ -181,7 +181,7 @@ async def validate_patient_access(patient_id: str, user: User) -> bool:
     
     # Check if patient exists
     query = "SELECT id, activo FROM pacientes WHERE id = $1"
-    async with database.connection() as conn:
+    async with pacientes_db.get_connection() as conn:
         row = await conn.fetchrow(query, patient_id_int)
         
         if not row:
@@ -614,7 +614,7 @@ async def execute_simple_function(
     elif function_name == "query_patient_data":
         # Query patient from database directly
         try:
-            async with database.connection() as conn:
+            async with pacientes_db.get_connection() as conn:
                 patient = await PacientesService.get_paciente_by_id(conn, int(patient_id))
                 
                 if not patient:
@@ -654,7 +654,7 @@ async def execute_simple_function(
                 notas=args.get('notas')
             )
             
-            async with database.connection() as conn:
+            async with pacientes_db.get_connection() as conn:
                 result = await AlergiasService.create_alergia(
                     conn, 
                     int(patient_id), 

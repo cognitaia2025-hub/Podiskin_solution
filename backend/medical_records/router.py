@@ -5,6 +5,8 @@ Endpoints para gestión de expedientes médicos
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, date
+import asyncpg
+
 from .schemas import (
     PatientSearchResponse,
     UpcomingAppointmentResponse,
@@ -15,6 +17,9 @@ from .schemas import (
 )
 from auth import get_current_user, User
 from db import database
+from pacientes.service import AlergiasService, AntecedentesService
+from pacientes.models import AlergiaCreate, AntecedenteCreate
+from pacientes.database import get_db_connection
 
 router = APIRouter(prefix="/api/medical-records", tags=["medical-records"])
 
@@ -278,11 +283,6 @@ async def update_alergias_section(patient_id: int, data: dict, user_id: int):
     Actualiza la sección de alergias.
     Usa el servicio de pacientes para agregar/modificar alergias.
     """
-    from pacientes.service import AlergiasService
-    from pacientes.models import AlergiaCreate
-    import asyncpg
-    from pacientes.database import get_db_connection
-    
     # data should contain list of allergies
     alergias = data.get('alergias', [])
     results = []
@@ -301,10 +301,6 @@ async def update_antecedentes_section(patient_id: int, data: dict, user_id: int)
     Actualiza la sección de antecedentes.
     Usa el servicio de pacientes para agregar/modificar antecedentes.
     """
-    from pacientes.service import AntecedentesService
-    from pacientes.models import AntecedenteCreate
-    from pacientes.database import get_db_connection
-    
     antecedentes = data.get('antecedentes', [])
     results = []
     

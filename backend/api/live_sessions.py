@@ -32,6 +32,11 @@ from agents.orchestrator import execute_orchestrator, SIMPLE_FUNCTIONS, COMPLEX_
 # Import database
 from db import database
 
+# Import services for tool execution
+from tratamientos.service import create_signos_vitales, calcular_imc, clasificar_imc
+from pacientes.service import PacientesService, AlergiasService
+from pacientes.models import AlergiaCreate
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/live", tags=["live_sessions"])
@@ -542,9 +547,6 @@ async def execute_simple_function(
     if function_name == "update_vital_signs":
         # Call POST /api/citas/{cita_id}/signos-vitales
         try:
-            import httpx
-            from tratamientos.service import create_signos_vitales, calcular_imc, clasificar_imc
-            
             # Extract vital signs from args
             peso = args.get('peso_kg')
             talla = args.get('talla_cm')
@@ -612,8 +614,6 @@ async def execute_simple_function(
     elif function_name == "query_patient_data":
         # Query patient from database directly
         try:
-            from pacientes.service import PacientesService
-            
             async with database.connection() as conn:
                 patient = await PacientesService.get_paciente_by_id(conn, int(patient_id))
                 
@@ -645,9 +645,6 @@ async def execute_simple_function(
     elif function_name == "add_allergy":
         # Call POST /pacientes/{patient_id}/alergias
         try:
-            from pacientes.service import AlergiasService
-            from pacientes.models import AlergiaCreate
-            
             # Extract allergy data from args
             alergia_data = AlergiaCreate(
                 tipo_alergia=args.get('tipo_alergia', 'Medicamento'),

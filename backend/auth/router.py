@@ -6,6 +6,7 @@ Endpoints REST para autenticación (login, logout, etc.).
 
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from typing import Dict, Optional, Set
 from datetime import datetime

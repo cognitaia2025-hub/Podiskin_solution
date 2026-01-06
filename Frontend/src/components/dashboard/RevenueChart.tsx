@@ -27,8 +27,11 @@ const RevenueChart: React.FC<RevenueChartProps> = ({ data }) => {
         💰 Ingresos Mensuales
       </h3>
       {data.length === 0 ? (
-        <div className="h-[300px] flex items-center justify-center text-gray-500">
-          No hay datos disponibles
+        <div className="h-[300px] flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p className="text-lg mb-2">💵 Sin ingresos registrados</p>
+            <p className="text-sm">Los datos aparecerán cuando se registren pagos</p>
+          </div>
         </div>
       ) : (
         <ResponsiveContainer width="100%" height={300}>

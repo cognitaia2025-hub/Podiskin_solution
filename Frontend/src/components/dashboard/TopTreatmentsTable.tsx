@@ -20,8 +20,11 @@ const TopTreatmentsTable: React.FC<TopTreatmentsTableProps> = ({ data }) => {
         🩺 Tratamientos Más Comunes
       </h3>
       {!data || data.length === 0 ? (
-        <div className="h-[300px] flex items-center justify-center text-gray-500">
-          No hay datos disponibles
+        <div className="h-[300px] flex items-center justify-center">
+          <div className="text-center text-gray-400">
+            <p className="text-lg mb-2">🩺 Sin tratamientos registrados</p>
+            <p className="text-sm">Los datos aparecerán cuando se completen tratamientos</p>
+          </div>
         </div>
       ) : (
         <div className="overflow-x-auto">

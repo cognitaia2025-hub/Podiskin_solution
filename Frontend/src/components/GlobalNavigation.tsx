@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3, Users, Package, Coins } from 'lucide-react';
+import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3, Users, Package, Coins, ChevronDown, Stethoscope } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../auth/AuthContext';
 
@@ -21,20 +21,6 @@ const NAVIGATION_TABS: NavigationTab[] = [
         enabled: true,
     },
     {
-        id: 'records',
-        label: 'Expedientes médicos',
-        path: '/records',
-        icon: FolderOpen,
-        enabled: false, // Placeholder
-    },
-    {
-        id: 'medical',
-        label: 'Atención médica',
-        path: '/medical',
-        icon: FileText,
-        enabled: true,
-    },
-    {
         id: 'calendar',
         label: 'Calendario',
         path: '/calendar',
@@ -46,7 +32,7 @@ const NAVIGATION_TABS: NavigationTab[] = [
         label: 'Gestión de cobros',
         path: '/billing',
         icon: DollarSign,
-        enabled: false, // Placeholder
+        enabled: true,
     },
     {
         id: 'finances',
@@ -82,6 +68,7 @@ const GlobalNavigation: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const { user } = useAuth();
+    const [medicalMenuOpen, setMedicalMenuOpen] = useState(false);
 
     const isActiveTab = (path: string) => {
         return location.pathname.startsWith(path);
@@ -92,6 +79,8 @@ const GlobalNavigation: React.FC = () => {
             navigate(tab.path);
         }
     };
+
+    const isMedicalActive = location.pathname.startsWith('/medical') || location.pathname.startsWith('/records');
 
     return (
         <nav className="h-full flex items-center">
@@ -127,6 +116,56 @@ const GlobalNavigation: React.FC = () => {
                         </button>
                     );
                 })}
+                
+                {/* Menú Gestión Médica con dropdown */}
+                <div className="relative h-full">
+                    <button
+                        onClick={() => setMedicalMenuOpen(!medicalMenuOpen)}
+                        onBlur={() => setTimeout(() => setMedicalMenuOpen(false), 200)}
+                        className={clsx(
+                            'flex items-center gap-2 px-4 h-full text-sm font-medium transition-all relative outline-none',
+                            isMedicalActive
+                                ? 'text-primary-700 border-b-2 border-primary-600 bg-primary-50/30'
+                                : 'text-gray-500 border-b-2 border-transparent hover:text-gray-800 hover:bg-gray-50/50'
+                        )}
+                    >
+                        <Stethoscope className={clsx(
+                            'w-4 h-4',
+                            isMedicalActive ? 'text-primary-600' : ''
+                        )} />
+                        <span>Gestión Médica</span>
+                        <ChevronDown className={clsx(
+                            'w-3 h-3 transition-transform',
+                            medicalMenuOpen && 'rotate-180'
+                        )} />
+                    </button>
+
+                    {/* Dropdown */}
+                    {medicalMenuOpen && (
+                        <div className="absolute top-full left-0 mt-0 bg-white shadow-lg border border-gray-200 rounded-b-lg min-w-[200px] z-50">
+                            <button
+                                onClick={() => {
+                                    navigate('/medical/attention');
+                                    setMedicalMenuOpen(false);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-700 hover:text-primary-600"
+                            >
+                                <FileText className="w-4 h-4" />
+                                <span>Atención Médica</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    navigate('/medical/records');
+                                    setMedicalMenuOpen(false);
+                                }}
+                                className="w-full px-4 py-3 text-left text-sm hover:bg-gray-50 flex items-center gap-2 text-gray-700 hover:text-primary-600 border-t border-gray-100"
+                            >
+                                <FolderOpen className="w-4 h-4" />
+                                <span>Expedientes Médicos</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
             {/* Sección Administración solo para admin/manager */}
             {(user?.rol === 'Admin' || user?.rol === 'Manager') && (

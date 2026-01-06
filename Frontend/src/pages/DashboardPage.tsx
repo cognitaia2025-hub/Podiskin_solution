@@ -40,14 +40,22 @@ const DashboardPage: React.FC = () => {
     try {
       setIsLoading(true);
 
+      // Las funciones ya no lanzan errores, retornan datos vacíos si hay problemas
       const [statsData, apptTrend, revTrend] = await Promise.all([
         getDashboardStats(),
         getAppointmentTrend(30),
         getRevenueTrend(),
       ]);
 
-      // Validación: asegurar que siempre tengamos datos válidos
-      setStats(statsData || {
+      setStats(statsData);
+      setAppointmentTrend(apptTrend);
+      setRevenueTrend(revTrend);
+      setLastUpdated(new Date());
+    } catch (error) {
+      // Esto no debería ocurrir ya que las funciones manejan sus errores
+      console.error('Error loading dashboard:', error);
+      // Establecer datos vacíos en lugar de mostrar error
+      setStats({
         total_patients: 0,
         active_patients: 0,
         new_patients_this_month: 0,
@@ -69,12 +77,8 @@ const DashboardPage: React.FC = () => {
         ocupacion_porcentaje: 0,
         upcoming_appointments: 0
       });
-      setAppointmentTrend(apptTrend || []);
-      setRevenueTrend(revTrend || []);
-      setLastUpdated(new Date());
-    } catch (error) {
-      console.error('Error loading dashboard:', error);
-      toast.error('Error al cargar dashboard');
+      setAppointmentTrend([]);
+      setRevenueTrend([]);
     } finally {
       setIsLoading(false);
     }
@@ -91,22 +95,7 @@ const DashboardPage: React.FC = () => {
     );
   }
 
-  if (!stats) {
-    return (
-      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-        <div className="text-center text-gray-600">
-          <p>No se pudo cargar la información del dashboard</p>
-          <button
-            onClick={loadDashboardData}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Reintentar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+  // Siempre mostrar el dashboard, incluso con datos en 0
   return (
     <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
       {/* Header */}
@@ -116,27 +105,27 @@ const DashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <KPICard
           title="Total Pacientes"
-          value={stats.total_patients}
+          value={stats?.total_patients || 0}
           icon={<Users className="w-6 h-6" />}
           color="blue"
-          trend={{ value: 12, isPositive: true }}
+          trend={stats?.total_patients > 0 ? { value: 12, isPositive: true } : undefined}
         />
         <KPICard
           title="Citas Hoy"
-          value={stats.total_appointments_today}
+          value={stats?.total_appointments_today || 0}
           icon={<Calendar className="w-6 h-6" />}
           color="green"
         />
         <KPICard
           title="Ingresos del Mes"
-          value={`$${(stats.revenue_month / 1000).toFixed(1)}K`}
+          value={`$${((stats?.revenue_month || 0) / 1000).toFixed(1)}K`}
           icon={<DollarSign className="w-6 h-6" />}
           color="purple"
-          trend={{ value: 8, isPositive: true }}
+          trend={stats?.revenue_month > 0 ? { value: 8, isPositive: true } : undefined}
         />
         <KPICard
           title="Ocupación"
-          value={`${stats.ocupacion_porcentaje}%`}
+          value={`${stats?.ocupacion_porcentaje || 0}%`}
           icon={<TrendingUp className="w-6 h-6" />}
           color="orange"
         />
@@ -144,14 +133,20 @@ const DashboardPage: React.FC = () => {
 
       {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <AppointmentTrendChart data={appointmentTrend} />
-        <AppointmentsByStatusChart data={stats.appointments_by_status} />
+        <AppointmentTrendChart data={appointmentTrend || []} />
+        <AppointmentsByStatusChart data={stats?.appointments_by_status || {
+          pendiente: 0,
+          confirmada: 0,
+          completada: 0,
+          cancelada: 0,
+          no_asistio: 0
+        }} />
       </div>
 
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RevenueChart data={revenueTrend} />
-        <TopTreatmentsTable data={stats.top_treatments} />
+        <RevenueChart data={revenueTrend || []} />
+        <TopTreatmentsTable data={stats?.top_treatments || []} />
       </div>
     </div>
   );

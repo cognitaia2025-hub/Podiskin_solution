@@ -36,6 +36,9 @@ from roles.router import router as roles_router
 from proveedores.router import router as proveedores_router
 from gastos.router import router as gastos_router
 from cortes_caja.router import router as cortes_caja_router
+from pagos.router import router as pagos_router
+from facturas.router import router as facturas_router
+from audit.router import router as audit_router
 
 # Importar routers de API
 from api import live_sessions_router, orchestrator_router
@@ -48,6 +51,9 @@ from horarios.router import router as horarios_router
 
 # Importar estadísticas
 from stats.router import router as stats_router
+
+# Importar expedientes médicos
+from medical_records.router import router as medical_records_router
 
 # Cargar variables de entorno
 load_dotenv()
@@ -149,9 +155,13 @@ app.include_router(roles_router, prefix="/api")
 app.include_router(proveedores_router, prefix="/api")
 app.include_router(gastos_router, prefix="/api")
 app.include_router(cortes_caja_router, prefix="/api")
+app.include_router(pagos_router, prefix="/api")
+app.include_router(facturas_router, prefix="/api")
+app.include_router(audit_router, prefix="/api")
 app.include_router(catalog_router, prefix="/api")
 app.include_router(horarios_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
+app.include_router(medical_records_router)
 
 # Incluir routers de API
 app.include_router(live_sessions_router)

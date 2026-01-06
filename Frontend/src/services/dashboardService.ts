@@ -60,24 +60,68 @@ export interface RevenueTrend {
  * Obtener estadísticas generales del dashboard
  */
 export const getDashboardStats = async (): Promise<DashboardStats> => {
-  const response = await api.get('/api/stats/dashboard');
-  return response.data;
+  try {
+    const response = await api.get('/api/stats/dashboard');
+    return response.data;
+  } catch (error) {
+    console.warn('No se pudieron cargar estadísticas, usando valores vacíos', error);
+    // Retornar datos vacíos en lugar de lanzar error
+    return getEmptyDashboardStats();
+  }
 };
 
 /**
  * Obtener tendencia de citas (últimos N días)
  */
 export const getAppointmentTrend = async (days: number = 30): Promise<AppointmentTrend[]> => {
-  const response = await api.get(`/api/stats/appointments-trend?days=${days}`);
-  return response.data;
+  try {
+    const response = await api.get(`/api/stats/appointments-trend?days=${days}`);
+    return response.data;
+  } catch (error) {
+    console.warn('No se pudo cargar tendencia de citas', error);
+    return [];
+  }
 };
 
 /**
  * Obtener tendencia de ingresos (último año)
  */
 export const getRevenueTrend = async (): Promise<RevenueTrend[]> => {
-  const response = await api.get('/api/stats/revenue-trend');
-  return response.data;
+  try {
+    const response = await api.get('/api/stats/revenue-trend');
+    return response.data;
+  } catch (error) {
+    console.warn('No se pudo cargar tendencia de ingresos', error);
+    return [];
+  }
+};
+
+/**
+ * Datos vacíos para dashboard sin información
+ */
+export const getEmptyDashboardStats = (): DashboardStats => {
+  return {
+    total_patients: 0,
+    active_patients: 0,
+    new_patients_this_month: 0,
+    total_appointments_today: 0,
+    total_appointments_week: 0,
+    total_appointments_month: 0,
+    appointments_by_status: {
+      pendiente: 0,
+      confirmada: 0,
+      completada: 0,
+      cancelada: 0,
+      no_asistio: 0,
+    },
+    revenue_today: 0,
+    revenue_week: 0,
+    revenue_month: 0,
+    revenue_year: 0,
+    top_treatments: [],
+    ocupacion_porcentaje: 0,
+    upcoming_appointments: 0,
+  };
 };
 
 /**

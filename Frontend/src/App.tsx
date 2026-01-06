@@ -25,12 +25,15 @@ import AdminPage from './pages/AdminPage';
 import PerfilPage from './pages/PerfilPage';
 import StaffManagement from './pages/admin/StaffManagement';
 import InventoryPage from './pages/admin/InventoryPage';
+import AuditPage from './pages/admin/AuditPage';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import type { Doctor, Patient, Appointment } from './types/appointments';
 import { getDoctors } from './services/doctorService';
 
 const ServicesPage = React.lazy(() => import('./pages/admin/ServicesPage'));
+const MedicalAttentionPage = React.lazy(() => import('./pages/medical/MedicalAttentionPage'));
+const MedicalRecordsPage = React.lazy(() => import('./pages/medical/MedicalRecordsPage'));
 
 function AppContent() {
   const { user } = useAuth(); // Get authenticated user
@@ -328,6 +331,24 @@ function AppContent() {
                 element={<MedicalAttention />}
               />
 
+              {/* New Medical Management Routes */}
+              <Route
+                path="/medical/attention"
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <MedicalAttentionPage />
+                  </React.Suspense>
+                }
+              />
+              <Route
+                path="/medical/records"
+                element={
+                  <React.Suspense fallback={<div>Loading...</div>}>
+                    <MedicalRecordsPage />
+                  </React.Suspense>
+                }
+              />
+
               {/* Patients Route */}
               <Route
                 path="/patients"
@@ -356,6 +377,10 @@ function AppContent() {
               <Route
                 path="/admin/inventory"
                 element={<InventoryPage />}
+              />
+              <Route
+                path="/admin/audit"
+                element={<AuditPage />}
               />
               <Route
                 path="/admin/services"

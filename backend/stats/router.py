@@ -166,6 +166,69 @@ async def get_dashboard_stats(
                 (today_start, future_7days)
             )
             upcoming = (await cur.fetchone())[0] or 0
+            
+            # Top tratamientos (5 más frecuentes del mes)
+            await cur.execute(
+                """
+                SELECT t.nombre_servicio, COUNT(dc.id) as cantidad
+                FROM detalle_cita dc
+                INNER JOIN tratamientos t ON dc.id_tratamiento = t.id
+                INNER JOIN citas c ON dc.id_cita = c.id
+                WHERE c.fecha_hora >= %s
+                AND c.estado != 'cancelada'
+                GROUP BY t.id, t.nombre_servicio
+                ORDER BY cantidad DESC
+                LIMIT 5
+                """,
+                (first_day_month,)
+            )
+            top_treatments_rows = await cur.fetchall()
+            top_treatments = [
+                TopTreatment(nombre=row[0], cantidad=row[1])
+                for row in top_treatments_rows
+            ]
+            
+            # Calcular porcentaje de ocupación basado en horarios
+            # Ocupación = (horas con citas) / (horas disponibles) * 100
+            # Calculamos para la semana actual
+            await cur.execute(
+                """
+                WITH horarios_disponibles AS (
+                    -- Calcular slots disponibles por día
+                    SELECT 
+                        dia_semana,
+                        SUM(
+                            EXTRACT(EPOCH FROM (hora_fin - hora_inicio)) / 
+                            (duracion_cita_minutos * 60)
+                        ) as slots_disponibles
+                    FROM horarios_trabajo
+                    WHERE activo = true
+                    AND (fecha_fin_vigencia IS NULL OR fecha_fin_vigencia >= CURRENT_DATE)
+                    GROUP BY dia_semana
+                ),
+                citas_semana AS (
+                    -- Contar citas de esta semana
+                    SELECT 
+                        EXTRACT(DOW FROM fecha_hora)::integer as dia_semana,
+                        COUNT(*) as citas_realizadas
+                    FROM citas
+                    WHERE fecha_hora >= %s 
+                    AND fecha_hora < %s
+                    AND estado NOT IN ('cancelada', 'no_asistio')
+                    GROUP BY dia_semana
+                )
+                SELECT 
+                    COALESCE(SUM(cs.citas_realizadas), 0) as total_citas,
+                    COALESCE(SUM(hd.slots_disponibles), 0) as total_slots
+                FROM horarios_disponibles hd
+                LEFT JOIN citas_semana cs ON hd.dia_semana = cs.dia_semana
+                """,
+                (week_start, week_end)
+            )
+            ocupacion_row = await cur.fetchone()
+            total_citas = ocupacion_row[0] or 0
+            total_slots = ocupacion_row[1] or 0
+            ocupacion_porcentaje = (total_citas / total_slots * 100) if total_slots > 0 else 0.0
         
         # Cerrar transacción de solo lectura
         await conn.rollback()
@@ -194,8 +257,8 @@ async def get_dashboard_stats(
             revenue_week=revenue_week,
             revenue_month=revenue_month,
             revenue_year=revenue_year,
-            top_treatments=[],  # TODO: Implementar cuando exista tabla tratamientos
-            ocupacion_porcentaje=0.0,  # TODO: Calcular basado en horarios
+            top_treatments=top_treatments,
+            ocupacion_porcentaje=round(ocupacion_porcentaje, 2),
             upcoming_appointments=upcoming
         )
         

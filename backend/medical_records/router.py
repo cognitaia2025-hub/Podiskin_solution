@@ -5,6 +5,7 @@ Endpoints para gestión de expedientes médicos
 from fastapi import APIRouter, Depends, HTTPException, Query
 from typing import List, Optional
 from datetime import datetime, date
+
 from .schemas import (
     PatientSearchResponse,
     UpcomingAppointmentResponse,
@@ -15,6 +16,9 @@ from .schemas import (
 )
 from auth import get_current_user, User
 from db import database
+from pacientes.service import AlergiasService, AntecedentesService
+from pacientes.models import AlergiaCreate, AntecedenteCreate
+from pacientes.database import db as pacientes_db
 
 router = APIRouter(prefix="/api/medical-records", tags=["medical-records"])
 
@@ -269,6 +273,135 @@ async def get_medical_record(
     }
 
 
+# ============================================================================
+# SECTION UPDATE HANDLERS - Modular approach for different record sections
+# ============================================================================
+
+async def update_alergias_section(patient_id: int, data: dict, user_id: int):
+    """
+    Actualiza la sección de alergias.
+    Usa el servicio de pacientes para agregar/modificar alergias.
+    """
+    # data should contain list of allergies
+    alergias = data.get('alergias', [])
+    results = []
+    
+    async with pacientes_db.get_connection() as conn:
+        for alergia_data in alergias:
+            alergia = AlergiaCreate(**alergia_data)
+            result = await AlergiasService.create_alergia(conn, patient_id, alergia)
+            results.append(result)
+    
+    return {'alergias_agregadas': len(results), 'alergias': results}
+
+
+async def update_antecedentes_section(patient_id: int, data: dict, user_id: int):
+    """
+    Actualiza la sección de antecedentes.
+    Usa el servicio de pacientes para agregar/modificar antecedentes.
+    """
+    antecedentes = data.get('antecedentes', [])
+    results = []
+    
+    async with pacientes_db.get_connection() as conn:
+        for antecedente_data in antecedentes:
+            antecedente = AntecedenteCreate(**antecedente_data)
+            result = await AntecedentesService.create_antecedente(conn, patient_id, antecedente)
+            results.append(result)
+    
+    return {'antecedentes_agregados': len(results), 'antecedentes': results}
+
+
+async def update_estilo_vida_section(patient_id: int, data: dict, user_id: int):
+    """Actualiza la sección de estilo de vida."""
+    query = """
+    UPDATE estilo_vida_paciente
+    SET tipo_dieta = COALESCE(:tipo_dieta, tipo_dieta),
+        descripcion_dieta = COALESCE(:descripcion_dieta, descripcion_dieta),
+        ejercicio_frecuencia = COALESCE(:ejercicio_frecuencia, ejercicio_frecuencia),
+        tipo_ejercicio = COALESCE(:tipo_ejercicio, tipo_ejercicio),
+        tabaquismo = COALESCE(:tabaquismo, tabaquismo),
+        tabaco_cigarros_dia = COALESCE(:tabaco_cigarros_dia, tabaco_cigarros_dia),
+        tabaco_anios = COALESCE(:tabaco_anios, tabaco_anios),
+        alcoholismo = COALESCE(:alcoholismo, alcoholismo),
+        alcohol_frecuencia = COALESCE(:alcohol_frecuencia, alcohol_frecuencia),
+        drogas = COALESCE(:drogas, drogas),
+        drogas_tipo = COALESCE(:drogas_tipo, drogas_tipo),
+        fecha_actualizacion = NOW()
+    WHERE id_paciente = :patient_id
+    RETURNING *
+    """
+    
+    result = await database.fetch_one(query, {
+        "patient_id": patient_id,
+        **data
+    })
+    
+    return result if result else {"message": "Estilo de vida actualizado"}
+
+
+async def update_ginecologia_section(patient_id: int, data: dict, user_id: int):
+    """Actualiza la sección ginecológica (solo para pacientes femeninos)."""
+    query = """
+    UPDATE ginecologia_paciente
+    SET menarca_edad = COALESCE(:menarca_edad, menarca_edad),
+        ritmo_menstrual_dias = COALESCE(:ritmo_menstrual_dias, ritmo_menstrual_dias),
+        fecha_ultima_menstruacion = COALESCE(:fecha_ultima_menstruacion, fecha_ultima_menstruacion),
+        gestaciones = COALESCE(:gestaciones, gestaciones),
+        partos = COALESCE(:partos, partos),
+        cesareas = COALESCE(:cesareas, cesareas),
+        abortos = COALESCE(:abortos, abortos),
+        metodo_anticonceptivo = COALESCE(:metodo_anticonceptivo, metodo_anticonceptivo),
+        menopausia = COALESCE(:menopausia, menopausia),
+        fecha_menopausia = COALESCE(:fecha_menopausia, fecha_menopausia),
+        fecha_actualizacion = NOW()
+    WHERE id_paciente = :patient_id
+    RETURNING *
+    """
+    
+    result = await database.fetch_one(query, {
+        "patient_id": patient_id,
+        **data
+    })
+    
+    return result if result else {"message": "Datos ginecológicos actualizados"}
+
+
+async def audit_medical_record_change(
+    patient_id: int,
+    section: str,
+    field: str,
+    old_value: str,
+    new_value: str,
+    user_id: int
+):
+    """Registra cambios en el historial de auditoría."""
+    query = """
+    INSERT INTO historial_cambios_expediente 
+        (id_paciente, seccion_modificada, campo_modificado, valor_anterior, valor_nuevo, modificado_por)
+    VALUES 
+        (:patient_id, :section, :field, :old_value, :new_value, :user_id)
+    """
+    
+    await database.execute(query, {
+        "patient_id": patient_id,
+        "section": section,
+        "field": field,
+        "old_value": old_value,
+        "new_value": new_value,
+        "user_id": user_id
+    })
+
+
+# Map section names to update handlers
+SECTION_HANDLERS = {
+    "alergias": update_alergias_section,
+    "antecedentes": update_antecedentes_section,
+    "estilo_vida": update_estilo_vida_section,
+    "ginecologia": update_ginecologia_section,
+}
+
+
 @router.patch("/patients/{patient_id}/record/{section}")
 async def update_medical_record_section(
     patient_id: int,
@@ -279,6 +412,15 @@ async def update_medical_record_section(
     """
     Actualiza una sección específica del expediente médico.
     Registra cambios en el historial de auditoría.
+    
+    Secciones soportadas con manejadores específicos:
+    - alergias: Agrega nuevas alergias al expediente
+    - antecedentes: Agrega antecedentes médicos
+    - estilo_vida: Actualiza información de estilo de vida
+    - ginecologia: Actualiza datos ginecológicos (solo mujeres)
+    
+    Otras secciones se registran en el historial para implementación futura:
+    - identificacion, motivo, signos_vitales, exploracion, diagnosticos, tratamiento
     """
     # Validar que la sección existe
     valid_sections = ["identificacion", "alergias", "antecedentes", "estilo_vida", 
@@ -288,20 +430,47 @@ async def update_medical_record_section(
     if section not in valid_sections:
         raise HTTPException(status_code=400, detail=f"Sección '{section}' no válida")
     
-    # TODO: Implementar la actualización según la sección
-    # Por ahora solo registramos en el historial
+    try:
+        # Check if section has a specific handler
+        if section in SECTION_HANDLERS:
+            handler = SECTION_HANDLERS[section]
+            result = await handler(patient_id, data.data, current_user.id)
+            
+            # Audit the change
+            await audit_medical_record_change(
+                patient_id=patient_id,
+                section=section,
+                field="bulk_update",
+                old_value="",
+                new_value=str(data.data),
+                user_id=current_user.id
+            )
+            
+            return {
+                "message": f"Sección '{section}' actualizada correctamente",
+                "result": result
+            }
+        else:
+            # For sections without specific handlers, just audit
+            await audit_medical_record_change(
+                patient_id=patient_id,
+                section=section,
+                field="update",
+                old_value="",
+                new_value=str(data.data),
+                user_id=current_user.id
+            )
+            
+            return {
+                "message": f"Sección '{section}' registrada en historial",
+                "note": "Handler específico pendiente de implementación"
+            }
     
-    audit_query = """
-    INSERT INTO historial_cambios_expediente 
-        (id_paciente, seccion_modificada, campo_modificado, valor_anterior, valor_nuevo, modificado_por)
-    VALUES 
-        (:patient_id, :section, :field, :old_value, :new_value, :user_id)
-    """
-    
-    # Aquí iría la lógica específica para cada sección
-    # Por ahora solo confirmamos que se recibió
-    
-    return {"message": f"Sección '{section}' actualizada correctamente"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error actualizando sección {section}: {str(e)}"
+        )
 
 
 @router.post("/patients/{patient_id}/consultations", response_model=ConsultationResponse)

@@ -137,7 +137,20 @@ async def check_user_permission(
         >>> if not await check_user_permission(current_user, ["Admin", "Podologo"]):
         >>>     raise HTTPException(403, "No tiene permisos")
     """
-    return current_user.rol in required_roles
+    has_permission = current_user.rol in required_roles
+    
+    if not has_permission:
+        logger.info(
+            f"Permission check failed: User {current_user.nombre_usuario} "
+            f"(role: {current_user.rol}) does not have required roles: {required_roles}"
+        )
+    else:
+        logger.debug(
+            f"Permission check passed: User {current_user.nombre_usuario} "
+            f"(role: {current_user.rol}) has required permission"
+        )
+    
+    return has_permission
 
 
 async def verify_user_owns_resource(
@@ -162,7 +175,22 @@ async def verify_user_owns_resource(
         >>> if not await verify_user_owns_resource(current_user, user_id):
         >>>     raise HTTPException(403, "No puede modificar este recurso")
     """
-    return current_user.id == resource_user_id or current_user.rol == "Admin"
+    is_owner = current_user.id == resource_user_id
+    is_admin = current_user.rol == "Admin"
+    has_access = is_owner or is_admin
+    
+    if not has_access:
+        logger.warning(
+            f"Resource ownership check failed: User {current_user.nombre_usuario} "
+            f"(id: {current_user.id}) attempted to access resource owned by user id: {resource_user_id}"
+        )
+    else:
+        logger.debug(
+            f"Resource ownership check passed: User {current_user.nombre_usuario} "
+            f"(owner: {is_owner}, admin: {is_admin})"
+        )
+    
+    return has_access
 
 
 class RoleChecker:

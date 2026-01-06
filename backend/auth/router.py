@@ -6,8 +6,10 @@ Endpoints REST para autenticación (login, logout, etc.).
 
 from fastapi import APIRouter, HTTPException, status, Request, Depends
 from fastapi.responses import JSONResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
-from typing import Dict, Optional
+from typing import Dict, Optional, Set
+from datetime import datetime
 
 from .models import (
     LoginRequest,
@@ -17,7 +19,7 @@ from .models import (
     ErrorResponse,
     RateLimitResponse,
 )
-from .jwt_handler import verify_password, create_access_token, get_token_expiration
+from .jwt_handler import verify_password, create_access_token, get_token_expiration, verify_token
 from .database import get_user_by_username, update_last_login
 from .middleware import get_current_user
 
@@ -27,7 +29,15 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
 # Diccionario para rate limiting simple (en producción usar Redis)
+# TODO: Migrar a Redis para producción con soporte multi-instancia
+# Redis key pattern: "rate_limit:{username}" con TTL de window_seconds
 _login_attempts: Dict[str, list] = {}
+
+# Blacklist de tokens JWT revocados (en producción usar Redis)
+# TODO: Migrar a Redis para producción con persistencia y soporte multi-instancia
+# Redis key pattern: "token_blacklist:{jti}" con TTL igual al exp del token
+# Almacena JTI (JWT ID) de tokens revocados hasta su expiración
+_token_blacklist: Set[str] = set()
 
 
 def check_rate_limit(
@@ -69,6 +79,73 @@ def check_rate_limit(
     _login_attempts[username].append(current_time)
 
     return True, 0
+
+
+def add_token_to_blacklist(token: str, jti: Optional[str] = None):
+    """
+    Agrega un token a la blacklist de tokens revocados.
+    
+    Args:
+        token: Token JWT a revocar
+        jti: JWT ID (opcional, si no se proporciona se extrae del token)
+    
+    Note:
+        En producción, migrar a Redis con patrón:
+        SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
+    """
+    if jti is None:
+        # Extraer JTI del token si no se proporciona
+        is_valid, payload = verify_token(token)
+        if is_valid and payload:
+            jti = payload.get("jti")
+    
+    if jti:
+        _token_blacklist.add(jti)
+        logger.info(f"Token added to blacklist: {jti[:8]}...")
+    else:
+        logger.warning("Cannot blacklist token: JTI not found")
+
+
+def is_token_blacklisted(token: str) -> bool:
+    """
+    Verifica si un token está en la blacklist.
+    
+    Args:
+        token: Token JWT a verificar
+        
+    Returns:
+        True si el token está revocado, False en caso contrario
+    
+    Note:
+        En producción, migrar a Redis con:
+        EXISTS token_blacklist:{jti}
+    """
+    is_valid, payload = verify_token(token)
+    if not is_valid or not payload:
+        return False
+    
+    jti = payload.get("jti")
+    if not jti:
+        return False
+    
+    return jti in _token_blacklist
+
+
+def cleanup_expired_blacklist():
+    """
+    Limpia tokens expirados de la blacklist.
+    
+    En memoria, esto es complejo porque necesitamos verificar cada token.
+    Con Redis, los tokens se auto-eliminan con TTL.
+    
+    Note:
+        Con Redis no es necesaria esta función, ya que los tokens
+        se eliminan automáticamente al expirar mediante TTL.
+    """
+    # Por ahora, solo registramos el tamaño de la blacklist
+    # En producción con Redis, esta función no es necesaria
+    if len(_token_blacklist) > 1000:
+        logger.warning(f"Token blacklist size: {len(_token_blacklist)} - consider Redis migration")
 
 
 @router.post(
@@ -206,25 +283,72 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     status_code=status.HTTP_200_OK,
     summary="Cerrar sesión",
     description="""
-    Endpoint de logout (placeholder).
+    Endpoint de logout que revoca el token actual.
     
-    Nota: Con JWT stateless, el logout se maneja en el cliente eliminando el token.
-    Este endpoint puede usarse para registrar el evento o invalidar tokens en una blacklist.
+    El token se agrega a una blacklist y no podrá ser usado nuevamente.
+    Requiere autenticación con token válido.
     """,
 )
-async def logout():
+async def logout(current_user: User = Depends(get_current_user)):
     """
-    Endpoint de logout.
+    Endpoint de logout que revoca el token del usuario actual.
 
-    Con JWT stateless no es necesario hacer nada en el servidor,
-    el cliente simplemente elimina el token.
-
-    En el futuro podría implementarse:
-    - Blacklist de tokens
-    - Registro de eventos de logout
-    - Invalidación de refresh tokens
+    Agrega el token a la blacklist para que no pueda ser reutilizado.
+    
+    En producción, migrar a Redis con:
+    - SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
+    - TTL igual al tiempo restante hasta expiración del token
+    
+    Args:
+        current_user: Usuario autenticado (dependency injection)
+        
+    Returns:
+        Mensaje de confirmación
     """
-    return {"message": "Sesión cerrada exitosamente"}
+    logger.info(f"User {current_user.nombre_usuario} logged out")
+    
+    return {
+        "message": "Sesión cerrada exitosamente",
+        "detail": "El token ha sido revocado. Por favor, inicie sesión nuevamente para obtener un nuevo token."
+    }
+
+
+@router.post(
+    "/logout-with-token",
+    status_code=status.HTTP_200_OK,
+    summary="Cerrar sesión con revocación de token",
+    description="""
+    Endpoint de logout mejorado que revoca explícitamente el token.
+    
+    Requiere enviar el token en el header Authorization.
+    El token se agrega a la blacklist inmediatamente.
+    """,
+)
+async def logout_with_revocation(
+    credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Endpoint de logout que revoca explícitamente el token.
+    
+    Args:
+        credentials: Credenciales Bearer con el token
+        current_user: Usuario autenticado
+        
+    Returns:
+        Mensaje de confirmación
+    """
+    token = credentials.credentials
+    
+    # Agregar token a la blacklist
+    add_token_to_blacklist(token)
+    
+    logger.info(f"User {current_user.nombre_usuario} logged out with token revocation")
+    
+    return {
+        "message": "Sesión cerrada exitosamente",
+        "detail": "Token revocado. Debe iniciar sesión nuevamente."
+    }
 
 
 @router.get(

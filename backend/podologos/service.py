@@ -321,15 +321,100 @@ async def delete_podologo(podologo_id: int) -> bool:
 
 async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
     """
-    Obtener podólogos disponibles (activos)
-    En futuras versiones se puede integrar con calendario de citas
+    Obtener podólogos disponibles (activos) con verificación de calendario
     
     Args:
         fecha: Fecha opcional para verificar disponibilidad (formato YYYY-MM-DD)
     
     Returns:
-        Lista de podólogos disponibles
+        Lista de podólogos disponibles con información de slots
     """
-    # Por ahora, simplemente devuelve todos los podólogos activos
-    # TODO: Integrar con calendario de citas para verificar disponibilidad real
-    return await get_all_podologos(activo_only=True)
+    from datetime import datetime as dt, date
+    
+    # Si no se proporciona fecha, usar hoy
+    if not fecha:
+        fecha_obj = date.today()
+    else:
+        try:
+            fecha_obj = dt.strptime(fecha, '%Y-%m-%d').date()
+        except ValueError:
+            logger.warning(f"Invalid date format: {fecha}, using today")
+            fecha_obj = date.today()
+    
+    # Obtener día de la semana (0=Domingo, 6=Sábado)
+    dia_semana = (fecha_obj.weekday() + 1) % 7  # Python usa 0=Lunes, convertir a 0=Domingo
+    
+    try:
+        conn = await get_db_connection()
+        
+        # Query para obtener podólogos con disponibilidad
+        query = """
+        WITH podologo_slots AS (
+            SELECT 
+                p.id,
+                p.nombre_completo,
+                p.especialidad,
+                p.telefono,
+                p.email,
+                p.activo,
+                COUNT(DISTINCT h.id) as tiene_horario,
+                COALESCE(
+                    SUM(
+                        EXTRACT(EPOCH FROM (h.hora_fin - h.hora_inicio)) / 
+                        (h.duracion_cita_minutos * 60)
+                    ), 0
+                ) as slots_totales,
+                COUNT(DISTINCT c.id) as citas_agendadas
+            FROM podologos p
+            LEFT JOIN horarios_trabajo h ON p.id = h.id_podologo 
+                AND h.dia_semana = $1
+                AND h.activo = true
+                AND (h.fecha_fin_vigencia IS NULL OR h.fecha_fin_vigencia >= $2)
+            LEFT JOIN citas c ON p.id = c.id_podologo
+                AND DATE(c.fecha_hora) = $2
+                AND c.estado NOT IN ('cancelada', 'no_asistio')
+            WHERE p.activo = true
+            GROUP BY p.id, p.nombre_completo, p.especialidad, p.telefono, p.email, p.activo
+        )
+        SELECT 
+            id,
+            nombre_completo,
+            especialidad,
+            telefono,
+            email,
+            activo,
+            tiene_horario > 0 as tiene_horario_dia,
+            slots_totales::integer as slots_disponibles_totales,
+            citas_agendadas,
+            (slots_totales - citas_agendadas)::integer as slots_libres
+        FROM podologo_slots
+        WHERE tiene_horario > 0  -- Solo podólogos con horario para ese día
+        ORDER BY slots_libres DESC, nombre_completo
+        """
+        
+        rows = await conn.fetch(query, dia_semana, fecha_obj)
+        await conn.close()
+        
+        result = []
+        for row in rows:
+            result.append({
+                'id': row['id'],
+                'nombre_completo': row['nombre_completo'],
+                'especialidad': row['especialidad'],
+                'telefono': row['telefono'],
+                'email': row['email'],
+                'activo': row['activo'],
+                'tiene_horario_dia': row['tiene_horario_dia'],
+                'slots_disponibles_totales': row['slots_disponibles_totales'],
+                'citas_agendadas': row['citas_agendadas'],
+                'slots_libres': row['slots_libres'],
+                'fecha_consultada': fecha_obj.isoformat()
+            })
+        
+        logger.info(f"Found {len(result)} available podologos for {fecha_obj}")
+        return result
+    
+    except Exception as e:
+        logger.error(f"Error getting available podologos: {e}")
+        # Fallback to simple active query
+        return await get_all_podologos(activo_only=True)

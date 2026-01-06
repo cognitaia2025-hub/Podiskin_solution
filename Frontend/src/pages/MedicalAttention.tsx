@@ -128,11 +128,11 @@ const MedicalAttentionContent: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-gray-100 overflow-hidden">
-      {/* Compact Header with patient name and actions */}
-      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
+      {/* Medical Toolbar - integrated into global layout */}
+      <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-xl font-semibold text-gray-900">{patientName}</h1>
-          <p className="text-sm text-gray-500">Expediente Médico</p>
+          <h2 className="text-lg font-semibold text-gray-900">{patientName}</h2>
+          <p className="text-xs text-gray-500">Expediente Médico</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Mode selector */}

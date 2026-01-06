@@ -3,6 +3,7 @@ import { Menu, Search, HelpCircle, Settings, ChevronLeft, ChevronRight } from 'l
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ViewSelector, { type ViewType } from './ViewSelector';
+import { useGlobalContext } from '../context/GlobalContext';
 
 interface LayoutProps {
     children: ReactNode;
@@ -15,9 +16,22 @@ interface LayoutProps {
     onSearch?: (query: string) => void;
 }
 
-import { useGlobalContext } from '../context/GlobalContext';
-
-const Layout: React.FC<LayoutProps> = ({ children, onCreateClick, currentView = 'week', onViewChange, selectedDoctors = [], onDoctorFilterChange, onTodayClick, onSearch }) => {
+/**
+ * Layout - Calendar Content Wrapper
+ * 
+ * This component manages calendar-specific sidebar content and toolbar.
+ * The global header and navigation are handled by AppLayout.
+ */
+const Layout: React.FC<LayoutProps> = ({ 
+    children, 
+    onCreateClick, 
+    currentView = 'week', 
+    onViewChange, 
+    selectedDoctors = [], 
+    onDoctorFilterChange, 
+    onTodayClick, 
+    onSearch 
+}) => {
     const [searchValue, setSearchValue] = React.useState('');
     const { setSidebarContent } = useGlobalContext();
 
@@ -72,7 +86,8 @@ const Layout: React.FC<LayoutProps> = ({ children, onCreateClick, currentView = 
 
     return (
         <div className="flex flex-col h-full bg-gray-50 min-w-0">
-            <header className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 lg:px-8 shrink-0">
+            {/* Calendar Toolbar - integrated into global layout */}
+            <div className="bg-white border-b border-gray-200 h-16 flex items-center justify-between px-4 lg:px-8 shrink-0">
                 <div className="flex items-center">
                     <button className="md:hidden p-2 mr-2 text-gray-600 hover:bg-gray-100 rounded-full">
                         <Menu className="w-5 h-5" />
@@ -131,8 +146,9 @@ const Layout: React.FC<LayoutProps> = ({ children, onCreateClick, currentView = 
                         <Settings className="w-5 h-5" />
                     </button>
                 </div>
-            </header>
+            </div>
 
+            {/* Calendar Content Area */}
             <main className="flex-1 overflow-auto bg-white relative">
                 {children}
             </main>

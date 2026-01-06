@@ -398,38 +398,17 @@ function AppContent() {
               {/* Placeholder Routes */}
               <Route
                 path="/records"
-                element={
-                  <Layout
-                    selectedDoctors={selectedDoctors}
-                    onDoctorFilterChange={handleDoctorFilterChange}
-                  >
-                    <RecordsPage />
-                  </Layout>
-                }
+                element={<RecordsPage />}
               />
 
               <Route
                 path="/billing"
-                element={
-                  <Layout
-                    selectedDoctors={selectedDoctors}
-                    onDoctorFilterChange={handleDoctorFilterChange}
-                  >
-                    <BillingPage />
-                  </Layout>
-                }
+                element={<BillingPage />}
               />
 
               <Route
                 path="/finances"
-                element={
-                  <Layout
-                    selectedDoctors={selectedDoctors}
-                    onDoctorFilterChange={handleDoctorFilterChange}
-                  >
-                    <FinancesPage />
-                  </Layout>
-                }
+                element={<FinancesPage />}
               />
 
               {/* Default Route */}

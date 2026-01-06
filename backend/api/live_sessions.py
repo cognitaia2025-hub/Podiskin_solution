@@ -21,12 +21,16 @@ import uuid
 import secrets
 import os
 import logging
+import asyncpg
 
 # Import auth middleware
 from auth import get_current_user, User
 
 # Import orchestrator for complex functions
 from agents.orchestrator import execute_orchestrator, SIMPLE_FUNCTIONS, COMPLEX_FUNCTIONS_MAPPING
+
+# Import database
+from db import database
 
 logger = logging.getLogger(__name__)
 
@@ -146,6 +150,60 @@ def cleanup_expired_sessions():
         logger.info(f"Cleaned up {len(expired)} expired sessions")
 
 
+async def validate_patient_access(patient_id: str, user: User) -> bool:
+    """
+    Validate that a patient exists and the user has permission to access it.
+    
+    Args:
+        patient_id: Patient ID to validate
+        user: Current authenticated user
+    
+    Returns:
+        True if access is granted
+        
+    Raises:
+        HTTPException: If patient doesn't exist or user doesn't have access
+    """
+    try:
+        # Convert patient_id to int
+        patient_id_int = int(patient_id)
+    except ValueError:
+        logger.warning(f"Invalid patient_id format: {patient_id}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="ID de paciente inválido"
+        )
+    
+    # Check if patient exists
+    query = "SELECT id, activo FROM pacientes WHERE id = $1"
+    async with database.connection() as conn:
+        row = await conn.fetchrow(query, patient_id_int)
+        
+        if not row:
+            logger.warning(
+                f"User {user.nombre_usuario} attempted to access non-existent patient: {patient_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Paciente no encontrado"
+            )
+        
+        # Check if patient is active
+        if not row['activo']:
+            logger.warning(
+                f"User {user.nombre_usuario} attempted to access inactive patient: {patient_id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Paciente inactivo"
+            )
+    
+    # All authenticated users can access any active patient (clinic use case)
+    # In a multi-tenant scenario, add additional permission checks here
+    logger.info(f"Patient access validated: User {user.nombre_usuario} -> Patient {patient_id}")
+    return True
+
+
 def is_simple_function(function_name: str) -> bool:
     """
     Determine if a function is SIMPLE (direct execution) or COMPLEX (requires orchestrator)
@@ -191,8 +249,7 @@ async def start_session(
         SessionStartResponse with token and expiration
     """
     # Validate user has access to this patient
-    # TODO: Check in database that user has permission to access this patient
-    # For now, we trust the authenticated user
+    await validate_patient_access(config.patientId, current_user)
     
     # Cleanup expired sessions before creating new one
     cleanup_expired_sessions()

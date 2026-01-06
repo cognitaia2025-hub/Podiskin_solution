@@ -40,7 +40,7 @@ async def get_current_user(
         
     Raises:
         HTTPException 401: Si el token es inválido o expirado
-        HTTPException 403: Si el usuario está inactivo
+        HTTPException 403: Si el usuario está inactivo o el token está revocado
         HTTPException 404: Si el usuario no existe
         
     Example:
@@ -50,6 +50,17 @@ async def get_current_user(
     """
     # Extraer el token
     token = credentials.credentials
+    
+    # Verificar si el token está en la blacklist (revocado)
+    # Import local para evitar import circular
+    from .router import is_token_blacklisted
+    if is_token_blacklisted(token):
+        logger.warning("Revoked token attempted to access resource")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token revocado. Por favor, inicie sesión nuevamente.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     # Validar y decodificar el token
     is_valid, payload = verify_token(token)

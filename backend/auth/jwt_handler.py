@@ -10,6 +10,7 @@ from typing import Optional
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 import os
+import uuid
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -64,6 +65,9 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
     Example:
         >>> token = create_access_token({"sub": "dr.santiago", "rol": "Podologo"})
+        
+    Note:
+        Incluye un JTI (JWT ID) único para soporte de blacklist de tokens.
     """
     to_encode = data.copy()
 
@@ -73,8 +77,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
-    # Agregar timestamps
-    to_encode.update({"exp": expire, "iat": datetime.utcnow()})
+    # Agregar timestamps y JTI (JWT ID) para blacklist
+    to_encode.update({
+        "exp": expire,
+        "iat": datetime.utcnow(),
+        "jti": str(uuid.uuid4())  # Unique token ID para revocar tokens individuales
+    })
 
     # Codificar el token
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)

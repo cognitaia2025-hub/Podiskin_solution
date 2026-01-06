@@ -5,6 +5,7 @@ Ejemplo de Aplicación FastAPI - Tratamientos
 Aplicación de ejemplo que muestra cómo integrar el módulo de tratamientos.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -41,9 +42,13 @@ app = FastAPI(
 )
 
 # Configurar CORS
+# Obtener orígenes permitidos desde variable de entorno
+allowed_origins_str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173")
+allowed_origins = [origin.strip() for origin in allowed_origins_str.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especificar dominios permitidos
+    allow_origins=allowed_origins,  # Orígenes configurados desde ALLOWED_ORIGINS env var
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

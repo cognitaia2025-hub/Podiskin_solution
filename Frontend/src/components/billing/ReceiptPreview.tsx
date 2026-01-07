@@ -66,7 +66,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
             {/* Receipt Title */}
             <div className="text-center mb-6">
               <h2 className="text-2xl font-bold text-gray-800">RECIBO DE PAGO</h2>
-              <p className="text-gray-600 mt-1">Folio: #{payment.id_pago.toString().padStart(6, '0')}</p>
+              <p className="text-gray-600 mt-1">Folio: #{payment.id.toString().padStart(6, '0')}</p>
             </div>
 
             {/* Payment Details */}
@@ -78,7 +78,7 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                 </div>
                 <div>
                   <p className="text-sm text-gray-600">Paciente:</p>
-                  <p className="font-semibold">{payment.nombre_paciente || 'N/A'}</p>
+                  <p className="font-semibold">{payment.paciente_nombre || 'N/A'}</p>
                 </div>
               </div>
 
@@ -125,9 +125,9 @@ export const ReceiptPreview: React.FC<ReceiptPreviewProps> = ({
                 {payment.rfc_factura && (
                   <p className="text-sm text-blue-700">RFC: {payment.rfc_factura}</p>
                 )}
-                {payment.id_factura && (
+                {payment.folio_factura && (
                   <p className="text-sm text-blue-700">
-                    Factura generada: #{payment.id_factura}
+                    Factura generada: {payment.folio_factura}
                   </p>
                 )}
               </div>

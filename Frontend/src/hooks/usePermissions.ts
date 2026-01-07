@@ -4,9 +4,10 @@
  * Permite verificar permisos del usuario actual para diferentes módulos
  */
 
-import { useContext } from 'react';
+import { useContext, useMemo } from 'react';
 import { AuthContext } from '../auth/AuthContext';
 import type { UserPermissions, Permission } from '../types/billing';
+import { PERMISSION_TEMPLATES } from '../types/billing';
 
 export interface PermissionCheck {
   hasPermission: (module: string, action: 'read' | 'write') => boolean;
@@ -21,10 +22,32 @@ export interface PermissionCheck {
  * Hook para verificar permisos del usuario actual
  */
 export const usePermissions = (): PermissionCheck => {
-  const { user } = useContext(AuthContext);
+  const authContext = useContext(AuthContext);
+  const user = authContext?.user;
 
-  // Obtener permisos del usuario (asumiendo que vienen en user.permissions)
-  const permissions = (user?.permissions as UserPermissions) || null;
+  // Calcular permisos basados en el rol del usuario
+  const permissions = useMemo((): UserPermissions | null => {
+    if (!user?.rol) return null;
+
+    // Si el usuario tiene permisos explícitos, usarlos
+    if (user.permissions) {
+      return user.permissions;
+    }
+
+    // Buscar template de permisos según el rol
+    const roleLowerCase = user.rol.toLowerCase();
+    const template = PERMISSION_TEMPLATES.find(
+      (t) => t.name === roleLowerCase || t.label === user.rol
+    );
+
+    if (template) {
+      return template.permissions;
+    }
+
+    // Si no hay template, retornar permisos vacíos
+    console.warn(`No se encontró template de permisos para rol: ${user.rol}`);
+    return null;
+  }, [user?.rol, user?.permissions]);
 
   /**
    * Verifica si el usuario tiene un permiso específico
@@ -56,7 +79,7 @@ export const usePermissions = (): PermissionCheck => {
   /**
    * Verifica si el usuario es administrador
    */
-  const isAdmin = hasPermission('administracion', 'read');
+  const isAdmin = user?.rol === 'Admin' || hasPermission('administracion', 'read');
 
   return {
     hasPermission,

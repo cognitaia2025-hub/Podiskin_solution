@@ -4,9 +4,11 @@ Podoskin Solution - Backend API
 Aplicación principal FastAPI con autenticación.
 """
 
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, HTTPException, status, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
+from datetime import datetime, date
+from typing import Optional
+from contextlib import asynccontextmanager  # ✅ AGREGAR ESTA LÍNEA
 import logging
 import os
 from dotenv import load_dotenv
@@ -25,6 +27,7 @@ from inventory import router as inventory_router
 
 # Importar módulo de podólogos
 from podologos import router as podologos_router
+from podologos.patients_router import router as podologos_patients_router
 
 # Importar routers de módulos principales
 # Importar routers de módulos principales
@@ -71,41 +74,42 @@ async def lifespan(app: FastAPI):
     Contexto de ciclo de vida de la aplicación.
     Ejecuta código al iniciar y al cerrar la aplicación.
     """
-    # Startup
+    # ✅ Startup
     logger.info("Starting Podoskin Solution Backend...")
+    
+    # 1. Inicializar auth pool
     try:
         await init_db_pool()
         logger.info("Auth database pool initialized")
     except Exception as e:
         logger.error(f"Failed to initialize auth database pool: {e}")
 
-    # Conectar base de datos general (databases library)
+    # 2. Conectar base de datos general
     try:
         await database.connect()
         logger.info("General database (databases) connected")
     except Exception as e:
         logger.error(f"Failed to connect general database: {e}")
 
-    # Inicializar pool de citas (usa psycopg2 sincrono)
+    # 3. Inicializar pool de citas
     try:
         from citas.database import init_db_pool as init_citas_pool
-
-        init_citas_pool()
+        await init_citas_pool()
         logger.info("Citas database pool initialized")
     except Exception as e:
         logger.error(f"Failed to initialize citas database pool: {e}")
 
-    yield
+    yield  # ← La aplicación corre aquí
 
-    # Shutdown
+    # ✅ Shutdown
     logger.info("Shutting down Podoskin Solution Backend...")
+    
     try:
         await close_db_pool()
         logger.info("Auth database pool closed")
     except Exception as e:
         logger.error(f"Error closing auth database pool: {e}")
 
-    # Desconectar base de datos general
     try:
         await database.disconnect()
         logger.info("General database (databases) disconnected")
@@ -114,8 +118,7 @@ async def lifespan(app: FastAPI):
 
     try:
         from citas.database import close_db_pool as close_citas_pool
-
-        close_citas_pool()
+        await close_citas_pool()
         logger.info("Citas database pool closed")
     except Exception as e:
         logger.error(f"Error closing citas database pool: {e}")
@@ -126,21 +129,18 @@ app = FastAPI(
     title="Podoskin Solution API",
     description="API para gestión clínica de podología con IA integrada",
     version="1.0.0",
-    lifespan=lifespan,
+    lifespan=lifespan,  # ← Usa lifespan
 )
 
 # Configurar CORS
-ALLOWED_ORIGINS = os.getenv(
-    "ALLOWED_ORIGINS",
-    "http://localhost:3000,http://localhost:5173,http://localhost:5174",
-).split(",")
+from fastapi.middleware.cors import CORSMiddleware
+from config.cors_config import CORS_CONFIG
 
+
+# Configurar CORS con configuración centralizada
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    **CORS_CONFIG
 )
 
 # Incluir routers
@@ -166,6 +166,14 @@ app.include_router(medical_records_router)
 # Incluir routers de API
 app.include_router(live_sessions_router)
 app.include_router(orchestrator_router)
+
+# Importar módulo de permisos
+from auth.permissions_router import router as permissions_router
+
+# Registrar routers
+app.include_router(auth_router)
+app.include_router(permissions_router)
+app.include_router(podologos_patients_router)  # ✅ AGREGAR ESTA LÍNEA
 
 
 # ============================================================================

@@ -2,7 +2,7 @@
 Servicio de lógica de negocio para Podólogos
 """
 
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime as dt, date
 from psycopg2.extras import RealDictCursor
 import psycopg2
@@ -418,3 +418,62 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
         logger.error(f"Error getting available podologos: {e}")
         # Fallback to simple active query
         return await get_all_podologos(activo_only=True)
+
+
+async def get_available_podologos(
+    conn: asyncpg.Connection,
+    fecha: date,
+    hora_inicio: str,
+    hora_fin: str
+) -> List[Dict[str, Any]]:
+    """
+    Obtiene podólogos disponibles en un horario específico.
+    
+    Verifica que el podólogo:
+    1. Esté activo
+    2. No tenga citas conflictivas en ese horario
+    
+    Args:
+        conn: Conexión a BD
+        fecha: Fecha de la consulta
+        hora_inicio: Hora de inicio (HH:MM)
+        hora_fin: Hora de fin (HH:MM)
+        
+    Returns:
+        Lista de podólogos disponibles con su información
+    """
+    query = """
+        SELECT 
+            u.id,
+            u.nombre_usuario,
+            u.nombre_completo,
+            u.email,
+            COUNT(c.id) as citas_activas
+        FROM usuarios u
+        LEFT JOIN citas c ON c.podologo_id = u.id
+            AND c.fecha = $1
+            AND c.estado NOT IN ('cancelada', 'completada')
+            AND (
+                (c.hora_inicio < $3 AND c.hora_fin > $2)
+                OR (c.hora_inicio >= $2 AND c.hora_inicio < $3)
+                OR (c.hora_fin > $2 AND c.hora_fin <= $3)
+            )
+        WHERE u.rol = 'Podologo'
+            AND u.activo = true
+        GROUP BY u.id, u.nombre_usuario, u.nombre_completo, u.email
+        HAVING COUNT(c.id) = 0
+        ORDER BY u.nombre_completo
+    """
+    
+    rows = await conn.fetch(query, fecha, hora_inicio, hora_fin)
+    
+    return [
+        {
+            "id": row['id'],
+            "nombre_usuario": row['nombre_usuario'],
+            "nombre_completo": row['nombre_completo'],
+            "email": row['email'],
+            "disponible": True
+        }
+        for row in rows
+    ]

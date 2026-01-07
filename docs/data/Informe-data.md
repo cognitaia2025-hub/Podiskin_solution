@@ -270,3 +270,84 @@ La carpeta `seed/` contiene 8 archivos con datos de prueba:
 **Fecha de Análisis**: 04 de enero de 2026  
 **Total de Componentes Analizados**: 22 archivos  
 **Estado General**: ✅ Todos los componentes activos y funcionales
+
+==========================================
+
+## Sistema de Asignación de Podólogos [06/01/26] [15:40]
+
+==========================================
+
+### Nuevo Archivo SQL
+
+#### **03.5_create_podologo_paciente_tables.sql** (Líneas 1-311)
+
+**Propósito**: Gestiona la asignación de pacientes a podólogos oficiales y podólogos temporales (interinos).
+
+**Tablas Creadas:**
+
+1. **podologo_paciente_asignacion** (L11-25):
+   - Asignación oficial paciente → podólogo
+   - Constraint: Un paciente solo puede tener un podólogo oficial activo
+   - Índice único parcial garantiza asignación única por paciente (L32-35)
+
+2. **podologo_interino_asignacion** (L41-65):
+   - Asignaciones temporales cuando el podólogo oficial no está disponible
+   - Campos: fecha_inicio, fecha_fin, motivo (ej: "vacaciones", "enfermedad")
+   - Constraint: Valida que fecha_fin > fecha_inicio
+   - Índice único parcial para un solo interino activo por paciente (L74-77)
+
+**Vista Creada:**
+
+- **v_pacientes_con_podologos** (L86-143):
+  - Consolida información de pacientes con sus podólogos (oficial e interino)
+  - Incluye último tratamiento y fecha
+  - Ajustada para estructura real de tablas (primer_nombre, primer_apellido, telefono_principal)
+
+**Funciones PL/pgSQL:**
+
+1. **get_pacientes_podologo()** (L149-172):
+   - Obtiene lista de pacientes asignados a un podólogo específico
+   - Incluye información de podólogo interino si existe
+
+2. **asignar_podologo_interino()** (L178-235):
+   - Asigna podólogo temporal con validaciones
+   - Verifica que paciente esté asignado al podólogo oficial
+   - Valida que el interino sea realmente un podólogo activo
+   - Desactiva automáticamente asignación interina previa
+
+3. **quitar_podologo_interino()** (L241-253):
+   - Remueve asignación de podólogo temporal
+
+**Trigger Automático:**
+
+- **trigger_check_interino_expiration** (L259-281):
+  - Marca automáticamente como inactivo si fecha_fin ya pasó
+  - Ejecuta antes de INSERT/UPDATE
+
+**Compatibilidad:**
+
+- Ajustado para PostgreSQL 14
+- Usa índices únicos parciales en lugar de constraints condicionales
+- Compatible con estructura real de tabla pacientes
+
+**Estado**: ✅ ACTIVO, ejecutado exitosamente en base de datos
+
+### Impacto en Experiencia de Santiago
+
+**Gestión de Equipo Mejorada:**
+
+Ahora tu base de datos mantiene registro claro de qué pacientes corresponden a cada podólogo. Esto te permite:
+
+1. Ver rápidamente cuántos pacientes tiene cada miembro del equipo
+2. Identificar qué pacientes están siendo atendidos por podólogos temporales
+3. Saber cuándo expiran las coberturas temporales (el sistema las desactiva automáticamente)
+4. Mantener continuidad en el tratamiento cuando asignas un sustituto
+
+El sistema asegura que cada paciente siempre tenga un podólogo responsable asignado, ya sea el oficial o un interino temporal.
+
+---
+
+**Versión del Informe**: 1.1  
+**Última Actualización**: 06 de enero de 2026 - 15:40 hrs  
+**Total de Componentes**: 23 archivos SQL  
+**Estado General**: ✅ Todos los componentes activos y funcionales

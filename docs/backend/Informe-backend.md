@@ -160,3 +160,38 @@ El backend de tu aplicación está completamente funcional y activo. Todos los m
 Todo está funcionando correctamente para que puedas gestionar tu clínica de manera eficiente y profesional.
 
 ---
+
+==========================================
+
+## Módulo de Asignación de Podólogos [06/01/26] [15:35]
+
+==========================================
+
+### Nuevo Componente Backend
+
+**podologos/patients_router.py** - Gestión de asignación de pacientes
+
+- Líneas: 1-282
+- Función: API para asignar pacientes a podólogos y gestionar coberturas temporales
+- Endpoints implementados:
+  - GET `/podologos/{podologo_id}/patients` - Obtiene pacientes de un podólogo (L66-121)
+  - GET `/podologos/available` - Lista podólogos disponibles para cobertura (L127-185)
+  - POST `/podologos/{podologo_id}/assign-interino` - Asigna/quita podólogo temporal (L189-282)
+- Modelos: PatientWithInterino, AvailablePodologo, AssignInterinoRequest (L35-63)
+- Base de datos: Usa funciones PL/pgSQL `get_pacientes_podologo()` y `asignar_podologo_interino()`
+- Seguridad: Solo Admin puede asignar interinos
+- Estado: ✅ ACTIVO, registrado en main.py (L176)
+
+### Impacto en Experiencia de Usuario
+
+**Organización del equipo mejorada:**
+
+Ahora puedes asignar oficialmente pacientes a cada podólogo de tu clínica. Esto significa que cada paciente tiene un doctor principal que conoce su historial completo.
+
+**Coberturas temporales:**
+
+Cuando un podólogo sale de vacaciones o está enfermo, puedes asignar otro podólogo temporalmente para que atienda a sus pacientes. El sistema registra automáticamente quién está cubriendo, por qué motivo y hasta cuándo. Cuando termina el período de cobertura, los pacientes regresan automáticamente a su podólogo original.
+
+Esto asegura que ningún paciente se quede sin atención y que siempre haya un responsable claro para cada caso.
+
+---

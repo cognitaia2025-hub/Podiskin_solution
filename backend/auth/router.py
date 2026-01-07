@@ -10,6 +10,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import logging
 from typing import Dict, Optional, Set
 from datetime import datetime
+from passlib.context import CryptContext
+from pydantic import BaseModel, Field
 
 from .models import (
     LoginRequest,
@@ -148,6 +150,71 @@ def cleanup_expired_blacklist():
         logger.warning(f"Token blacklist size: {len(_token_blacklist)} - consider Redis migration")
 
 
+# ========================================================================
+# HELPER FUNCTION - CÁLCULO DE PERMISOS
+# ========================================================================
+
+def calculate_permissions_for_role(rol: str) -> dict:
+    """
+    Calcula los permisos para cada rol del sistema.
+    Retorna un diccionario con permisos read/write por módulo.
+    
+    Args:
+        rol: Rol del usuario (Admin, Podologo, Recepcionista, Asistente)
+        
+    Returns:
+        Diccionario con permisos por módulo, o diccionario vacío si el rol no existe
+    """
+    permissions_map = {
+        "Admin": {
+            "calendario": {"read": True, "write": True},
+            "pacientes": {"read": True, "write": True},
+            "cobros": {"read": True, "write": True},
+            "expedientes": {"read": True, "write": True},
+            "inventario": {"read": True, "write": True},
+            "gastos": {"read": True, "write": True},
+            "cortes_caja": {"read": True, "write": True},
+            "administracion": {"read": True, "write": True}
+        },
+        "Podologo": {
+            "calendario": {"read": True, "write": True},
+            "pacientes": {"read": True, "write": True},
+            "cobros": {"read": True, "write": False},
+            "expedientes": {"read": True, "write": True},
+            "inventario": {"read": True, "write": False},
+            "gastos": {"read": False, "write": False},
+            "cortes_caja": {"read": False, "write": False},
+            "administracion": {"read": False, "write": False}
+        },
+        "Recepcionista": {
+            "calendario": {"read": True, "write": True},
+            "pacientes": {"read": True, "write": True},
+            "cobros": {"read": True, "write": True},
+            "expedientes": {"read": True, "write": False},
+            "inventario": {"read": True, "write": False},
+            "gastos": {"read": False, "write": False},
+            "cortes_caja": {"read": True, "write": False},
+            "administracion": {"read": False, "write": False}
+        },
+        "Asistente": {
+            "calendario": {"read": True, "write": False},
+            "pacientes": {"read": True, "write": False},
+            "cobros": {"read": True, "write": False},
+            "expedientes": {"read": True, "write": False},
+            "inventario": {"read": True, "write": False},
+            "gastos": {"read": False, "write": False},
+            "cortes_caja": {"read": False, "write": False},
+            "administracion": {"read": False, "write": False}
+        }
+    }
+    
+    return permissions_map.get(rol, {})
+
+
+# ========================================================================
+# ENDPOINTS DE AUTENTICACIÓN
+# ========================================================================
+
 @router.post(
     "/login",
     response_model=LoginResponse,
@@ -182,21 +249,7 @@ def cleanup_expired_blacklist():
     """,
 )
 async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
-    """
-    Endpoint de login - Autentica usuario y retorna JWT token.
-
-    Args:
-        request: Request de FastAPI (para obtener IP)
-        credentials: Credenciales del usuario (username/email/teléfono y password)
-
-    Returns:
-        LoginResponse con token JWT y datos del usuario
-
-    Raises:
-        HTTPException 401: Credenciales incorrectas
-        HTTPException 403: Usuario inactivo
-        HTTPException 429: Demasiados intentos de login
-    """
+    """Endpoint de login - Autentica usuario y retorna JWT token."""
     username = credentials.username
     password = credentials.password
 
@@ -256,16 +309,19 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     await update_last_login(user_data["id"])
 
     # ========================================================================
-    # 7. PREPARAR RESPUESTA
+    # 7. PREPARAR RESPUESTA CON PERMISOS
     # ========================================================================
+    permissions = calculate_permissions_for_role(user_data["rol"])
+    
     user_response = UserResponse(
         id=user_data["id"],
         username=user_data["nombre_usuario"],
         email=user_data["email"],
         rol=user_data["rol"],
         nombre_completo=user_data["nombre_completo"],
+        permissions=permissions
     )
-
+    
     response = LoginResponse(
         access_token=access_token,
         token_type="bearer",
@@ -274,7 +330,6 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     )
 
     logger.info(f"Successful login for user: {username}")
-
     return response
 
 
@@ -375,27 +430,18 @@ async def logout_with_revocation(
     - 403: Usuario inactivo
     """,
 )
-async def verify_token(current_user: "User" = Depends(get_current_user)):
-    """
-    Endpoint para verificar token JWT.
-    
-    Args:
-        current_user: Usuario actual obtenido del token (inyectado por dependency)
-    
-    Returns:
-        UserResponse con datos del usuario
-        
-    Raises:
-        HTTPException 401: Si el token es inválido
-        HTTPException 403: Si el usuario está inactivo
-    """
+async def verify_token_endpoint(current_user: User = Depends(get_current_user)):
+    """Endpoint para verificar token JWT."""
     try:
+        permissions = calculate_permissions_for_role(current_user.rol)
+        
         return UserResponse(
             id=current_user.id,
             username=current_user.nombre_usuario,
             email=current_user.email,
             rol=current_user.rol,
-            nombre_completo=current_user.nombre_completo
+            nombre_completo=current_user.nombre_completo,
+            permissions=permissions
         )
     except (AttributeError, TypeError) as e:
         logger.error(f"Error creating UserResponse: {e}")
@@ -409,36 +455,30 @@ async def verify_token(current_user: "User" = Depends(get_current_user)):
 @router.get(
     "/health",
     status_code=status.HTTP_200_OK,
-    summary="Health check",
+    summary="Health Check",
     description="Verifica que el servicio de autenticación esté funcionando",
 )
 async def health_check():
-    """
-    Health check del servicio de autenticación.
+    """Health check del servicio de autenticación."""
+    return {
+        "status": "healthy",
+        "service": "authentication",
+        "timestamp": datetime.now().isoformat()
+    }
 
-    Returns:
-        Status del servicio
-    """
-    return {"status": "healthy", "service": "auth", "version": "1.0.0"}
 
-
-# ============================================================================
-# ENDPOINTS DE PERFIL DE USUARIO
-# ============================================================================
-
-from pydantic import BaseModel, Field
-
+# ========================================================================
+# MODELOS PYDANTIC PARA ENDPOINTS DE PERFIL
+# ========================================================================
 
 class ProfileUpdate(BaseModel):
     """Modelo para actualización de perfil."""
-
     nombre_completo: Optional[str] = Field(None, min_length=3, max_length=100)
     email: Optional[str] = Field(None, max_length=100)
 
 
 class PasswordChange(BaseModel):
     """Modelo para cambio de contraseña."""
-
     current_password: str
     new_password: str = Field(..., min_length=6)
 
@@ -449,14 +489,17 @@ class PasswordChange(BaseModel):
     summary="Obtener perfil actual",
     description="Retorna los datos del usuario actualmente autenticado",
 )
-async def get_my_profile(current_user=Depends(get_current_user)):
+async def get_my_profile(current_user: User = Depends(get_current_user)):
     """Obtiene el perfil del usuario actual."""
+    permissions = calculate_permissions_for_role(current_user.rol)
+    
     return UserResponse(
         id=current_user.id,
-        username=current_user.username,
+        username=current_user.nombre_usuario,
         email=current_user.email,
         rol=current_user.rol,
         nombre_completo=current_user.nombre_completo,
+        permissions=permissions
     )
 
 
@@ -467,11 +510,12 @@ async def get_my_profile(current_user=Depends(get_current_user)):
     description="Actualiza los datos del perfil del usuario actual",
 )
 async def update_my_profile(
-    profile_data: ProfileUpdate, current_user=Depends(get_current_user)
+    profile_data: ProfileUpdate,
+    current_user: User = Depends(get_current_user)
 ):
     """Actualiza el perfil del usuario actual."""
     from .database import update_user_profile
-
+    
     updates = {}
     if profile_data.nombre_completo:
         updates["nombre_completo"] = profile_data.nombre_completo
@@ -481,22 +525,24 @@ async def update_my_profile(
     if updates:
         updated = await update_user_profile(current_user.id, updates)
         if updated:
+            permissions = calculate_permissions_for_role(current_user.rol)
             return UserResponse(
                 id=current_user.id,
-                username=current_user.username,
+                username=current_user.nombre_usuario,
                 email=updates.get("email", current_user.email),
                 rol=current_user.rol,
-                nombre_completo=updates.get(
-                    "nombre_completo", current_user.nombre_completo
-                ),
+                nombre_completo=updates.get("nombre_completo", current_user.nombre_completo),
+                permissions=permissions
             )
 
+    permissions = calculate_permissions_for_role(current_user.rol)
     return UserResponse(
         id=current_user.id,
-        username=current_user.username,
+        username=current_user.nombre_usuario,
         email=current_user.email,
         rol=current_user.rol,
         nombre_completo=current_user.nombre_completo,
+        permissions=permissions
     )
 
 
@@ -506,14 +552,15 @@ async def update_my_profile(
     description="Cambia la contraseña del usuario actual",
 )
 async def change_password(
-    password_data: PasswordChange, current_user=Depends(get_current_user)
+    password_data: PasswordChange,
+    current_user: User = Depends(get_current_user)
 ):
     """Cambia la contraseña del usuario actual."""
     from .database import get_user_by_username, update_user_password
-    from .jwt_handler import verify_password, hash_password
+    from .jwt_handler import hash_password
 
     # Verificar contraseña actual
-    user_data = await get_user_by_username(current_user.username)
+    user_data = await get_user_by_username(current_user.nombre_usuario)
     if not verify_password(password_data.current_password, user_data["password_hash"]):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

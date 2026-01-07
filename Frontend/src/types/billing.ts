@@ -18,6 +18,7 @@ export type MetodoPago =
   | 'Otro';
 
 export interface Payment {
+  id_factura: any;
   id: number;
   id_cita: number;
   fecha_pago: string;

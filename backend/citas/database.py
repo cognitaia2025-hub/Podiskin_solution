@@ -13,8 +13,15 @@ import asyncio
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2 import pool
+from dotenv import load_dotenv
+
+# ✅ IMPORTAR CREDENCIALES DESDE auth/database.py
+from auth.database import DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
 
 logger = logging.getLogger(__name__)
+
+# Cargar variables de entorno
+load_dotenv()
 
 # Pool global de conexiones
 _pool: Optional[pool.ThreadedConnectionPool] = None
@@ -22,28 +29,15 @@ _pool: Optional[pool.ThreadedConnectionPool] = None
 
 def get_database_url() -> str:
     """Obtiene la URL de conexión a la base de datos."""
-    # Intentar obtener desde variable de entorno
-    db_url = os.getenv('DATABASE_URL')
-    
-    if db_url:
-        return db_url
-    
-    # Construir desde componentes individuales
-    db_host = os.getenv('DB_HOST', 'localhost')
-    db_port = os.getenv('DB_PORT', '5432')
-    db_name = os.getenv('DB_NAME', 'podoskin')
-    db_user = os.getenv('DB_USER', 'postgres')
-    db_password = os.getenv('DB_PASSWORD', 'postgres')
-    
-    return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    return f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 
-def init_db_pool(database_url: Optional[str] = None):
+async def init_db_pool(database_url: Optional[str] = None):
     """
     Inicializa el pool de conexiones a la base de datos.
     
     Args:
-        database_url: URL de conexión. Si no se proporciona, se obtiene de variables de entorno.
+        database_url: URL de conexión. Si no se proporciona, se construye desde variables importadas.
     """
     global _pool
 
@@ -54,6 +48,7 @@ def init_db_pool(database_url: Optional[str] = None):
         if database_url is None:
             database_url = get_database_url()
         
+        # Crear el pool de conexiones
         _pool = pool.ThreadedConnectionPool(
             minconn=1,
             maxconn=10,
@@ -65,19 +60,19 @@ def init_db_pool(database_url: Optional[str] = None):
         raise
 
 
-def close_db_pool():
+async def close_db_pool():
     """Cierra el pool de conexiones."""
     global _pool
 
     if _pool is None:
         return
-
+        
     try:
         _pool.closeall()
         _pool = None
-        logger.info("Database pool closed")
+        logger.info("✅ Database pool closed")
     except Exception as e:
-        logger.error(f"Error closing database pool: {e}")
+        logger.error(f"❌ Error closing database pool: {e}")
 
 
 def _get_connection():

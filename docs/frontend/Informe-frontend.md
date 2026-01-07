@@ -273,4 +273,83 @@ El sistema funciona correctamente para gestionar citas, pacientes y expedientes 
 ---
 
 **Última actualización:** 04/01/2026 - 18:42 hrs
+
+==========================================
+
+## Módulo de Gestión de Pacientes por Podólogo [06/01/26] [15:45]
+
+==========================================
+
+### Nuevos Componentes Frontend
+
+#### 1. **services/podologosService.ts** (Líneas 1-110)
+
+**Servicio de API para gestión de asignación de podólogos**
+
+- Interfaces definidas (L11-32):
+  - `PatientWithInterino`: Paciente con información de podólogo temporal
+  - `AvailablePodologo`: Podólogos disponibles para asignación
+  - `AssignInterinoRequest`: Datos para asignar interino
+
+- Funciones de API:
+  - `getPodologoPatients()` (L38-53): Obtiene pacientes de un podólogo
+  - `getAvailablePodologos()` (L59-81): Lista podólogos disponibles
+  - `assignInterinoToPaciente()` (L87-103): Asigna/quita podólogo temporal
+
+- Estado: ✅ ACTIVO, consume endpoints `/podologos/{id}/patients` y `/podologos/{id}/assign-interino`
+
+#### 2. **components/admin/PodologistPatientsModal.tsx** (Líneas 1-283)
+
+**Modal de gestión de pacientes del podólogo**
+
+- Funcionalidad principal (L33-283):
+  - Muestra lista de pacientes asignados a un podólogo específico
+  - Selector dropdown para asignar podólogo interino por paciente
+  - Información de último tratamiento por paciente
+  - Botón para guardar cambios de asignación
+  - Manejo de estados: loading, saving, error
+
+- Componentes visuales:
+  - Header con nombre del podólogo (L109-123)
+  - Información explicativa sobre interinos (L126-141)
+  - Tabla de pacientes con columnas: Nombre, Teléfono, Último Tratamiento, Podólogo Interino (L147-228)
+  - Botones de acción: Cancelar y Guardar cambios (L232-253)
+
+- Estado: ✅ ACTIVO
+
+#### 3. **Integración en components/admin/StaffTable.tsx**
+
+**Modificaciones realizadas:**
+
+- Import agregado (L13): `import { PodologistPatientsModal } from './PodologistPatientsModal'`
+- Estado nuevo (L31): `const [managingPatients, setManagingPatients] = useState<StaffMember | null>(null)`
+- Handler (L88): `handleManagePatients()` - Abre modal de gestión
+- Render del modal (L204-210): Condicional que muestra modal cuando `managingPatients` está definido
+
+**Acceso en la interfaz:**
+
+Desde el módulo de Administración → Tabla de Staff → Botón "Gestionar Pacientes" en cada podólogo
+
+- Estado: ✅ ACTIVO e integrado
+
+### Resumen para Santiago
+
+**Nueva funcionalidad en el panel de Administración:**
+
+Ahora cuando entres al módulo de Administración y veas la tabla de tu personal, cada podólogo tendrá un botón "Gestionar Pacientes". Al hacer clic, se abre una ventana que muestra:
+
+1. **Lista completa de pacientes** asignados a ese podólogo
+2. **Información de contacto** de cada paciente
+3. **Cuándo fue su último tratamiento**
+4. **Opción para asignar un podólogo temporal** (interino) si el podólogo oficial no está disponible
+
+**Caso práctico:**
+
+Si el Dr. García sale de vacaciones, puedes abrir su lista de pacientes y seleccionar al Dr. Martínez como interino para todos o algunos de sus pacientes. Durante las vacaciones, el Dr. Martínez podrá ver y atender a esos pacientes. Cuando regresen las vacaciones, los pacientes vuelven automáticamente al Dr. García.
+
+Esta función te ayuda a organizar mejor el trabajo de tu equipo y asegura que todos los pacientes tengan un doctor responsable, incluso cuando alguien no está disponible.
+
+---
+
+**Última actualización:** 06/01/2026 - 15:45 hrs
  ![alt text](image.png)

@@ -19,6 +19,7 @@ from db import database
 from pacientes.service import AlergiasService, AntecedentesService
 from pacientes.models import AlergiaCreate, AntecedenteCreate
 from pacientes.database import db as pacientes_db
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/medical-records", tags=["medical-records"])
 
@@ -541,3 +542,100 @@ async def finalize_consultation(
     await database.execute("SELECT refrescar_expedientes_resumen()")
     
     return {"message": "Consulta finalizada exitosamente", "data": result}
+
+
+class ExpedienteSection(BaseModel):
+    """Modelo para actualización de sección específica"""
+    seccion: str  # antecedentes, alergias, medicamentos, diagnostico, tratamiento
+    contenido: dict
+
+@router.patch("/{expediente_id}/seccion")
+async def update_expediente_section(
+    expediente_id: int,
+    section_update: ExpedienteSection,
+    current_user=Depends(get_current_user)
+):
+    """
+    Actualiza una sección específica del expediente médico.
+    
+    Permite actualizar solo:
+    - antecedentes (personales y familiares)
+    - alergias
+    - medicamentos
+    - diagnostico
+    - tratamiento
+    
+    Sin necesidad de enviar el expediente completo.
+    """
+    async with get_db_connection() as conn:
+        # Verificar que el expediente existe
+        expediente = await conn.fetchrow(
+            "SELECT * FROM expedientes WHERE id = $1",
+            expediente_id
+        )
+        
+        if not expediente:
+            raise HTTPException(
+                status_code=404,
+                detail="Expediente no encontrado"
+            )
+        
+        # Mapeo de secciones a campos de BD
+        seccion_map = {
+            "antecedentes": ["antecedentes_personales", "antecedentes_familiares"],
+            "alergias": ["alergias"],
+            "medicamentos": ["medicamentos_actuales"],
+            "diagnostico": ["diagnostico_principal", "diagnosticos_secundarios"],
+            "tratamiento": ["plan_tratamiento"]
+        }
+        
+        if section_update.seccion not in seccion_map:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sección inválida. Opciones: {list(seccion_map.keys())}"
+            )
+        
+        # Construir query de actualización
+        campos = seccion_map[section_update.seccion]
+        set_clauses = []
+        values = []
+        param_counter = 1
+        
+        for campo in campos:
+            if campo in section_update.contenido:
+                set_clauses.append(f"{campo} = ${param_counter}")
+                values.append(section_update.contenido[campo])
+                param_counter += 1
+        
+        if not set_clauses:
+            raise HTTPException(
+                status_code=400,
+                detail="No se proporcionaron campos válidos para actualizar"
+            )
+        
+        # Agregar metadata de actualización
+        set_clauses.append(f"ultima_actualizacion = ${param_counter}")
+        values.append(current_user.nombre_usuario)
+        param_counter += 1
+        
+        set_clauses.append(f"actualizado_por = ${param_counter}")
+        values.append(current_user.nombre_usuario)
+        param_counter += 1
+        
+        # Agregar expediente_id al final
+        values.append(expediente_id)
+        
+        query = f"""
+            UPDATE expedientes
+            SET {', '.join(set_clauses)}
+            WHERE id = ${param_counter}
+            RETURNING *
+        """
+        
+        updated = await conn.fetchrow(query, *values)
+        
+        return {
+            "message": f"Sección '{section_update.seccion}' actualizada correctamente",
+            "expediente_id": expediente_id,
+            "ultima_actualizacion": updated['ultima_actualizacion']
+        }

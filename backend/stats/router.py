@@ -5,13 +5,15 @@ Endpoints para métricas y estadísticas del sistema.
 """
 
 from typing import List
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta, date
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
 from psycopg.rows import dict_row
 
 from auth.middleware import get_current_user
 from auth.database import _get_connection, _return_connection
+from .service import get_dashboard_stats
+from .models import DashboardStats
 
 
 router = APIRouter(prefix="/stats", tags=["Estadísticas"])
@@ -346,3 +348,30 @@ async def get_revenue_trend(
     """Retorna tendencia de ingresos del último año"""
     # Por ahora retornar lista vacía hasta implementar módulo de pagos
     return []
+
+
+@router.get("/dashboard", response_model=DashboardStats)
+async def get_dashboard_statistics(
+    fecha_inicio: date = Query(default=None),
+    fecha_fin: date = Query(default=None)
+):
+    """
+    Obtiene estadísticas completas del dashboard.
+    
+    Incluye:
+    - Métricas básicas (pacientes, citas, ingresos)
+    - Top tratamientos
+    - Ocupación de agenda
+    - Tendencias y crecimientos
+    """
+    # Si no se proporcionan fechas, usar mes actual
+    if not fecha_inicio:
+        hoy = datetime.now().date()
+        fecha_inicio = hoy.replace(day=1)
+    
+    if not fecha_fin:
+        fecha_fin = datetime.now().date()
+    
+    async with get_db_connection() as conn:
+        stats = await get_dashboard_stats(conn, fecha_inicio, fecha_fin)
+        return stats

@@ -128,3 +128,66 @@ Se realizó una auditoría completa del proyecto Podoskin Solution, analizando *
 ---
 
 **Última actualización:** 04 de enero de 2026 - 18:28 hrs
+
+==========================================
+
+## Sistema de Asignación de Podólogos [06/01/26] [15:30]
+
+==========================================
+
+### Componentes Agregados
+
+**Backend - API de Asignación de Pacientes**
+- Archivo: `backend/podologos/patients_router.py` (L1-282)
+- Endpoints: 
+  - GET `/podologos/{id}/patients` - Lista pacientes asignados
+  - GET `/podologos/available` - Podólogos disponibles para cobertura
+  - POST `/podologos/{id}/assign-interino` - Asigna/quita podólogo temporal
+- Estado: ✅ ACTIVO y registrado en main.py (L176)
+
+**Base de Datos - Tablas de Asignación**
+- Archivo: `data/03.5_create_podologo_paciente_tables.sql` (L1-311)
+- Tablas nuevas:
+  - `podologo_paciente_asignacion` - Asignación oficial paciente-podólogo
+  - `podologo_interino_asignacion` - Podólogos temporales con vigencia
+- Vista: `v_pacientes_con_podologos` - Consolida información de asignaciones
+- Funciones: `get_pacientes_podologo()`, `asignar_podologo_interino()`, `quitar_podologo_interino()`
+- Estado: ✅ ACTIVO en PostgreSQL 14
+
+**Frontend - Interfaz de Gestión**
+- Servicio: `Frontend/src/services/podologosService.ts` (L1-110)
+- Componente: `Frontend/src/components/admin/PodologistPatientsModal.tsx` (L1-283)
+- Integrado en: `Frontend/src/components/admin/StaffTable.tsx` (L13, L88, L204-210)
+- Estado: ✅ ACTIVO, accesible desde módulo de Administración
+
+### Resumen para Santiago
+
+**Nueva función agregada: Asignación de Podólogos a Pacientes**
+
+Ahora tu aplicación permite organizar mejor el trabajo de tu equipo:
+
+1. **Pacientes asignados oficialmente**: Cada paciente tiene un podólogo principal que conoce su historial y lleva su tratamiento completo. Esto asegura continuidad en la atención.
+
+2. **Coberturas temporales**: Cuando un podólogo está de vacaciones o enfermo, puedes asignar un "podólogo interino" que atienda temporalmente a sus pacientes. El sistema registra:
+   - Quién está cubriendo
+   - Por qué motivo (vacaciones, enfermedad, etc.)
+   - Hasta qué fecha es la cobertura
+   - El interino se quita automáticamente cuando expira el tiempo
+
+3. **Vista consolidada**: Desde el módulo de Administración, puedes ver:
+   - Todos los pacientes de cada podólogo
+   - Si alguno tiene cobertura temporal activa
+   - Cuándo fue el último tratamiento de cada paciente
+
+4. **Caso de uso real**: 
+   - La Dra. García tiene 50 pacientes asignados
+   - Ella sale de vacaciones 2 semanas
+   - Asignas al Dr. Martínez como interino para sus pacientes
+   - Durante esas 2 semanas, el Dr. Martínez puede ver y atender a esos 50 pacientes
+   - Cuando regresan las vacaciones, los pacientes vuelven automáticamente a la Dra. García
+
+Esta función mejora la organización de tu clínica y asegura que ningún paciente se quede sin atención cuando alguien del equipo no está disponible.
+
+---
+
+**Última actualización:** 06 de enero de 2026 - 15:30 hrs

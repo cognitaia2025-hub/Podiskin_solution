@@ -65,17 +65,29 @@ class UserResponse(BaseModel):
     email: str
     rol: str
     nombre_completo: str
-    
-    class Config:
-        json_schema_extra = {
+    permissions: Optional[dict] = None
+
+    model_config = {
+        "json_schema_extra": {
             "example": {
                 "id": 1,
-                "username": "dr.santiago",
-                "email": "santiago@podoskin.com",
-                "rol": "Podologo",
-                "nombre_completo": "Dr. Santiago Ornelas"
+                "username": "adm.santiago.ornelas",
+                "email": "santiago@podoski.com",
+                "rol": "Admin",
+                "nombre_completo": "Santiago Ornelas",
+                "permissions": {
+                    "calendario": {"read": True, "write": True},
+                    "pacientes": {"read": True, "write": True},
+                    "cobros": {"read": True, "write": True},
+                    "expedientes": {"read": True, "write": True},
+                    "inventario": {"read": True, "write": True},
+                    "gastos": {"read": True, "write": True},
+                    "cortes_caja": {"read": True, "write": True},
+                    "administracion": {"read": True, "write": True}
+                }
             }
         }
+    }
 
 
 class LoginResponse(BaseModel):

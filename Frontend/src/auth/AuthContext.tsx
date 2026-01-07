@@ -1,6 +1,15 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, type ReactNode } from 'react';
 import { login as authLogin, logout as authLogout, getStoredToken, setStoredToken, removeStoredToken, refreshToken as refreshAuthToken, verifyToken } from './authService';
-import type { User } from './authService';
+import type { UserPermissions } from '../types/billing';
+
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  rol: string;
+  nombre_completo: string;
+  permissions?: UserPermissions;
+}
 
 interface AuthContextType {
   user: User | null;

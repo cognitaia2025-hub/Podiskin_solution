@@ -26,11 +26,11 @@ const api: AxiosInstance = axios.create({
 api.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
     const token = localStorage.getItem('token');
-    
+
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
+
     return config;
   },
   (error) => {
@@ -39,22 +39,45 @@ api.interceptors.request.use(
 );
 
 /**
- * Response interceptor - Handle 401 errors globally
+ * Response interceptor - Handle errors globally with user-friendly messages
  */
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid - logout user
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      
-      // Redirect to login if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
+    // Handle network errors (no response)
+    if (!error.response) {
+      const networkError = new Error('Error de conexión. Por favor, verifica tu conexión a internet e intenta de nuevo.');
+      (networkError as any).isNetworkError = true;
+      (networkError as any).originalError = error;
+      console.error('❌ Error de red:', error.message);
+      return Promise.reject(networkError);
     }
-    
+
+    // Handle specific HTTP errors
+    switch (error.response?.status) {
+      case 401:
+        // Token expired or invalid - logout user
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // Redirect to login if not already there
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        break;
+
+      case 429:
+        error.message = 'Demasiadas solicitudes. Por favor, espera un momento antes de intentar de nuevo.';
+        break;
+
+      case 500:
+      case 502:
+      case 503:
+      case 504:
+        error.message = 'Error del servidor. Por favor, intenta de nuevo más tarde.';
+        break;
+    }
+
     return Promise.reject(error);
   }
 );

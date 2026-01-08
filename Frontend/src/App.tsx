@@ -412,6 +412,9 @@ function AppContent() {
               element={<FinancesPage />}
             />
 
+            {/* Redirect /inventory to /admin/inventory */}
+            <Route path="/inventory" element={<Navigate to="/admin/inventory" replace />} />
+
             {/* Default Route */}
             <Route path="/" element={<Navigate to="/calendar" replace />} />
           </Route>

@@ -48,7 +48,7 @@ _token_blacklist: Set[str] = set()
 
 
 def check_rate_limit(
-    username: str, max_attempts: int = 5, window_seconds: int = 60
+    username: str, max_attempts: int = 10, window_seconds: int = 60
 ) -> tuple[bool, int]:
     """
     Verifica si un usuario ha excedido el límite de intentos de login.

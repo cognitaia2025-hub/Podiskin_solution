@@ -29,10 +29,10 @@ torch==2.9.0  # CPU version - compatible con sentence-transformers
 # VECTOR STORE & DATABASE
 # ============================================================================
 pgvector>=0.2.0
-asyncpg>=0.29.0  # PostgreSQL async driver (backup)
+asyncpg>=0.29.0  # PostgreSQL async driver (principal)
 psycopg[binary]>=3.1.0  # PostgreSQL driver para langgraph checkpoint
 psycopg-pool>=3.1.0  # Connection pool para psycopg
-psycopg2-binary>=2.9.0  # PostgreSQL sync driver (backup)
+# psycopg2-binary - ELIMINADO: Migrado a AsyncPG puro
 
 # ============================================================================
 # WEB FRAMEWORK

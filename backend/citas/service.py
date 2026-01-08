@@ -11,8 +11,6 @@ from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any, Tuple
 
 from .database import (
-    init_db_pool,
-    close_db_pool,
     execute_query,
     execute_query_one,
     execute_mutation,

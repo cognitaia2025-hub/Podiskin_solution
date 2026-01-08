@@ -1,52 +1,20 @@
 """Servicio Cortes de Caja."""
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from typing import List, Dict, Any
 from datetime import date
-import os
+from db import fetch_all, fetch_one, execute_returning
 
 
 class CortesCajaService:
-    def __init__(self):
-        self.conn = None
 
-    def _get_connection(self):
-        if self.conn is None or self.conn.closed:
-            self.conn = psycopg2.connect(
-                host=os.getenv("DB_HOST", "127.0.0.1"),
-                port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("DB_NAME", "podoskin_db"),
-                user=os.getenv("DB_USER", "podoskin_user"),
-                password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
-            )
-        return self.conn
-
-    def get_all(self) -> List[Dict[str, Any]]:
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
+    async def get_all(self) -> List[Dict[str, Any]]:
+        query = """
             SELECT id, fecha_corte, ingresos_efectivo, ingresos_tarjeta,
                    ingresos_transferencia, total_ingresos, gastos_dia,
                    saldo_final, realizado_por, notas, fecha_registro
             FROM cortes_caja ORDER BY fecha_corte DESC
         """
-        )
-        columns = [
-            "id",
-            "fecha_corte",
-            "ingresos_efectivo",
-            "ingresos_tarjeta",
-            "ingresos_transferencia",
-            "total_ingresos",
-            "gastos_dia",
-            "saldo_final",
-            "realizado_por",
-            "notas",
-            "fecha_registro",
-        ]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+        return await fetch_all(query)
 
     def get_by_fecha(self, fecha: date) -> Dict[str, Any]:
         conn = self._get_connection()

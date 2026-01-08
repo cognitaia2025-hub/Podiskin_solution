@@ -1,53 +1,39 @@
 """Servicio de Horarios - Lógica de negocio."""
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
-import os
 from typing import List, Optional
+from db import fetch_all, fetch_one, execute_returning
 
 DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
-
-def get_db_connection():
-    """Obtiene conexión a la base de datos."""
-    return psycopg2.connect(
-        host=os.getenv("DB_HOST", "localhost"),
-        port=int(os.getenv("DB_PORT", 5432)),
-        user=os.getenv("DB_USER", "podoskin_user"),
-        password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
-        database=os.getenv("DB_NAME", "podoskin_db"),
-    )
 
 class HorariosService:
     """Servicio para gestión de horarios de trabajo."""
     
-    def get_all(self, id_podologo: Optional[int] = None, activo: Optional[bool] = None) -> List[dict]:
+    async def get_all(self, id_podologo: Optional[int] = None, activo: Optional[bool] = None) -> List[dict]:
         """Obtiene todos los horarios, con filtros opcionales."""
-        conn = get_db_connection()
-        try:
-            with conn.cursor(cursor_factory=RealDictCursor) as cur:
-                query = """
-                    SELECT 
-                        h.id, h.id_podologo, h.dia_semana,
-                        h.hora_inicio, h.hora_fin,
-                        h.duracion_cita_minutos, h.tiempo_buffer_minutos,
-                        h.max_citas_simultaneas, h.activo,
-                        h.fecha_inicio_vigencia, h.fecha_fin_vigencia,
-                        p.nombre_completo as nombre_podologo
-                    FROM horarios_trabajo h
-                    INNER JOIN podologos p ON h.id_podologo = p.id
-                    WHERE 1=1
-                """
-                params = []
-                
-                if id_podologo is not None:
-                    query += " AND h.id_podologo = %s"
-                    params.append(id_podologo)
-                
-                if activo is not None:
-                    query += " AND h.activo = %s"
-                    params.append(activo)
-                
-                query += " ORDER BY h.id_podologo, h.dia_semana, h.hora_inicio"
+        query = """
+            SELECT 
+                h.id, h.id_podologo, h.dia_semana,
+                h.hora_inicio, h.hora_fin,
+                h.duracion_cita_minutos, h.tiempo_buffer_minutos,
+                h.max_citas_simultaneas, h.activo,
+                h.fecha_inicio_vigencia, h.fecha_fin_vigencia,
+                p.nombre_completo as nombre_podologo
+            FROM horarios_trabajo h
+            INNER JOIN podologos p ON h.id_podologo = p.id
+            WHERE 1=1
+        """
+        params = []
+        
+        if id_podologo is not None:
+            query += " AND h.id_podologo = $" + str(len(params) + 1)
+            params.append(id_podologo)
+        
+        if activo is not None:
+            query += " AND h.activo = $" + str(len(params) + 1)
+            params.append(activo)
+        
+        query += " ORDER BY h.id_podologo, h.dia_semana, h.hora_inicio"
+        return await fetch_all(query, *params)
                 
                 cur.execute(query, params)
                 horarios = cur.fetchall()

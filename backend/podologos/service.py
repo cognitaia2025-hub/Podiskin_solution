@@ -4,36 +4,16 @@ Servicio de lógica de negocio para Podólogos
 
 from typing import List, Optional, Dict, Any
 from datetime import datetime as dt, date
-from psycopg2.extras import RealDictCursor
-import psycopg2
-import os
 from dotenv import load_dotenv
 from .models import PodologoCreate, PodologoUpdate, PodologoResponse
 import logging
+from db import fetch_all, fetch_one, execute_returning
 
 # Import asyncpg database for async operations
 from pacientes.database import db as pacientes_db
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-
-# Configuración de base de datos
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "podoskin_db")
-DB_USER = os.getenv("DB_USER", "podoskin_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
-
-
-def get_db_connection():
-    """Obtener conexión a la base de datos usando psycopg2"""
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD
-    )
 
 
 async def get_all_podologos(activo_only: bool = True) -> List[dict]:
@@ -46,40 +26,34 @@ async def get_all_podologos(activo_only: bool = True) -> List[dict]:
     Returns:
         Lista de podólogos
     """
-    conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            query = """
-                SELECT 
-                    id, 
-                    cedula_profesional, 
-                    nombre_completo, 
-                    especialidad, 
-                    telefono, 
-                    email, 
-                    activo, 
-                    fecha_contratacion, 
-                    fecha_registro, 
-                    id_usuario
-                FROM podologos
-            """
-            
-            if activo_only:
-                query += " WHERE activo = true"
-            
-            query += " ORDER BY nombre_completo ASC"
-            
-            cursor.execute(query)
-            result = cursor.fetchall()
-            
-            logger.info(f"Retrieved {len(result)} podólogos (activo_only={activo_only})")
-            return [dict(row) for row in result]
+        query = """
+            SELECT 
+                id, 
+                cedula_profesional, 
+                nombre_completo, 
+                especialidad, 
+                telefono, 
+                email, 
+                activo, 
+                fecha_contratacion, 
+                fecha_registro, 
+                id_usuario
+            FROM podologos
+        """
+        
+        if activo_only:
+            query += " WHERE activo = true"
+        
+        query += " ORDER BY nombre_completo ASC"
+        
+        result = await fetch_all(query)
+        logger.info(f"Retrieved {len(result)} podólogos (activo_only={activo_only})")
+        return result
     
     except Exception as e:
         logger.error(f"Error fetching podólogos: {e}")
         raise
-    finally:
-        conn.close()
 
 
 async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
@@ -92,32 +66,23 @@ async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
     Returns:
         Datos del podólogo o None si no existe
     """
-    conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                """
-                SELECT 
-                    id, 
-                    cedula_profesional, 
-                    nombre_completo, 
-                    especialidad, 
-                    telefono, 
-                    email, 
-                    activo, 
-                    fecha_contratacion, 
-                    fecha_registro, 
-                    id_usuario
-                FROM podologos
-                WHERE id = %s
-                """,
-                (podologo_id,)
-            )
-            result = cursor.fetchone()
-            
-            if result:
-                logger.info(f"Found podologo with ID {podologo_id}")
-                return dict(result)
+        query = """
+            SELECT 
+                id, 
+                cedula_profesional, 
+                nombre_completo, 
+                especialidad, 
+                telefono, 
+                email, 
+                activo, 
+                fecha_contratacion, 
+                fecha_registro, 
+                id_usuario
+            FROM podologos
+            WHERE id = $1
+        """
+        result = await fetch_one(query, podologo_id)
             else:
                 logger.warning(f"Podologo with ID {podologo_id} not found")
                 return None

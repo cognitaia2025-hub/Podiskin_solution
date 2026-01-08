@@ -18,7 +18,7 @@ from .models import (
     TokenData,
     User,
     ErrorResponse,
-    RateLimitResponse
+    RateLimitResponse,
 )
 
 from .jwt_handler import (
@@ -27,13 +27,13 @@ from .jwt_handler import (
     create_access_token,
     decode_access_token,
     verify_token,
-    get_token_expiration
+    get_token_expiration,
 )
 
 from .middleware import (
     get_current_user,
     get_current_active_user,
-    get_optional_current_user
+    get_optional_current_user,
 )
 
 from .authorization import (
@@ -46,18 +46,12 @@ from .authorization import (
     RoleChecker,
     AdminOnly,
     PodologoOrAdmin,
-    StaffOnly
+    StaffOnly,
 )
 
 from .router import router as auth_router
 
-from .database import (
-    init_db_pool,
-    close_db_pool,
-    get_user_by_username,
-    update_last_login,
-    is_user_active
-)
+from .database import get_user_by_username, update_last_login, is_user_active
 
 __all__ = [
     # Models
@@ -68,7 +62,6 @@ __all__ = [
     "User",
     "ErrorResponse",
     "RateLimitResponse",
-    
     # JWT Handler
     "verify_password",
     "get_password_hash",
@@ -76,12 +69,10 @@ __all__ = [
     "decode_access_token",
     "verify_token",
     "get_token_expiration",
-    
     # Middleware
     "get_current_user",
     "get_current_active_user",
     "get_optional_current_user",
-    
     # Authorization
     "require_role",
     "require_admin",
@@ -93,13 +84,9 @@ __all__ = [
     "AdminOnly",
     "PodologoOrAdmin",
     "StaffOnly",
-    
     # Router
     "auth_router",
-    
     # Database
-    "init_db_pool",
-    "close_db_pool",
     "get_user_by_username",
     "update_last_login",
     "is_user_active",

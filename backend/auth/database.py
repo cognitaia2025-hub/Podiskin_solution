@@ -1,16 +1,13 @@
 """
 Database Utilities - Autenticacion
 
-Funciones para acceder a la base de datos usando psycopg3.
-Solucion para evitar UnicodeDecodeError en Windows.
-Ref: https://github.com/psycopg/psycopg2/issues
+Funciones para acceder a la base de datos usando AsyncPG.
+Pool centralizado compartido con todo el backend.
 """
 
 import logging
-from typing import Optional
-import psycopg
-from psycopg.rows import dict_row
 import os
+from typing import Optional
 from dotenv import load_dotenv
 
 # Cargar variables de entorno
@@ -18,291 +15,245 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-# Pool global de conexiones
-_pool = None
-
-# Configuracion de base de datos
+# Configuración de base de datos (para compatibilidad con módulos legacy)
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "podoskin_db")
 DB_USER = os.getenv("DB_USER", "podoskin_user")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
 
-# Connection string
+# Connection string para compatibilidad con módulos legacy
 CONNINFO = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
-
-
-async def init_db_pool():
-    """Inicializa el pool de conexiones psycopg3."""
-    global _pool
-
-    if _pool is not None:
-        return
-
-    try:
-        # Usar psycopg3 AsyncConnectionPool
-        from psycopg_pool import AsyncConnectionPool
-
-        _pool = AsyncConnectionPool(
-            conninfo=CONNINFO, min_size=5, max_size=20, open=False
-        )
-        await _pool.open()
-        logger.info("Auth database pool initialized successfully")
-    except ImportError:
-        # Si no tiene psycopg_pool, usar conexion simple
-        logger.warning("psycopg_pool not installed, using simple connections")
-    except Exception as e:
-        logger.error(f"Failed to initialize auth database pool: {e}")
-        # No raise para que la app siga funcionando
-
-
-async def close_db_pool():
-    """Cierra el pool de conexiones."""
-    global _pool
-    if _pool is not None:
-        await _pool.close()
-        _pool = None
-        logger.info("Auth database pool closed")
-
-
-async def _get_connection():
-    """Obtiene una conexion."""
-    if _pool is not None:
-        return await _pool.getconn()
-    else:
-        return await psycopg.AsyncConnection.connect(CONNINFO)
-
-
-async def _return_connection(conn):
-    """Devuelve una conexion al pool."""
-    if _pool is not None:
-        await _pool.putconn(conn)
-    else:
-        await conn.close()
 
 
 async def get_user_by_username(username: str) -> Optional[dict]:
     """
     Obtiene un usuario por su nombre de usuario, email o teléfono.
-    
+
     Busca en:
     - usuarios.nombre_usuario
     - usuarios.email
     - podologos.telefono (mediante JOIN)
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT 
-                    u.id,
-                    u.nombre_usuario,
-                    u.password_hash,
-                    u.email,
-                    u.rol,
-                    u.nombre_completo,
-                    u.activo,
-                    u.ultimo_login,
-                    u.fecha_registro
-                FROM usuarios u
-                LEFT JOIN podologos p ON u.id = p.id_usuario
-                WHERE u.nombre_usuario = %s 
-                   OR u.email = %s
-                   OR p.telefono = %s
-                LIMIT 1
-                """,
-                (username, username, username),
-            )
-            user = await cur.fetchone()
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
+        conn = await get_connection()
+
+        user = await conn.fetchrow(
+            """
+            SELECT 
+                u.id,
+                u.nombre_usuario,
+                u.password_hash,
+                u.email,
+                u.rol,
+                u.nombre_completo,
+                u.activo,
+                u.ultimo_login,
+                u.fecha_registro
+            FROM usuarios u
+            LEFT JOIN podologos p ON u.id = p.id_usuario
+            WHERE u.nombre_usuario = $1 
+               OR u.email = $2
+               OR p.telefono = $3
+            LIMIT 1
+            """,
+            username,
+            username,
+            username,
+        )
+
         return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error fetching user: {e}")
-        if conn:
-            await conn.rollback()
         return None
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def update_last_login(user_id: int) -> bool:
     """
     Actualiza el timestamp de ultimo acceso de un usuario.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor() as cur:
-            await cur.execute(
-                """
-                UPDATE usuarios
-                SET ultimo_login = CURRENT_TIMESTAMP
-                WHERE id = %s
-                """,
-                (user_id,),
-            )
-            await conn.commit()
-            return True
+        conn = await get_connection()
+
+        await conn.execute(
+            """
+            UPDATE usuarios
+            SET ultimo_login = CURRENT_TIMESTAMP
+            WHERE id = $1
+            """,
+            user_id,
+        )
+
+        return True
     except Exception as e:
         logger.error(f"Error updating last login: {e}")
         return False
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def is_user_active(user_id: int) -> bool:
     """
     Verifica si un usuario esta activo.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor() as cur:
-            await cur.execute("SELECT activo FROM usuarios WHERE id = %s", (user_id,))
-            result = await cur.fetchone()
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
-        return result[0] if result else False
+        conn = await get_connection()
+
+        result = await conn.fetchval(
+            "SELECT activo FROM usuarios WHERE id = $1", user_id
+        )
+
+        return result if result is not None else False
     except Exception as e:
         logger.error(f"Error checking if user is active: {e}")
-        if conn:
-            await conn.rollback()
         return False
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def update_user_profile(user_id: int, updates: dict) -> bool:
     """
     Actualiza el perfil de un usuario.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor() as cur:
-            set_clauses = []
-            params = []
-            for key, value in updates.items():
-                set_clauses.append(f"{key} = %s")
-                params.append(value)
-            params.append(user_id)
-            query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = %s"
-            await cur.execute(query, params)
-            await conn.commit()
-            return True
+        conn = await get_connection()
+
+        set_clauses = []
+        params = []
+        param_num = 1
+
+        for key, value in updates.items():
+            set_clauses.append(f"{key} = ${param_num}")
+            params.append(value)
+            param_num += 1
+
+        params.append(user_id)
+        query = f"UPDATE usuarios SET {', '.join(set_clauses)} WHERE id = ${param_num}"
+
+        await conn.execute(query, *params)
+        return True
     except Exception as e:
         logger.error(f"Error updating user profile: {e}")
         return False
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def update_user_password(user_id: int, password_hash: str) -> bool:
     """
     Actualiza la contraseña de un usuario.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE usuarios SET password_hash = %s WHERE id = %s",
-                (password_hash, user_id),
-            )
-            await conn.commit()
-            return True
+        conn = await get_connection()
+
+        await conn.execute(
+            "UPDATE usuarios SET password_hash = $1 WHERE id = $2",
+            password_hash,
+            user_id,
+        )
+
+        return True
     except Exception as e:
         logger.error(f"Error updating user password: {e}")
         return False
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def get_all_users(activo_only: bool = True) -> list:
     """
     Obtiene todos los usuarios.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            query = """
-                SELECT 
-                    u.id, 
-                    u.nombre_usuario, 
-                    u.nombre_completo, 
-                    u.email, 
-                    u.activo,
-                    u.ultimo_login,
-                    u.fecha_registro,
-                    u.rol
-                FROM usuarios u
-            """
+        conn = await get_connection()
 
-            if activo_only:
-                query += " WHERE u.activo = true"
+        query = """
+            SELECT 
+                u.id, 
+                u.nombre_usuario, 
+                u.nombre_completo, 
+                u.email, 
+                u.activo,
+                u.ultimo_login,
+                u.fecha_registro,
+                u.rol
+            FROM usuarios u
+        """
 
-            query += " ORDER BY u.id"
+        if activo_only:
+            query += " WHERE u.activo = true"
 
-            await cur.execute(query)
-            users = await cur.fetchall()
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
+        query += " ORDER BY u.id"
+
+        users = await conn.fetch(query)
         return [dict(user) for user in users] if users else []
     except Exception as e:
         logger.error(f"Error fetching users: {e}")
-        if conn:
-            await conn.rollback()
         return []
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def get_user_by_id(user_id: int) -> Optional[dict]:
     """
     Obtiene un usuario por ID.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT 
-                    u.id, 
-                    u.nombre_usuario, 
-                    u.nombre_completo, 
-                    u.email, 
-                    u.activo,
-                    u.ultimo_login,
-                    u.fecha_registro,
-                    u.rol
-                FROM usuarios u
-                WHERE u.id = %s
+        conn = await get_connection()
+
+        user = await conn.fetchrow(
+            """
+            SELECT 
+                u.id, 
+                u.nombre_usuario, 
+                u.nombre_completo, 
+                u.email, 
+                u.activo,
+                u.ultimo_login,
+                u.fecha_registro,
+                u.rol
+            FROM usuarios u
+            WHERE u.id = $1
             """,
-                (user_id,),
-            )
-            user = await cur.fetchone()
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
+            user_id,
+        )
+
         return dict(user) if user else None
     except Exception as e:
         logger.error(f"Error fetching user by id: {e}")
-        if conn:
-            await conn.rollback()
         return None
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def create_user(
@@ -316,58 +267,58 @@ async def create_user(
     """
     Crea un nuevo usuario (rol como texto).
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            # 1. Obtener ID del rol
-            await cur.execute("SELECT id FROM roles WHERE nombre_rol = %s", (rol,))
-            role_row = await cur.fetchone()
-            if not role_row:
-                # Si el rol no existe, intentar buscar 'Admin' como fallback o retornar error
-                logger.error(f"Role not found: {rol}")
-                return None
-            
-            id_rol = role_row['id']
+        conn = await get_connection()
 
-            # 2. Insertar usuario
-            await cur.execute(
-                """
-                INSERT INTO usuarios (
-                    nombre_usuario, 
-                    password_hash, 
-                    nombre_completo, 
-                    email, 
-                    id_rol, 
-                    activo,
-                    creado_por
-                )
-                VALUES (%s, %s, %s, %s, %s, true, %s)
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
-            """,
-                (
-                    nombre_usuario,
-                    password_hash,
-                    nombre_completo,
-                    email,
-                    id_rol,
-                    creado_por,
-                ),
-            )
-            user = await cur.fetchone()
-            if user:
-                user_dict = dict(user)
-                user_dict['rol'] = rol
-                await conn.commit()
-                return user_dict
-            
+        # 1. Obtener ID del rol
+        role_row = await conn.fetchrow(
+            "SELECT id FROM roles WHERE nombre_rol = $1", rol
+        )
+
+        if not role_row:
+            logger.error(f"Role not found: {rol}")
             return None
+
+        id_rol = role_row["id"]
+
+        # 2. Insertar usuario
+        user = await conn.fetchrow(
+            """
+            INSERT INTO usuarios (
+                nombre_usuario, 
+                password_hash, 
+                nombre_completo, 
+                email, 
+                id_rol, 
+                activo,
+                creado_por
+            )
+            VALUES ($1, $2, $3, $4, $5, true, $6)
+            RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
+            """,
+            nombre_usuario,
+            password_hash,
+            nombre_completo,
+            email,
+            id_rol,
+            creado_por,
+        )
+
+        if user:
+            user_dict = dict(user)
+            user_dict["rol"] = rol
+            return user_dict
+
+        return None
     except Exception as e:
         logger.error(f"Error creating user: {e}")
         return None
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def update_user(
@@ -380,86 +331,127 @@ async def update_user(
     """
     Actualiza un usuario existente.
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            updates = []
-            params = []
+        conn = await get_connection()
 
-            if nombre_completo is not None:
-                updates.append("nombre_completo = %s")
-                params.append(nombre_completo)
-            if email is not None:
-                updates.append("email = %s")
-                params.append(email)
-            if rol is not None:
-                # Obtener ID del rol
-                await cur.execute("SELECT id FROM roles WHERE nombre_rol = %s", (rol,))
-                role_row = await cur.fetchone()
-                if role_row:
-                    updates.append("id_rol = %s")
-                    params.append(role_row['id'])
-                else:
-                    logger.warning(f"Role not found during update: {rol}")
-            if activo is not None:
-                updates.append("activo = %s")
-                params.append(activo)
+        updates = []
+        params = []
+        param_num = 1
 
-            if not updates:
-                return await get_user_by_id(user_id)
+        if nombre_completo is not None:
+            updates.append(f"nombre_completo = ${param_num}")
+            params.append(nombre_completo)
+            param_num += 1
 
-            params.append(user_id)
-            query = f"""
-                UPDATE usuarios 
-                SET {', '.join(updates)} 
-                WHERE id = %s 
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
-            """
-            await cur.execute(query, params)
-            user = await cur.fetchone()
-            if user:
-                user_dict = dict(user)
-                # Si se actualizó el rol, usar el nuevo, si no, buscar el actual
-                if rol:
-                    user_dict['rol'] = rol
-                else:
-                    # Buscar rol actual
-                    await cur.execute(
-                        "SELECT rol FROM usuarios WHERE id = %s",
-                        (user_id,)
-                    )
-                    role_res = await cur.fetchone()
-                    user_dict['rol'] = role_res['rol'] if role_res else None
-                
-                await conn.commit()
-                return user_dict
-            
-            return None
+        if email is not None:
+            updates.append(f"email = ${param_num}")
+            params.append(email)
+            param_num += 1
+
+        if rol is not None:
+            # Obtener ID del rol
+            role_row = await conn.fetchrow(
+                "SELECT id FROM roles WHERE nombre_rol = $1", rol
+            )
+            if role_row:
+                updates.append(f"id_rol = ${param_num}")
+                params.append(role_row["id"])
+                param_num += 1
+            else:
+                logger.warning(f"Role not found during update: {rol}")
+
+        if activo is not None:
+            updates.append(f"activo = ${param_num}")
+            params.append(activo)
+            param_num += 1
+
+        if not updates:
+            return await get_user_by_id(user_id)
+
+        params.append(user_id)
+        query = f"""
+            UPDATE usuarios 
+            SET {', '.join(updates)} 
+            WHERE id = ${param_num} 
+            RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
+        """
+
+        user = await conn.fetchrow(query, *params)
+
+        if user:
+            user_dict = dict(user)
+            # Si se actualizó el rol, usar el nuevo, si no, buscar el actual
+            if rol:
+                user_dict["rol"] = rol
+            else:
+                # Buscar rol actual
+                role_res = await conn.fetchrow(
+                    "SELECT rol FROM usuarios WHERE id = $1", user_id
+                )
+                user_dict["rol"] = role_res["rol"] if role_res else None
+
+            return user_dict
+
+        return None
     except Exception as e:
         logger.error(f"Error updating user: {e}")
         return None
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
 
 
 async def delete_user(user_id: int) -> bool:
     """
     Elimina un usuario (soft delete - pone activo=false).
     """
+    from db import get_connection, release_connection
+
     conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor() as cur:
-            await cur.execute(
-                "UPDATE usuarios SET activo = false WHERE id = %s", (user_id,)
-            )
-            await conn.commit()
-            return cur.rowcount > 0
+        conn = await get_connection()
+
+        result = await conn.execute(
+            "UPDATE usuarios SET activo = false WHERE id = $1", user_id
+        )
+
+        # result es un string como "UPDATE 1"
+        return "1" in result
     except Exception as e:
         logger.error(f"Error deleting user: {e}")
         return False
     finally:
         if conn:
-            await _return_connection(conn)
+            await release_connection(conn)
+
+
+# ============================================================================
+# WRAPPERS TEMPORALES PARA COMPATIBILIDAD CON MÓDULOS LEGACY
+# ============================================================================
+# TODO: Eliminar estos wrappers cuando todos los módulos estén migrados a AsyncPG
+# Módulos pendientes: inventory/service.py, stats/router.py, citas/database.py
+
+
+async def _get_connection():
+    """
+    Wrapper temporal para compatibilidad con módulos legacy.
+
+    DEPRECATED: Usar directamente db.get_connection()
+    """
+    from db import get_connection
+
+    return await get_connection()
+
+
+async def _return_connection(conn):
+    """
+    Wrapper temporal para compatibilidad con módulos legacy.
+
+    DEPRECATED: Usar directamente db.release_connection()
+    """
+    from db import release_connection
+
+    await release_connection(conn)

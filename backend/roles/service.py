@@ -4,50 +4,21 @@ Servicio de Roles
 Lógica de negocio para gestión de roles.
 """
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from typing import List, Optional, Dict, Any
-import os
+from db import fetch_all, fetch_one, execute_returning
 
 
 class RolesService:
     """Servicio para operaciones CRUD de roles."""
 
-    def __init__(self):
-        self.conn = None
-
-    def _get_connection(self):
-        """Obtiene conexión a la base de datos."""
-        if self.conn is None or self.conn.closed:
-            self.conn = psycopg2.connect(
-                host=os.getenv("DB_HOST", "127.0.0.1"),
-                port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("DB_NAME", "podoskin_db"),
-                user=os.getenv("DB_USER", "podoskin_user"),
-                password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
-            )
-        return self.conn
-
-    def get_all(self) -> List[Dict[str, Any]]:
+    async def get_all(self) -> List[Dict[str, Any]]:
         """Obtiene todos los roles."""
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
+        query = """
             SELECT id, nombre_rol, descripcion, permisos, activo, fecha_creacion
             FROM roles
             ORDER BY id
         """
-        )
-        columns = [
-            "id",
-            "nombre_rol",
-            "descripcion",
-            "permisos",
-            "activo",
-            "fecha_creacion",
-        ]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+        return await fetch_all(query)
 
     def get_by_id(self, id: int) -> Optional[Dict[str, Any]]:
         """Obtiene un rol por ID."""

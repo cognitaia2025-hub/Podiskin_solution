@@ -320,6 +320,17 @@ async def create_user(
     try:
         conn = await _get_connection()
         async with conn.cursor(row_factory=dict_row) as cur:
+            # 1. Obtener ID del rol
+            await cur.execute("SELECT id FROM roles WHERE nombre_rol = %s", (rol,))
+            role_row = await cur.fetchone()
+            if not role_row:
+                # Si el rol no existe, intentar buscar 'Admin' como fallback o retornar error
+                logger.error(f"Role not found: {rol}")
+                return None
+            
+            id_rol = role_row['id']
+
+            # 2. Insertar usuario
             await cur.execute(
                 """
                 INSERT INTO usuarios (
@@ -327,26 +338,30 @@ async def create_user(
                     password_hash, 
                     nombre_completo, 
                     email, 
-                    rol, 
+                    id_rol, 
                     activo,
                     creado_por
                 )
                 VALUES (%s, %s, %s, %s, %s, true, %s)
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, rol
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
             """,
                 (
                     nombre_usuario,
                     password_hash,
                     nombre_completo,
                     email,
-                    rol,
+                    id_rol,
                     creado_por,
                 ),
             )
             user = await cur.fetchone()
-            await conn.commit()
-
-            return dict(user) if user else None
+            if user:
+                user_dict = dict(user)
+                user_dict['rol'] = rol
+                await conn.commit()
+                return user_dict
+            
+            return None
     except Exception as e:
         logger.error(f"Error creating user: {e}")
         return None
@@ -379,8 +394,14 @@ async def update_user(
                 updates.append("email = %s")
                 params.append(email)
             if rol is not None:
-                updates.append("rol = %s")
-                params.append(rol)
+                # Obtener ID del rol
+                await cur.execute("SELECT id FROM roles WHERE nombre_rol = %s", (rol,))
+                role_row = await cur.fetchone()
+                if role_row:
+                    updates.append("id_rol = %s")
+                    params.append(role_row['id'])
+                else:
+                    logger.warning(f"Role not found during update: {rol}")
             if activo is not None:
                 updates.append("activo = %s")
                 params.append(activo)
@@ -393,13 +414,28 @@ async def update_user(
                 UPDATE usuarios 
                 SET {', '.join(updates)} 
                 WHERE id = %s 
-                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro, rol
+                RETURNING id, nombre_usuario, nombre_completo, email, activo, fecha_registro
             """
             await cur.execute(query, params)
             user = await cur.fetchone()
-            await conn.commit()
-
-            return dict(user) if user else None
+            if user:
+                user_dict = dict(user)
+                # Si se actualizó el rol, usar el nuevo, si no, buscar el actual
+                if rol:
+                    user_dict['rol'] = rol
+                else:
+                    # Buscar rol actual
+                    await cur.execute(
+                        "SELECT rol FROM usuarios WHERE id = %s",
+                        (user_id,)
+                    )
+                    role_res = await cur.fetchone()
+                    user_dict['rol'] = role_res['rol'] if role_res else None
+                
+                await conn.commit()
+                return user_dict
+            
+            return None
     except Exception as e:
         logger.error(f"Error updating user: {e}")
         return None

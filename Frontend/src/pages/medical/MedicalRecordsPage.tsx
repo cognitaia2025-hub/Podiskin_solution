@@ -8,11 +8,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  FileText, 
-  Edit2, 
-  AlertCircle, 
-  User, 
+import {
+  FileText,
+  Edit2,
+  AlertCircle,
+  User,
   Activity,
   Heart,
   Stethoscope,
@@ -28,9 +28,9 @@ import PatientSelectionModal from '../../components/medical/PatientSelectionModa
 import type { MedicalRecord } from '../../services/medicalRecordsService';
 import { getMedicalRecord } from '../../services/medicalRecordsService';
 
-type TabId = 'identificacion' | 'alergias' | 'antecedentes' | 'estilo_vida' | 'ginecologia' | 
-             'motivo' | 'signos_vitales' | 'exploracion' | 'diagnosticos' | 'tratamiento' | 
-             'archivos' | 'historial';
+type TabId = 'identificacion' | 'alergias' | 'antecedentes' | 'estilo_vida' | 'ginecologia' |
+  'motivo' | 'signos_vitales' | 'exploracion' | 'diagnosticos' | 'tratamiento' |
+  'archivos' | 'historial';
 
 interface Tab {
   id: TabId;
@@ -141,7 +141,7 @@ const MedicalRecordsPage: React.FC = () => {
     <>
       <PatientSelectionModal
         isOpen={showPatientModal}
-        onClose={() => navigate('/')}
+        onClose={() => navigate(-1)}
         onSelectPatient={handleSelectPatient}
       />
 
@@ -190,11 +190,10 @@ const MedicalRecordsPage: React.FC = () => {
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-t-lg whitespace-nowrap transition-colors ${
-                      activeTab === tab.id
+                    className={`flex items-center gap-2 px-4 py-2 rounded-t-lg whitespace-nowrap transition-colors ${activeTab === tab.id
                         ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600 font-semibold'
                         : 'text-gray-600 hover:bg-gray-100'
-                    }`}
+                      }`}
                   >
                     {tab.icon}
                     {tab.label}
@@ -228,7 +227,7 @@ const MedicalRecordsPage: React.FC = () => {
                         <div className="bg-white rounded-lg p-3 text-sm">
                           <p className="text-gray-600 mb-1">Última actualización:</p>
                           <p className="font-semibold text-gray-900">
-                            {medicalRecord.fecha_ultima_actualizacion 
+                            {medicalRecord.fecha_ultima_actualizacion
                               ? new Date(medicalRecord.fecha_ultima_actualizacion).toLocaleDateString('es-MX')
                               : 'Sin actualizar'
                             }

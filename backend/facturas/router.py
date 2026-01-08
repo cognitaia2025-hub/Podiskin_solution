@@ -57,7 +57,7 @@ async def listar_facturas(
     Requiere permiso: cobros:read
     """
     # Verificar permiso
-    if not check_permission(current_user['id'], "cobros:read"):
+    if not check_permission(current_user.id, "cobros:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para ver facturas"
@@ -99,7 +99,7 @@ async def crear_factura(
     Requiere permiso: cobros:write
     """
     # Verificar permiso
-    if not check_permission(current_user['id'], "cobros:write"):
+    if not check_permission(current_user.id, "cobros:write"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para generar facturas"
@@ -110,7 +110,7 @@ async def crear_factura(
         
         factura_creada = facturas_service.create_placeholder(
             factura_data=factura,
-            usuario_id=current_user['id'],
+            usuario_id=current_user.id,
             ip_address=ip_address
         )
         
@@ -145,7 +145,7 @@ async def obtener_factura(
     Requiere permiso: cobros:read
     """
     # Verificar permiso
-    if not check_permission(current_user['id'], "cobros:read"):
+    if not check_permission(current_user.id, "cobros:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para ver facturas"
@@ -185,7 +185,7 @@ async def cancelar_factura(
     Requiere permiso: cobros:write
     """
     # Verificar permiso
-    if not check_permission(current_user['id'], "cobros:write"):
+    if not check_permission(current_user.id, "cobros:write"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para cancelar facturas"
@@ -197,7 +197,7 @@ async def cancelar_factura(
         factura_cancelada = facturas_service.cancel(
             factura_id=factura_id,
             motivo=cancelacion.motivo,
-            usuario_id=current_user['id'],
+            usuario_id=current_user.id,
             ip_address=ip_address
         )
         

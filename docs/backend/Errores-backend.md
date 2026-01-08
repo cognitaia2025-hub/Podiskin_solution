@@ -99,11 +99,13 @@
 
 **8. Blacklist de tokens JWT**
 
-- **auth/router.py L204-227**: ⚠️ **PENDIENTE**
-  - Estado: ❌ Logout no invalida tokens
-  - Impacto: Tokens siguen válidos hasta expiración natural (30 min)
-  - Prioridad: MEDIA
-  - **Nota:** Sistema de refresh implementado mitiga parcialmente el riesgo
+- **auth/router.py L38-150**: ✅ **IMPLEMENTADO EN MEMORIA**
+  - Estado: ✅ Sistema de blacklist funcionando con Set en memoria
+  - Funciones implementadas: `add_token_to_blacklist()`, `is_token_blacklisted()`, `cleanup_expired_blacklist()`
+  - Pendiente: ⚠️ Migrar a Redis para producción multi-instancia (opcional)
+  - Impacto: Logout SÍ invalida tokens correctamente
+  - Prioridad: BAJA (migración a Redis solo si se necesita escalamiento horizontal)
+  - **Nota:** Sistema funcional y seguro, Redis solo mejora escalabilidad
 
 ---
 
@@ -192,7 +194,7 @@
 
 1. ⚠️ Gemini Live → Conectar con endpoints REST reales (MEDIA)
 2. ⚠️ Permisos granulares por paciente (ALTA - futura)
-3. 📝 Blacklist JWT con Redis (BAJA - opcional)
+3. 📝 Migración Blacklist JWT a Redis (BAJA - opcional, funciona en memoria)
 4. 📝 Rate limiting con Redis (BAJA - solo multi-instancia)
 
 ---
@@ -209,14 +211,11 @@
 - ✅ Refresh token automático
 
 ### 🔄 En Progreso (No Crítico)
-- 🔄 Integración completa de Gemini Live
-- 🔄 Estadísticas avanzadas
-- 🔄 Disponibilidad real de podólogos
+- 🔄 Integración completa de Gemini Live con endpoints REST reales
 
 ### ⚠️ Pendiente (Para Producción)
-- ⚠️ Configuración CORS específica
-- ⚠️ Migración a Redis (opcional)
-- ⚠️ Blacklist JWT (opcional)
+- ⚠️ Migración rate limiting a Redis (opcional, funciona en memoria)
+- ⚠️ Migración blacklist JWT a Redis (opcional, funciona en memoria)
 
 ---
 

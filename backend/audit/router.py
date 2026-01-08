@@ -70,7 +70,7 @@ async def get_audit_logs(
     Requiere permiso: administracion:read
     """
     # Verificar permiso de administración
-    if not check_permission(current_user['id'], "administracion:read"):
+    if not check_permission(current_user.id, "administracion:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para acceder a los logs de auditoría"
@@ -109,7 +109,7 @@ async def get_user_activity(
     Requiere permiso: administracion:read
     """
     # Verificar permiso de administración
-    if not check_permission(current_user['id'], "administracion:read"):
+    if not check_permission(current_user.id, "administracion:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para acceder a la actividad de usuarios"
@@ -133,7 +133,7 @@ async def get_audit_modules(current_user: dict = Depends(get_current_user)):
     Obtiene lista de módulos disponibles para filtrar auditoría.
     """
     # Verificar permiso de administración
-    if not check_permission(current_user['id'], "administracion:read"):
+    if not check_permission(current_user.id, "administracion:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para acceder a esta información"
@@ -158,7 +158,7 @@ async def get_audit_actions(current_user: dict = Depends(get_current_user)):
     Obtiene lista de acciones disponibles para filtrar auditoría.
     """
     # Verificar permiso de administración
-    if not check_permission(current_user['id'], "administracion:read"):
+    if not check_permission(current_user.id, "administracion:read"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="No tienes permiso para acceder a esta información"

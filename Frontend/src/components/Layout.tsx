@@ -14,6 +14,7 @@ interface LayoutProps {
     onDoctorFilterChange?: (doctorId: string) => void;
     onTodayClick?: () => void;
     onSearch?: (query: string) => void;
+    doctors?: Array<{ id: string; name: string; color?: string }>;
 }
 
 /**
@@ -22,15 +23,16 @@ interface LayoutProps {
  * This component manages calendar-specific sidebar content and toolbar.
  * The global header and navigation are handled by AppLayout.
  */
-const Layout: React.FC<LayoutProps> = ({ 
-    children, 
-    onCreateClick, 
-    currentView = 'week', 
-    onViewChange, 
-    selectedDoctors = [], 
-    onDoctorFilterChange, 
-    onTodayClick, 
-    onSearch 
+const Layout: React.FC<LayoutProps> = ({
+    children,
+    onCreateClick,
+    currentView = 'week',
+    onViewChange,
+    selectedDoctors = [],
+    onDoctorFilterChange,
+    onTodayClick,
+    onSearch,
+    doctors = []
 }) => {
     const [searchValue, setSearchValue] = React.useState('');
     const { setSidebarContent } = useGlobalContext();
@@ -42,33 +44,23 @@ const Layout: React.FC<LayoutProps> = ({
                 <div className="mb-6">
                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-2">Mis Calendarios</h3>
                     <div className="space-y-2">
-                        <div className="flex items-center px-2 py-1 text-gray-700 hover:bg-gray-100 rounded-md cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={selectedDoctors.includes('1')}
-                                onChange={() => onDoctorFilterChange?.('1')}
-                                className="rounded text-primary-600 focus:ring-primary-500 mr-3 border-gray-300"
-                            />
-                            <span className="text-sm">Dr. Alejandro</span>
-                        </div>
-                        <div className="flex items-center px-2 py-1 text-gray-700 hover:bg-gray-100 rounded-md cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={selectedDoctors.includes('2')}
-                                onChange={() => onDoctorFilterChange?.('2')}
-                                className="rounded text-emerald-600 focus:ring-emerald-500 mr-3 border-gray-300"
-                            />
-                            <span className="text-sm">Dra. María</span>
-                        </div>
-                        <div className="flex items-center px-2 py-1 text-gray-700 hover:bg-gray-100 rounded-md cursor-pointer">
-                            <input
-                                type="checkbox"
-                                checked={selectedDoctors.includes('3')}
-                                onChange={() => onDoctorFilterChange?.('3')}
-                                className="rounded text-purple-600 focus:ring-purple-500 mr-3 border-gray-300"
-                            />
-                            <span className="text-sm">Dr. Carlos</span>
-                        </div>
+                        {doctors.length > 0 ? (
+                            doctors.map((doctor) => (
+                                <div key={doctor.id} className="flex items-center px-2 py-1 text-gray-700 hover:bg-gray-100 rounded-md cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedDoctors.includes(doctor.id)}
+                                        onChange={() => onDoctorFilterChange?.(doctor.id)}
+                                        className="rounded text-primary-600 focus:ring-primary-500 mr-3 border-gray-300"
+                                    />
+                                    <span className="text-sm">{doctor.name}</span>
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-2 py-3 text-sm text-gray-500 text-center">
+                                No hay podólogos disponibles
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -76,7 +68,7 @@ const Layout: React.FC<LayoutProps> = ({
 
         // Cleanup: remove content when leaving calendar
         return () => setSidebarContent(null);
-    }, [selectedDoctors, onDoctorFilterChange, setSidebarContent]);
+    }, [selectedDoctors, onDoctorFilterChange, setSidebarContent, doctors]);
 
     const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.key === 'Enter' && onSearch) {

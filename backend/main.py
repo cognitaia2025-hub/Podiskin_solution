@@ -13,6 +13,9 @@ import logging
 import os
 from dotenv import load_dotenv
 
+# Cargar variables de entorno AL PRINCIPIO
+load_dotenv()
+
 # Importar módulo de autenticación
 from auth import auth_router, init_db_pool, close_db_pool, get_current_user, User
 
@@ -58,8 +61,14 @@ from stats.router import router as stats_router
 # Importar expedientes médicos
 from medical_records.router import router as medical_records_router
 
-# Cargar variables de entorno
-load_dotenv()
+# Importar reportes
+from reportes.router import router as reportes_router
+
+# Importar analytics
+from analytics.router import router as analytics_router
+
+# Importar WebSocket para notificaciones
+from ws_notifications.notifications_ws import router as websocket_router
 
 # Configurar logging
 logging.basicConfig(
@@ -162,6 +171,11 @@ app.include_router(catalog_router, prefix="/api")
 app.include_router(horarios_router, prefix="/api")
 app.include_router(stats_router, prefix="/api")
 app.include_router(medical_records_router)
+app.include_router(reportes_router, prefix="/api")
+app.include_router(analytics_router, prefix="/api")
+
+# WebSocket para notificaciones en tiempo real (sin prefix /api)
+app.include_router(websocket_router)
 
 # Incluir routers de API
 app.include_router(live_sessions_router)

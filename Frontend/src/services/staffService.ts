@@ -29,6 +29,7 @@ export interface CreateStaffRequest {
   nombre_completo: string;
   email: string;
   id_rol: number;
+  cedula_profesional?: string;  // Opcional, solo para Podólogos
 }
 
 export interface UpdateStaffRequest {

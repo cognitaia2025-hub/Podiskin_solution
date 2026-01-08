@@ -24,7 +24,7 @@ const MedicalAttentionContent: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { formState, saveForm, submitForm } = useMedicalForm();
-  
+
   const [showPatientModal, setShowPatientModal] = useState(true);
   const [selectedPatientId, setSelectedPatientId] = useState<number | null>(null);
   const [medicalRecord, setMedicalRecord] = useState<MedicalRecord | null>(null);
@@ -140,7 +140,7 @@ const MedicalAttentionContent: React.FC = () => {
     return (
       <PatientSelectionModal
         isOpen={true}
-        onClose={() => navigate('/')}
+        onClose={() => navigate(-1)}
         onSelectPatient={handleSelectPatient}
       />
     );
@@ -188,7 +188,7 @@ const MedicalAttentionContent: React.FC = () => {
               Guiado
             </button>
           </div>
-          
+
           {/* Botones de acción */}
           <button
             onClick={handleSave}
@@ -276,7 +276,7 @@ const MedicalAttentionContent: React.FC = () => {
 const MedicalAttentionPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const patientId = searchParams.get('patientId') || 'p1';
-  
+
   return (
     <MedicalFormProvider
       patientId={patientId}

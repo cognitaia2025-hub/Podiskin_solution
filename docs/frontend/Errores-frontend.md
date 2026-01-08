@@ -17,16 +17,18 @@
 El proyecto usaba múltiples layouts que no estaban unificados.
 
 **Solución aplicada:**
-- ✅ Unificado todo en `AppLayout.tsx`
+- ✅ Unificado todo en `layouts/AppLayout.tsx` (ubicación correcta)
 - ✅ Eliminado `components/AppShell.tsx` (183 líneas)
 - ✅ Layout global consistente en todas las rutas
 
 **Archivos modificados:**
 - ✅ `src/components/Layout.tsx` - Simplificado
-- ✅ `src/App.tsx` - Rutas limpiadas
+- ✅ `src/App.tsx` - Rutas limpiadas (usa `layouts/AppLayout.tsx`)
 
 **Archivos eliminados:**
 - ✅ `src/components/AppShell.tsx`
+
+**Nota:** El archivo está en `src/layouts/AppLayout.tsx` no en `src/components/`
 
 ---
 

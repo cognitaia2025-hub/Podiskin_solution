@@ -56,6 +56,7 @@ class UserCreateRequest(BaseModel):
     nombre_completo: str = Field(..., min_length=3)
     email: str = Field(..., pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
     rol: str = Field(..., pattern=r'^(Admin|Podologo|Recepcionista|Asistente)$')
+    cedula_profesional: Optional[str] = Field(None, description="Requerido solo para Podólogos")
 
 
 class UserUpdateRequest(BaseModel):
@@ -114,6 +115,13 @@ async def create_user_endpoint(
     """Crea un nuevo usuario."""
     require_admin(current_user)
     
+    # Validar que si es Podologo, tenga cedula_profesional
+    if user_data.rol == "Podologo" and not user_data.cedula_profesional:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La cédula profesional es requerida para podólogos"
+        )
+    
     # Hash de la contraseña
     password_hash = get_password_hash(user_data.password)
     
@@ -132,6 +140,22 @@ async def create_user_endpoint(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Error al crear usuario. El nombre de usuario o email puede estar duplicado."
         )
+    
+    # Si es Podologo, crear registro en tabla podologos
+    if user_data.rol == "Podologo" and user_data.cedula_profesional:
+        from podologos.service import create_podologo_from_user
+        try:
+            await create_podologo_from_user(
+                id_usuario=new_user['id'],
+                cedula_profesional=user_data.cedula_profesional,
+                nombre_completo=user_data.nombre_completo,
+                email=user_data.email
+            )
+        except Exception as e:
+            # Log error pero no fallar la creación del usuario
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error creating podologo record: {e}")
     
     return new_user
 

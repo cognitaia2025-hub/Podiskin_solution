@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Search, Filter, Plus } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import type { EstadoPago, MetodoPago } from '../../types/billing';
 
 interface PaymentFiltersProps {
@@ -15,8 +15,6 @@ interface PaymentFiltersProps {
   onEstadoChange: (estado: string) => void;
   metodoFilter: string;
   onMetodoChange: (metodo: string) => void;
-  onNewPayment?: () => void;
-  canCreate?: boolean;
 }
 
 export const PaymentFilters: React.FC<PaymentFiltersProps> = ({
@@ -26,8 +24,6 @@ export const PaymentFilters: React.FC<PaymentFiltersProps> = ({
   onEstadoChange,
   metodoFilter,
   onMetodoChange,
-  onNewPayment,
-  canCreate = true,
 }) => {
   const estados: (EstadoPago | 'todos')[] = ['todos', 'Pagado', 'Parcial', 'Pendiente', 'Cancelado'];
   const metodos: (MetodoPago | 'todos')[] = [
@@ -99,18 +95,6 @@ export const PaymentFilters: React.FC<PaymentFiltersProps> = ({
             ))}
           </select>
         </div>
-
-        {/* Botón Nuevo Pago */}
-        {canCreate && onNewPayment && (
-          <button
-            onClick={onNewPayment}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5" />
-            <span className="hidden md:inline">Nuevo Pago</span>
-            <span className="md:hidden">Nuevo</span>
-          </button>
-        )}
       </div>
     </div>
   );

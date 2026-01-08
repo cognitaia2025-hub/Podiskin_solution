@@ -12,6 +12,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthContext';
 import { Navigate } from 'react-router-dom';
 import KPICard from '../components/dashboard/KPICard';
+import ReportGeneratorComponent from '../components/reports/ReportGeneratorComponent';
 import { API_BASE_URL } from '../services/api';
 
 type DateRange = '7d' | '30d' | '90d' | '12m';
@@ -378,6 +379,11 @@ const AdminPage: React.FC = () => {
                         )))}
                     </tbody>
                 </table>
+            </div>
+
+            {/* Report Generator Component */}
+            <div className="mt-6">
+                <ReportGeneratorComponent />
             </div>
 
             {/* Recent Expenses */}

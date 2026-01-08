@@ -11,6 +11,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import DynamicLogo from '../components/DynamicLogo';
 import GlobalNavigation from '../components/GlobalNavigation';
+import { NotificationsPanel } from '../components/notifications/NotificationsPanel';
 import { useGlobalContext } from '../context/GlobalContext';
 import { useAuth } from '../auth/AuthContext';
 import { LogOut } from 'lucide-react';
@@ -56,8 +57,11 @@ const AppLayout: React.FC = () => {
           <GlobalNavigation />
         </div>
 
-        {/* Top Right Actions - User Menu */}
+        {/* Top Right Actions - Notifications + User Menu */}
         <div className="flex items-center space-x-4 relative">
+          {/* Campana de notificaciones */}
+          <NotificationsPanel />
+          
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center space-x-2 hover:bg-gray-100 rounded-lg px-3 py-2 transition-colors"

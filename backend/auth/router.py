@@ -21,7 +21,12 @@ from .models import (
     ErrorResponse,
     RateLimitResponse,
 )
-from .jwt_handler import verify_password, create_access_token, get_token_expiration, verify_token
+from .jwt_handler import (
+    verify_password,
+    create_access_token,
+    get_token_expiration,
+    verify_token,
+)
 from .database import get_user_by_username, update_last_login
 from .middleware import get_current_user
 
@@ -86,11 +91,11 @@ def check_rate_limit(
 def add_token_to_blacklist(token: str, jti: Optional[str] = None):
     """
     Agrega un token a la blacklist de tokens revocados.
-    
+
     Args:
         token: Token JWT a revocar
         jti: JWT ID (opcional, si no se proporciona se extrae del token)
-    
+
     Note:
         En producción, migrar a Redis con patrón:
         SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
@@ -100,7 +105,7 @@ def add_token_to_blacklist(token: str, jti: Optional[str] = None):
         is_valid, payload = verify_token(token)
         if is_valid and payload:
             jti = payload.get("jti")
-    
+
     if jti:
         _token_blacklist.add(jti)
         logger.info(f"Token added to blacklist: {jti[:8]}...")
@@ -111,13 +116,13 @@ def add_token_to_blacklist(token: str, jti: Optional[str] = None):
 def is_token_blacklisted(token: str) -> bool:
     """
     Verifica si un token está en la blacklist.
-    
+
     Args:
         token: Token JWT a verificar
-        
+
     Returns:
         True si el token está revocado, False en caso contrario
-    
+
     Note:
         En producción, migrar a Redis con:
         EXISTS token_blacklist:{jti}
@@ -125,21 +130,21 @@ def is_token_blacklisted(token: str) -> bool:
     is_valid, payload = verify_token(token)
     if not is_valid or not payload:
         return False
-    
+
     jti = payload.get("jti")
     if not jti:
         return False
-    
+
     return jti in _token_blacklist
 
 
 def cleanup_expired_blacklist():
     """
     Limpia tokens expirados de la blacklist.
-    
+
     En memoria, esto es complejo porque necesitamos verificar cada token.
     Con Redis, los tokens se auto-eliminan con TTL.
-    
+
     Note:
         Con Redis no es necesaria esta función, ya que los tokens
         se eliminan automáticamente al expirar mediante TTL.
@@ -147,21 +152,24 @@ def cleanup_expired_blacklist():
     # Por ahora, solo registramos el tamaño de la blacklist
     # En producción con Redis, esta función no es necesaria
     if len(_token_blacklist) > 1000:
-        logger.warning(f"Token blacklist size: {len(_token_blacklist)} - consider Redis migration")
+        logger.warning(
+            f"Token blacklist size: {len(_token_blacklist)} - consider Redis migration"
+        )
 
 
 # ========================================================================
 # HELPER FUNCTION - CÁLCULO DE PERMISOS
 # ========================================================================
 
+
 def calculate_permissions_for_role(rol: str) -> dict:
     """
     Calcula los permisos para cada rol del sistema.
     Retorna un diccionario con permisos read/write por módulo.
-    
+
     Args:
         rol: Rol del usuario (Admin, Podologo, Recepcionista, Asistente)
-        
+
     Returns:
         Diccionario con permisos por módulo, o diccionario vacío si el rol no existe
     """
@@ -174,7 +182,7 @@ def calculate_permissions_for_role(rol: str) -> dict:
             "inventario": {"read": True, "write": True},
             "gastos": {"read": True, "write": True},
             "cortes_caja": {"read": True, "write": True},
-            "administracion": {"read": True, "write": True}
+            "administracion": {"read": True, "write": True},
         },
         "Podologo": {
             "calendario": {"read": True, "write": True},
@@ -184,7 +192,7 @@ def calculate_permissions_for_role(rol: str) -> dict:
             "inventario": {"read": True, "write": False},
             "gastos": {"read": False, "write": False},
             "cortes_caja": {"read": False, "write": False},
-            "administracion": {"read": False, "write": False}
+            "administracion": {"read": False, "write": False},
         },
         "Recepcionista": {
             "calendario": {"read": True, "write": True},
@@ -194,7 +202,7 @@ def calculate_permissions_for_role(rol: str) -> dict:
             "inventario": {"read": True, "write": False},
             "gastos": {"read": False, "write": False},
             "cortes_caja": {"read": True, "write": False},
-            "administracion": {"read": False, "write": False}
+            "administracion": {"read": False, "write": False},
         },
         "Asistente": {
             "calendario": {"read": True, "write": False},
@@ -204,16 +212,17 @@ def calculate_permissions_for_role(rol: str) -> dict:
             "inventario": {"read": True, "write": False},
             "gastos": {"read": False, "write": False},
             "cortes_caja": {"read": False, "write": False},
-            "administracion": {"read": False, "write": False}
-        }
+            "administracion": {"read": False, "write": False},
+        },
     }
-    
+
     return permissions_map.get(rol, {})
 
 
 # ========================================================================
 # ENDPOINTS DE AUTENTICACIÓN
 # ========================================================================
+
 
 @router.post(
     "/login",
@@ -312,16 +321,16 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     # 7. PREPARAR RESPUESTA CON PERMISOS
     # ========================================================================
     permissions = calculate_permissions_for_role(user_data["rol"])
-    
+
     user_response = UserResponse(
         id=user_data["id"],
         username=user_data["nombre_usuario"],
         email=user_data["email"],
         rol=user_data["rol"],
         nombre_completo=user_data["nombre_completo"],
-        permissions=permissions
+        permissions=permissions,
     )
-    
+
     response = LoginResponse(
         access_token=access_token,
         token_type="bearer",
@@ -349,22 +358,22 @@ async def logout(current_user: User = Depends(get_current_user)):
     Endpoint de logout que revoca el token del usuario actual.
 
     Agrega el token a la blacklist para que no pueda ser reutilizado.
-    
+
     En producción, migrar a Redis con:
     - SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
     - TTL igual al tiempo restante hasta expiración del token
-    
+
     Args:
         current_user: Usuario autenticado (dependency injection)
-        
+
     Returns:
         Mensaje de confirmación
     """
     logger.info(f"User {current_user.nombre_usuario} logged out")
-    
+
     return {
         "message": "Sesión cerrada exitosamente",
-        "detail": "El token ha sido revocado. Por favor, inicie sesión nuevamente para obtener un nuevo token."
+        "detail": "El token ha sido revocado. Por favor, inicie sesión nuevamente para obtener un nuevo token.",
     }
 
 
@@ -381,29 +390,117 @@ async def logout(current_user: User = Depends(get_current_user)):
 )
 async def logout_with_revocation(
     credentials: HTTPAuthorizationCredentials = Depends(HTTPBearer()),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
     """
     Endpoint de logout que revoca explícitamente el token.
-    
+
     Args:
         credentials: Credenciales Bearer con el token
         current_user: Usuario autenticado
-        
+
     Returns:
         Mensaje de confirmación
     """
     token = credentials.credentials
-    
+
     # Agregar token a la blacklist
     add_token_to_blacklist(token)
-    
+
     logger.info(f"User {current_user.nombre_usuario} logged out with token revocation")
-    
+
     return {
         "message": "Sesión cerrada exitosamente",
-        "detail": "Token revocado. Debe iniciar sesión nuevamente."
+        "detail": "Token revocado. Debe iniciar sesión nuevamente.",
     }
+
+
+@router.post(
+    "/refresh",
+    response_model=LoginResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        200: {"description": "Token renovado exitosamente", "model": LoginResponse},
+        401: {"description": "Token inválido o expirado", "model": ErrorResponse},
+        403: {"description": "Usuario inactivo", "model": ErrorResponse},
+    },
+    summary="Renovar token JWT",
+    description="""
+    Renueva un token JWT válido generando uno nuevo.
+    
+    **Uso:**
+    Cuando el token está próximo a expirar, el frontend puede llamar a este endpoint
+    para obtener un nuevo token sin que el usuario tenga que hacer login nuevamente.
+    
+    **Headers requeridos:**
+    - `Authorization: Bearer <token>`
+    
+    **Retorna:**
+    - Nuevo token JWT con tiempo de expiración renovado
+    - Información actualizada del usuario
+    
+    **Nota:**
+    El token anterior sigue siendo válido hasta su expiración original.
+    """,
+)
+async def refresh_token(
+    current_user: User = Depends(get_current_user),
+) -> LoginResponse:
+    """
+    Endpoint de refresh - Renueva el token JWT del usuario actual.
+
+    Args:
+        current_user: Usuario autenticado (dependency injection)
+
+    Returns:
+        LoginResponse con nuevo token y datos del usuario
+    """
+    # Verificar que el usuario siga activo
+    from .database import get_user_by_username
+
+    user_data = await get_user_by_username(current_user.nombre_usuario)
+
+    if not user_data:
+        logger.warning(
+            f"Refresh attempt for non-existent user: {current_user.nombre_usuario}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuario no encontrado"
+        )
+
+    if not user_data.get("activo", False):
+        logger.warning(
+            f"Refresh attempt for inactive user: {current_user.nombre_usuario}"
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Usuario inactivo"
+        )
+
+    # Generar nuevo token
+    token_data = {"sub": user_data["nombre_usuario"], "rol": user_data["rol"]}
+    access_token = create_access_token(token_data)
+
+    # Preparar respuesta con permisos
+    permissions = calculate_permissions_for_role(user_data["rol"])
+
+    user_response = UserResponse(
+        id=user_data["id"],
+        username=user_data["nombre_usuario"],
+        email=user_data["email"],
+        rol=user_data["rol"],
+        nombre_completo=user_data["nombre_completo"],
+        permissions=permissions,
+    )
+
+    response = LoginResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=get_token_expiration(),
+        user=user_response,
+    )
+
+    logger.info(f"Token refreshed for user: {current_user.nombre_usuario}")
+    return response
 
 
 @router.get(
@@ -434,21 +531,21 @@ async def verify_token_endpoint(current_user: User = Depends(get_current_user)):
     """Endpoint para verificar token JWT."""
     try:
         permissions = calculate_permissions_for_role(current_user.rol)
-        
+
         return UserResponse(
             id=current_user.id,
             username=current_user.nombre_usuario,
             email=current_user.email,
             rol=current_user.rol,
             nombre_completo=current_user.nombre_completo,
-            permissions=permissions
+            permissions=permissions,
         )
     except (AttributeError, TypeError) as e:
         logger.error(f"Error creating UserResponse: {e}")
         logger.error(f"current_user type: {type(current_user)}, data: {current_user}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error procesando datos del usuario"
+            detail="Error procesando datos del usuario",
         )
 
 
@@ -463,7 +560,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "authentication",
-        "timestamp": datetime.now().isoformat()
+        "timestamp": datetime.now().isoformat(),
     }
 
 
@@ -471,14 +568,17 @@ async def health_check():
 # MODELOS PYDANTIC PARA ENDPOINTS DE PERFIL
 # ========================================================================
 
+
 class ProfileUpdate(BaseModel):
     """Modelo para actualización de perfil."""
+
     nombre_completo: Optional[str] = Field(None, min_length=3, max_length=100)
     email: Optional[str] = Field(None, max_length=100)
 
 
 class PasswordChange(BaseModel):
     """Modelo para cambio de contraseña."""
+
     current_password: str
     new_password: str = Field(..., min_length=6)
 
@@ -492,14 +592,14 @@ class PasswordChange(BaseModel):
 async def get_my_profile(current_user: User = Depends(get_current_user)):
     """Obtiene el perfil del usuario actual."""
     permissions = calculate_permissions_for_role(current_user.rol)
-    
+
     return UserResponse(
         id=current_user.id,
         username=current_user.nombre_usuario,
         email=current_user.email,
         rol=current_user.rol,
         nombre_completo=current_user.nombre_completo,
-        permissions=permissions
+        permissions=permissions,
     )
 
 
@@ -510,12 +610,11 @@ async def get_my_profile(current_user: User = Depends(get_current_user)):
     description="Actualiza los datos del perfil del usuario actual",
 )
 async def update_my_profile(
-    profile_data: ProfileUpdate,
-    current_user: User = Depends(get_current_user)
+    profile_data: ProfileUpdate, current_user: User = Depends(get_current_user)
 ):
     """Actualiza el perfil del usuario actual."""
     from .database import update_user_profile
-    
+
     updates = {}
     if profile_data.nombre_completo:
         updates["nombre_completo"] = profile_data.nombre_completo
@@ -531,8 +630,10 @@ async def update_my_profile(
                 username=current_user.nombre_usuario,
                 email=updates.get("email", current_user.email),
                 rol=current_user.rol,
-                nombre_completo=updates.get("nombre_completo", current_user.nombre_completo),
-                permissions=permissions
+                nombre_completo=updates.get(
+                    "nombre_completo", current_user.nombre_completo
+                ),
+                permissions=permissions,
             )
 
     permissions = calculate_permissions_for_role(current_user.rol)
@@ -542,7 +643,7 @@ async def update_my_profile(
         email=current_user.email,
         rol=current_user.rol,
         nombre_completo=current_user.nombre_completo,
-        permissions=permissions
+        permissions=permissions,
     )
 
 
@@ -552,8 +653,7 @@ async def update_my_profile(
     description="Cambia la contraseña del usuario actual",
 )
 async def change_password(
-    password_data: PasswordChange,
-    current_user: User = Depends(get_current_user)
+    password_data: PasswordChange, current_user: User = Depends(get_current_user)
 ):
     """Cambia la contraseña del usuario actual."""
     from .database import get_user_by_username, update_user_password

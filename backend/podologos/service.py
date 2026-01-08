@@ -353,6 +353,7 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
             WITH podologo_slots AS (
                 SELECT 
                     p.id,
+                    p.cedula_profesional,
                     p.nombre_completo,
                     p.especialidad,
                     p.telefono,
@@ -372,13 +373,14 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
                     AND h.activo = true
                     AND (h.fecha_fin_vigencia IS NULL OR h.fecha_fin_vigencia >= $2)
                 LEFT JOIN citas c ON p.id = c.id_podologo
-                    AND DATE(c.fecha_hora) = $2
+                    AND DATE(c.fecha_hora_inicio) = $2
                     AND c.estado NOT IN ('cancelada', 'no_asistio')
                 WHERE p.activo = true
                 GROUP BY p.id, p.nombre_completo, p.especialidad, p.telefono, p.email, p.activo
             )
             SELECT 
                 id,
+                cedula_profesional,
                 nombre_completo,
                 especialidad,
                 telefono,
@@ -399,6 +401,7 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
         for row in rows:
             result.append({
                 'id': row['id'],
+                'cedula_profesional': row['cedula_profesional'],
                 'nombre_completo': row['nombre_completo'],
                 'especialidad': row['especialidad'],
                 'telefono': row['telefono'],
@@ -477,3 +480,68 @@ async def get_available_podologos(
         }
         for row in rows
     ]
+
+
+async def create_podologo_from_user(
+    id_usuario: int,
+    cedula_profesional: str,
+    nombre_completo: str,
+    email: str,
+    telefono: str = "",
+    especialidad: str = "Podología General"
+) -> dict:
+    """
+    Crear registro de podólogo al crear un usuario con rol Podologo
+    
+    Args:
+        id_usuario: ID del usuario creado
+        cedula_profesional: Cédula profesional del podólogo
+        nombre_completo: Nombre completo
+        email: Email
+        telefono: Teléfono (opcional)
+        especialidad: Especialidad (default: Podología General)
+    
+    Returns:
+        Datos del podólogo creado
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+            cursor.execute(
+                """
+                INSERT INTO podologos (
+                    cedula_profesional,
+                    nombre_completo,
+                    especialidad,
+                    telefono,
+                    email,
+                    activo,
+                    fecha_contratacion,
+                    id_usuario
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, cedula_profesional, nombre_completo, especialidad, 
+                          telefono, email, activo, fecha_contratacion, id_usuario
+                """,
+                (
+                    cedula_profesional,
+                    nombre_completo,
+                    especialidad,
+                    telefono,
+                    email,
+                    True,  # activo
+                    date.today(),  # fecha_contratacion
+                    id_usuario
+                )
+            )
+            result = cursor.fetchone()
+            conn.commit()
+            
+            logger.info(f"Created podologo record for user {id_usuario}")
+            return dict(result)
+    
+    except Exception as e:
+        conn.rollback()
+        logger.error(f"Error creating podologo: {e}")
+        raise
+    finally:
+        conn.close()

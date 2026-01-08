@@ -99,6 +99,64 @@
 - **ProgressIndicator.tsx**: Indicador de progreso del formulario.
 - **HelpTooltip.tsx**: Tooltips de ayuda para campos del formulario.
 
+==========================================
+
+## Nuevos Componentes - Fase 4 Reportes [06/01/26] [Hora actual]
+
+==========================================
+
+### 2.6 Componentes de Reportes (`components/reports/`)
+
+**Estado:** ✅ ACTIVO - Integrado en AdminPage
+
+**Componentes Principales:**
+
+- **ReportGeneratorComponent.tsx** (L1-344): Interfaz completa para generación de reportes ejecutivos
+  - **Selector de tipo:** 2 opciones
+    - Gastos Mensuales: Análisis financiero con categorías, comparación mes anterior, top 10, tendencia 6 meses
+    - Estado de Inventario: Productos críticos, exceso de stock, análisis de rotación
+  - **Selector de formato:** 4 opciones
+    - Excel (openpyxl): Formato profesional con estilos, colores, bordes
+    - PDF (reportlab + matplotlib): Documento ejecutivo con tablas y gráficos (pie charts, bar charts)
+    - CSV (utf-8-sig): Compatible con Excel, Google Sheets
+    - JSON: Datos estructurados para integración
+  - **Parámetros dinámicos:**
+    - Gastos: Selectores de mes (1-12) y año (2024-2027)
+    - Inventario: Checkboxes (incluir críticos, incluir obsoletos)
+  - **Características UI:**
+    - Loading spinner durante generación
+    - Mensajes de éxito/error con iconos
+    - Panel informativo con descripción del reporte
+    - Auto-descarga del archivo generado
+    - Nombres de archivo dinámicos (ej: `reporte_gastos_diciembre_2025.xlsx`)
+  - **Styling:** Tailwind CSS, tema azul corporativo, responsive grid layout, iconos SVG
+  - **Integración:** Importado en `AdminPage.tsx` entre tabla de cortes de caja y gastos recientes
+
+**Servicios:**
+
+- **reportesService.ts** (L1-195): Servicio de API para reportes
+  - Interfaces TypeScript completas:
+    - `ReporteGastosMensuales`: 6 propiedades (mes, año, total_gastos, gastos_por_categoria, comparacion_mes_anterior, top_10_gastos, tendencia_6_meses, productos_comprados)
+    - `ReporteInventario`: 8 propiedades (total_productos, valor_total, productos_criticos, productos_exceso, productos_sin_movimiento, resumen_categorias, alerta_reorden, fecha_reporte)
+    - `FormatoReporte`: 'json' | 'csv' | 'excel' | 'pdf'
+    - `TipoReporte`: 'gastos-mensuales' | 'inventario-estado'
+  - Funciones principales:
+    - `descargarReporteGastos(mes, anio, formato, token)`: Retorna ReporteGastosMensuales | Blob según formato
+    - `descargarReporteInventario(formato, incluirCriticos, incluirObsoletos, token)`: Retorna ReporteInventario | Blob
+    - `triggerFileDownload(blob, filename)`: Helper para auto-descarga con elemento <a> temporal
+    - `generarNombreArchivo(tipo, formato, params)`: Genera nombres descriptivos (ej: `reporte_gastos_enero_2026.pdf`)
+
+---
+
+### Resumen para Santiago (Impacto en Frontend)
+
+**Nuevo módulo de Reportes:**
+Ahora en la página de administración tienes una sección nueva donde puedes generar reportes profesionales con solo seleccionar el tipo de reporte que quieres (gastos o inventario), elegir el formato (Excel, PDF, CSV o JSON), y hacer clic en "Generar Reporte". 
+
+El archivo se descarga automáticamente a tu computadora. Si eliges PDF, obtienes un documento profesional con gráficos de colores (gráficos de pastel que muestran tus gastos por categoría, o gráficos de barras con la tendencia de los últimos 6 meses). Si eliges Excel, obtienes una tabla con colores y bordes lista para imprimir o enviar por email.
+
+Es como tener un contador que te prepara reportes ejecutivos en segundos, sin necesidad de saber usar fórmulas de Excel o hacer gráficos manualmente.
+
 #### 2.6 Componentes de Administración (`components/admin/`)
 
 - **StaffTable.tsx**: Tabla de gestión de personal.

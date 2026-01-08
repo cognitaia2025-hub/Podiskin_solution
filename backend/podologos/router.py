@@ -84,7 +84,7 @@ async def create_podologo(
     Requiere rol de Administrador o Manager
     """
     # Verificar permisos
-    if current_user.rol not in ["Administrador", "Manager"]:
+    if current_user.rol not in ["Admin", "Manager"]:
         raise HTTPException(
             status_code=403, 
             detail="No tienes permisos para crear podólogos"
@@ -110,7 +110,7 @@ async def update_podologo(
     Requiere rol de Administrador o Manager
     """
     # Verificar permisos
-    if current_user.rol not in ["Administrador", "Manager"]:
+    if current_user.rol not in ["Admin", "Manager"]:
         raise HTTPException(
             status_code=403, 
             detail="No tienes permisos para actualizar podólogos"
@@ -139,7 +139,7 @@ async def delete_podologo(
     Requiere rol de Administrador
     """
     # Verificar permisos
-    if current_user.rol != "Administrador":
+    if current_user.rol != "Admin":
         raise HTTPException(
             status_code=403, 
             detail="Solo administradores pueden eliminar podólogos"

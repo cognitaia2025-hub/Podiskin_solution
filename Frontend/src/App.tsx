@@ -36,22 +36,22 @@ const MedicalAttentionPage = React.lazy(() => import('./pages/medical/MedicalAtt
 const MedicalRecordsPage = React.lazy(() => import('./pages/medical/MedicalRecordsPage'));
 
 function AppContent() {
-  const { user } = useAuth(); // Get authenticated user
+  const { user, isLoading: authLoading } = useAuth(); // Get authenticated user and loading state
   const [triggerCreateAppointment, setTriggerCreateAppointment] = useState(false);
   const [currentView, setCurrentView] = useState<ViewType>('week');
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedDoctors, setSelectedDoctors] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Doctors state
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [doctorsError, setDoctorsError] = useState<string | null>(null);
 
-  // Load doctors from API ONLY when user is authenticated
+  // Load doctors from API ONLY when user is authenticated and auth check is complete
   useEffect(() => {
-    if (!user) {
-      // User not logged in - don't try to load doctors
+    // Don't load doctors if auth is still checking or user is not logged in
+    if (authLoading || !user) {
       setDoctors([]);
       setLoadingDoctors(false);
       return;
@@ -63,16 +63,16 @@ function AppContent() {
         setDoctorsError(null);
         const fetchedDoctors = await getDoctors();
         setDoctors(fetchedDoctors);
-        
+
         // Auto-select all doctors by default
         setSelectedDoctors(fetchedDoctors.map(d => d.id));
-        
+
         console.log('✅ Doctors loaded successfully:', fetchedDoctors.length);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Error al cargar podólogos';
         setDoctorsError(errorMessage);
         console.error('❌ Error loading doctors:', error);
-        
+
         // Fallback: empty array, app won't break
         setDoctors([]);
         setSelectedDoctors([]);
@@ -82,7 +82,7 @@ function AppContent() {
     }
 
     loadDoctors();
-  }, [user]); // Re-run when user changes (login/logout)
+  }, [user, authLoading]); // Re-run when user or auth loading state changes
 
   // Use real API through custom hook
   const {
@@ -298,125 +298,126 @@ function AppContent() {
       <Router>
         <Routes>
           {/* Public Routes */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/auth/recover-password" element={<RecoverPasswordPage />} />
-            <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/auth/recover-password" element={<RecoverPasswordPage />} />
+          <Route path="/auth/reset-password" element={<ResetPasswordPage />} />
 
-            {/* Protected Routes */}
-            <Route element={
-              <ProtectedRoute>
-                <AppLayout />
-              </ProtectedRoute>
-            }>
-              {/* Calendar Routes */}
-              <Route
-                path="/calendar"
-                element={
-                  <Layout
-                    onCreateClick={handleCreateClick}
-                    currentView={currentView}
-                    onViewChange={setCurrentView}
-                    selectedDoctors={selectedDoctors}
-                    onDoctorFilterChange={handleDoctorFilterChange}
-                    onSearch={handleSearch}
-                  >
-                    {renderCalendarView()}
-                  </Layout>
-                }
-              />
+          {/* Protected Routes */}
+          <Route element={
+            <ProtectedRoute>
+              <AppLayout />
+            </ProtectedRoute>
+          }>
+            {/* Calendar Routes */}
+            <Route
+              path="/calendar"
+              element={
+                <Layout
+                  onCreateClick={handleCreateClick}
+                  currentView={currentView}
+                  onViewChange={setCurrentView}
+                  selectedDoctors={selectedDoctors}
+                  onDoctorFilterChange={handleDoctorFilterChange}
+                  onSearch={handleSearch}
+                  doctors={doctors}
+                >
+                  {renderCalendarView()}
+                </Layout>
+              }
+            />
 
-              {/* Medical Attention Route */}
-              <Route
-                path="/medical"
-                element={<MedicalAttention />}
-              />
+            {/* Medical Attention Route */}
+            <Route
+              path="/medical"
+              element={<MedicalAttention />}
+            />
 
-              {/* New Medical Management Routes */}
-              <Route
-                path="/medical/attention"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <MedicalAttentionPage />
-                  </React.Suspense>
-                }
-              />
-              <Route
-                path="/medical/records"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <MedicalRecordsPage />
-                  </React.Suspense>
-                }
-              />
+            {/* New Medical Management Routes */}
+            <Route
+              path="/medical/attention"
+              element={
+                <React.Suspense fallback={<div>Loading...</div>}>
+                  <MedicalAttentionPage />
+                </React.Suspense>
+              }
+            />
+            <Route
+              path="/medical/records"
+              element={
+                <React.Suspense fallback={<div>Loading...</div>}>
+                  <MedicalRecordsPage />
+                </React.Suspense>
+              }
+            />
 
-              {/* Patients Route */}
-              <Route
-                path="/patients"
-                element={<PatientsPage />}
-              />
+            {/* Patients Route */}
+            <Route
+              path="/patients"
+              element={<PatientsPage />}
+            />
 
-              {/* Dashboard Route */}
-              <Route
-                path="/dashboard"
-                element={<DashboardPage />}
-              />
+            {/* Dashboard Route */}
+            <Route
+              path="/dashboard"
+              element={<DashboardPage />}
+            />
 
-              {/* Admin Menu Routes */}
-              <Route
-                path="/ajustes"
-                element={<AjustesPage />}
-              />
-              <Route
-                path="/admin"
-                element={<AdminPage />}
-              />
-              <Route
-                path="/admin/staff"
-                element={<StaffManagement />}
-              />
-              <Route
-                path="/admin/inventory"
-                element={<InventoryPage />}
-              />
-              <Route
-                path="/admin/audit"
-                element={<AuditPage />}
-              />
-              <Route
-                path="/admin/services"
-                element={
-                  <React.Suspense fallback={<div>Loading...</div>}>
-                    <ServicesPage />
-                  </React.Suspense>
-                }
-              />
-              <Route
-                path="/perfil"
-                element={<PerfilPage />}
-              />
+            {/* Admin Menu Routes */}
+            <Route
+              path="/ajustes"
+              element={<AjustesPage />}
+            />
+            <Route
+              path="/admin"
+              element={<AdminPage />}
+            />
+            <Route
+              path="/admin/staff"
+              element={<StaffManagement />}
+            />
+            <Route
+              path="/admin/inventory"
+              element={<InventoryPage />}
+            />
+            <Route
+              path="/admin/audit"
+              element={<AuditPage />}
+            />
+            <Route
+              path="/admin/services"
+              element={
+                <React.Suspense fallback={<div>Loading...</div>}>
+                  <ServicesPage />
+                </React.Suspense>
+              }
+            />
+            <Route
+              path="/perfil"
+              element={<PerfilPage />}
+            />
 
-              {/* Placeholder Routes */}
-              <Route
-                path="/records"
-                element={<RecordsPage />}
-              />
+            {/* Placeholder Routes */}
+            <Route
+              path="/records"
+              element={<RecordsPage />}
+            />
 
-              <Route
-                path="/billing"
-                element={<BillingPage />}
-              />
+            <Route
+              path="/billing"
+              element={<BillingPage />}
+            />
 
-              <Route
-                path="/finances"
-                element={<FinancesPage />}
-              />
+            <Route
+              path="/finances"
+              element={<FinancesPage />}
+            />
 
-              {/* Default Route */}
-              <Route path="/" element={<Navigate to="/calendar" replace />} />
-            </Route>
-          </Routes>
-        </Router>
-      </GlobalProvider>
+            {/* Default Route */}
+            <Route path="/" element={<Navigate to="/calendar" replace />} />
+          </Route>
+        </Routes>
+      </Router>
+    </GlobalProvider>
   );
 }
 

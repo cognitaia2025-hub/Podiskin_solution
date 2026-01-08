@@ -50,7 +50,8 @@ const BillingPage: React.FC = () => {
     if (canRead('cobros')) {
       loadData();
     }
-  }, [canRead]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Solo ejecutar una vez al montar el componente
 
   const loadData = async () => {
     setLoading(true);
@@ -60,7 +61,8 @@ const BillingPage: React.FC = () => {
         getPayments(),
         getPaymentStats(),
       ]);
-      setPayments(paymentsData);
+      // Extract the pagos array from the PaymentListResponse object
+      setPayments(paymentsData.pagos || []);
       setStats(statsData);
     } catch (err) {
       console.error('Error al cargar datos:', err);
@@ -73,8 +75,8 @@ const BillingPage: React.FC = () => {
   // Filtrar pagos
   const filteredPayments = payments.filter((payment) => {
     const matchesSearch =
-      payment.nombre_paciente?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      payment.id_pago.toString().includes(searchTerm);
+      payment.paciente_nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      payment.id.toString().includes(searchTerm);
 
     const matchesEstado =
       estadoFilter === 'todos' || payment.estado_pago === estadoFilter;
@@ -104,7 +106,7 @@ const BillingPage: React.FC = () => {
   const handleSubmitPayment = async (data: PaymentCreate | PaymentUpdate) => {
     try {
       if (selectedPayment) {
-        await updatePayment(selectedPayment.id_pago, data as PaymentUpdate);
+        await updatePayment(selectedPayment.id, data as PaymentUpdate);
       } else {
         await createPayment(data as PaymentCreate);
       }
@@ -184,16 +186,14 @@ const BillingPage: React.FC = () => {
           onEstadoChange={setEstadoFilter}
           metodoFilter={metodoFilter}
           onMetodoChange={setMetodoFilter}
-          onNewPayment={handleCreatePayment}
-          canCreate={canWrite('cobros')}
         />
 
         {/* Table */}
         <PaymentTable
           payments={filteredPayments}
-          loading={loading}
+          isLoading={loading}
+          onView={handleViewReceipt}
           onEdit={handleEditPayment}
-          onViewReceipt={handleViewReceipt}
           canEdit={canWrite('cobros')}
         />
 

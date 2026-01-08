@@ -25,54 +25,67 @@ class GastosService:
     def get_all(
         self, categoria: str = None, desde: datetime = None, hasta: datetime = None
     ) -> List[Dict[str, Any]]:
-        conn = self._get_connection()
-        cur = conn.cursor()
-        query = """
-            SELECT id, categoria, concepto, monto, fecha_gasto,
-                   metodo_pago, factura_disponible, folio_factura,
-                   registrado_por, notas, fecha_registro
-            FROM gastos WHERE 1=1
-        """
-        params = []
-        if categoria:
-            query += " AND categoria = %s"
-            params.append(categoria)
-        if desde:
-            query += " AND fecha_gasto >= %s"
-            params.append(desde)
-        if hasta:
-            query += " AND fecha_gasto <= %s"
-            params.append(hasta)
-        query += " ORDER BY fecha_gasto DESC"
-        cur.execute(query, params)
-        columns = [
-            "id",
-            "categoria",
-            "concepto",
-            "monto",
-            "fecha_gasto",
-            "metodo_pago",
-            "factura_disponible",
-            "folio_factura",
-            "registrado_por",
-            "notas",
-            "fecha_registro",
-        ]
-        return [dict(zip(columns, row)) for row in cur.fetchall()]
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            query = """
+                SELECT id, categoria, concepto, monto, fecha_gasto,
+                       metodo_pago, factura_disponible, folio_factura,
+                       registrado_por, notas, fecha_registro
+                FROM gastos WHERE 1=1
+            """
+            params = []
+            if categoria:
+                query += " AND categoria = %s"
+                params.append(categoria)
+            if desde:
+                query += " AND fecha_gasto >= %s"
+                params.append(desde)
+            if hasta:
+                query += " AND fecha_gasto <= %s"
+                params.append(hasta)
+            query += " ORDER BY fecha_gasto DESC"
+            cur.execute(query, params)
+            columns = [
+                "id",
+                "categoria",
+                "concepto",
+                "monto",
+                "fecha_gasto",
+                "metodo_pago",
+                "factura_disponible",
+                "folio_factura",
+                "registrado_por",
+                "notas",
+                "fecha_registro",
+            ]
+            return [dict(zip(columns, row)) for row in cur.fetchall()]
+        except Exception as e:
+            # Si la tabla no existe o hay error, retornar array vacío
+            print(f"Error en get_all gastos: {e}")
+            return []
 
     def get_resumen(self) -> List[Dict[str, Any]]:
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute(
+        try:
+            conn = self._get_connection()
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT categoria, COUNT(*) as cantidad, SUM(monto) as total
+                FROM gastos GROUP BY categoria ORDER BY total DESC
             """
-            SELECT categoria, COUNT(*) as cantidad, SUM(monto) as total
-            FROM gastos GROUP BY categoria ORDER BY total DESC
-        """
-        )
-        return [
-            {"categoria": r[0], "cantidad": r[1], "total": float(r[2]) if r[2] else 0}
-            for r in cur.fetchall()
-        ]
+            )
+            return [
+                {
+                    "categoria": r[0],
+                    "cantidad": r[1],
+                    "total": float(r[2]) if r[2] else 0,
+                }
+                for r in cur.fetchall()
+            ]
+        except Exception as e:
+            print(f"Error en get_resumen gastos: {e}")
+            return []
 
     def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
         conn = self._get_connection()

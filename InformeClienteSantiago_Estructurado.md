@@ -1,334 +1,418 @@
-# Información de Operación de la Clínica - Santiago Ornelas
-**Fecha de recopilación:** 06/01/2026
+# Análisis de Lógica y Funcionalidades - Clínica Podoskin
+**Fecha de análisis:** 06/01/2026  
+**Objetivo:** Identificar mejoras de lógica de programación necesarias basadas en operación real del cliente
 
 ---
 
 ## 1. CATÁLOGO DE SERVICIOS Y PRECIOS 💰
 
-### Servicios Principales
+### Servicios a Cargar (Cortesía de Implementación)
 
-| Servicio | Precio | Notas |
-|----------|--------|-------|
-| Consulta de valoración | $500 | Evaluación inicial |
-| Espiculotomía (uña enterrada) | $500 | SIN anestesia |
-| Matricectomía (uña enterrada) | $1,500 | CON anestesia |
-| Verrugas plantares | $1,500 | CON anestesia |
-| Pedicure clínico | $500 | - |
-| Pedicure químico | $800 | - |
-| Láser ultravioleta B (pie de atleta) | $800 | Por sesión |
-| Láser antimicótico (onicomicosis) | $800 | Por sesión, cantidad variable |
+| Servicio | Precio | Requiere Anestesia | Sesiones | Categoría |
+|----------|--------|-------------------|----------|-----------|
+| Consulta de valoración | $500 | No | 1 | Consulta |
+| Espiculotomía (uña enterrada) | $500 | No | 1 | Procedimiento |
+| Matricectomía (uña enterrada) | $1,500 | Sí | 1 | Cirugía menor |
+| Verrugas plantares | $1,500 | Sí | 1 | Cirugía menor |
+| Pedicure clínico | $500 | No | 1 | Estético |
+| Pedicure químico | $800 | No | 1 | Estético |
+| Láser UV-B (pie de atleta) | $800 | No | Variable | Láser |
+| Láser antimicótico (onicomicosis) | $800 | No | Variable | Láser |
 
-### Procedimiento de Láser Antimicótico (Detalle)
-- Incluye: Recorte, limado de uñas, limpieza de canales laterales
-- Aplicación de 3 tipos distintos de láseres
-- Opción de estudio de laboratorio para identificar patógeno, resistencia y sensibilidad
+**📌 Mejoras de Lógica Necesarias en la App:**
 
-**📌 Uso en la App:**
-- ✅ **Tabla `servicios`** ya tiene estructura para almacenar estos servicios
-- ✅ Precio base, nombre, descripción
-- ⚠️ Falta: Campo para indicar si requiere anestesia, número de sesiones estimadas
+❌ **Falta actualmente:**
+- Campo `requiere_anestesia` (BOOLEAN) en tabla `servicios`
+- Campo `numero_sesiones_estimadas` (INTEGER o VARCHAR "variable")
+- Campo `categoria_servicio` (ENUM: Consulta, Procedimiento, Cirugía, Estético, Láser)
+- Lógica para servicios multi-sesión (trackear cuántas sesiones lleva el paciente)
 
----
-
-## 2. ESTRUCTURA DE GASTOS 📊
-
-### 2.1 Gastos Fijos Mensuales (Servicios)
-**Categoría actual:** "Renta" (+ $11,000 mensuales)
-
-Incluye:
-- 💡 Luz
-- 💧 Agua  
-- 🌐 Internet
-- 📋 Contabilidad
-- 🏢 Renta del local
-
-**Método actual de Santiago:** 
-> "No lo desgloso, cuando me cae el gasto lo meto en ese apartado si sé que es de servicios necesarios"
-
-**📌 Uso en la App:**
-- ✅ **Tabla `gastos`** permite registrar estos gastos
-- ⚠️ **Recomendación:** Crear categorías específicas:
-  - `SERVICIOS_BASICOS` (luz, agua, internet)
-  - `SERVICIOS_PROFESIONALES` (contabilidad)
-  - `RENTA_LOCAL`
-- 💡 Dashboard puede mostrar gráfica de gastos fijos vs variables
+✅ **Lo que haremos:**
+- Agregar estos campos a la tabla `servicios` (migración SQL)
+- Cargar estos 8 servicios como cortesía
+- Cliente solo tendrá que actualizar precios si cambian
 
 ---
 
-### 2.2 Gastos Variables (Consumibles)
-**Categoría actual:** "Inversión"
+## 2. ESTRUCTURA DE GASTOS - CATEGORIZACIÓN 📊
 
-Santiago clasifica en 3 subcategorías:
+### 2.1 Categorías de Gastos Identificadas
 
-#### A) Materiales Médicos
-- Gasas, guantes, jeringas, bisturíes, fresas, etc.
+Cliente actualmente agrupa gastos en 2 categorías genéricas:
+1. **"Renta"** → Incluye: luz, agua, internet, contabilidad, renta (~$11,000/mes)
+2. **"Inversión"** → Incluye: todo lo demás (materiales, limpieza, cafetería)
 
-#### B) Limpieza y Desinfección
-- Alcohol, toallas desinfectantes, Lysol, aromatizantes
+**📌 Mejoras de Lógica Necesarias:**
 
-#### C) Cafetería y Atención al Cliente
-- Café, azúcar, crema, agua embotellada
-- Vasos, platos, cucharas, servilletas
-- Galletas, sodas
+❌ **Problema actual:**
+- No hay categorización clara en tabla `gastos`
+- Dashboard no puede separar gastos fijos vs variables
+- Imposible hacer análisis de rentabilidad por categoría
 
-**Justificación de Santiago:**
-> "Para que la gente pase una espera tranquila mientras les toca atención o vienen acompañados con familia"
+✅ **Solución propuesta:**
 
-**📌 Uso en la App:**
-- ✅ **Tabla `gastos`** puede almacenar estos gastos con categorías
-- ⚠️ **Mejora necesaria:** Vincular gastos con movimientos de inventario
-- 💡 **Alertas:** Cuando compra materiales médicos → actualizar inventario automáticamente
-- 💡 **Reportes:** Separar en dashboard "Gastos Médicos" vs "Gastos Operativos" vs "Gastos Cafetería"
-
----
-
-## 3. INVENTARIO ACTUAL (Snapshot 06/01/2026) 📦
-
-### 3.1 Instrumental Médico Reutilizable
-
-| Artículo | Stock Actual | Capacidad Máxima |
-|----------|--------------|------------------|
-| Cizallas tijera podológica | 20 | 40 |
-| Guías de corte | 16 | 10 ⚠️ |
-| Espátula | 5 | 4 ⚠️ |
-| Tijera lister | 2 | 2 |
-| Pinza mosco | 2 | 2 |
-| Pinza adson | 1 | 1 |
-| Tijera retiro de puntos | 1 | 1 |
-| Punzón | 1 | 1 |
-| Cucharilla de corte | 1 | 1 |
-| Mango bisturí #3 | 2 | 4 |
-| Mango bisturí #4 | 2 | 4 |
-| Drill | 2 | 2 |
-| Extintor | 2 | 2 |
-
-**⚠️ NOTA:** Guías de corte y Espátula superan la capacidad máxima (posible error o reconteo)
-
----
-
-### 3.2 Consumibles Médicos
-
-| Artículo | Stock Actual | Alerta de Reorden | Estado |
-|----------|--------------|-------------------|--------|
-| Hojas bisturí #10 | 31 | 100 | 🟢 OK |
-| Pododisco | 7 | 6 | 🟢 OK |
-| Limas de pododisco | 420 | 100 | 🟢 Stock alto |
-| Adaptador cauterio | 4 | 4 | 🟡 Medio |
-| Agujas cauterio | 55 | 100 | 🟢 OK |
-| Fresa fina | 16 | 20 | 🟢 OK |
-| Fresa cónica | 18 | 20 | 🟢 OK |
-| Fresa avellanada | 24 | 20 | 🟢 Stock alto |
-| Fresa cilíndrica Roma | 23 | 20 | 🟢 Stock alto |
-| Fresa cilíndrica recta | 24 | 20 | 🟢 Stock alto |
-| Aplicador de madera | 260 | 500 | 🟢 OK |
-| **Hisopos de madera** | **0** | **1000** | 🔴 **CRÍTICO** |
-| Venda elástica autoadherente | 10 | 10 | 🟡 Mínimo |
-| Bolsas esterilización | 2 cajas | 5 cajas | 🟡 Bajo |
-| Campos clínicos | 350 | 500 | 🟢 OK |
-| Rollos de film | 4 | 10 | 🟡 Medio |
-| Cubrebocas | 14 cajas | 10 cajas | 🟢 Stock alto |
-| Gasas estériles | 210 | 100 | 🟢 Stock alto |
-| Jeringas insulina | 96 | 100 | 🟢 OK |
-| Jeringas 3 ML | 190 | 100 | 🟢 Stock alto |
-| Torundas | 2 bolsas | 3 bolsas | 🟡 Medio |
-| Alcohol | 2 botellas | 3 botellas | 🟡 Medio |
-| Guantes talla L | 2 cajas | 4 cajas | 🟡 Bajo |
-| Guantes talla M | 3 cajas | 4 cajas | 🟢 OK |
-| Plumas para drill | 4 | 6 | 🟢 OK |
-
----
-
-### 3.3 Medicamentos y Químicos
-
-| Artículo | Stock Actual | Capacidad | Estado |
-|----------|--------------|-----------|--------|
-| Lidocaína 2% | 1 | 4 | 🟡 Bajo |
-| Benzocaína 20% | 2 | 6 | 🟡 Medio |
-| Hidróxido de potasio | 2 lt | 4 lt | 🟡 Medio |
-| Hidróxido de potasio gel | 1 lt | 2 lt | 🟡 Medio |
-| Glicerina | 1 lt | 2 lt | 🟡 Medio |
-
----
-
-### 3.4 Limpieza y Desinfección
-
-| Artículo | Stock Actual | Capacidad | Estado |
-|----------|--------------|-----------|--------|
-| Toallas desinfectantes | 2 rollos | 10 rollos | 🔴 Crítico |
-| Toallas secantes | 1 | 10 | 🔴 Crítico |
-| Sanitas | 12 | 150 | 🔴 Crítico |
-| Lysol spray | 1 | 10 | 🔴 Crítico |
-| Aromatizante spray | 2 | 10 | 🟡 Bajo |
-| **Aromatizantes air wick** | **0** | **6** | 🔴 **CRÍTICO** |
-| Qrit | 1 | 3 | 🟡 Bajo |
-| WD-40 | 1 | 2 | 🟡 Bajo |
-| Carbón activado | 2 | 10 | 🟡 Bajo |
-
----
-
-### 3.5 Material de Oficina
-
-| Artículo | Stock Actual | Capacidad | Estado |
-|----------|--------------|-----------|--------|
-| Folders | 61 | 100 | 🟢 OK |
-| Redma | 1 | 2 | 🟡 Bajo |
-
----
-
-### 3.6 Cafetería y Atención al Cliente
-
-| Artículo | Stock Actual | Capacidad | Estado |
-|----------|--------------|-----------|--------|
-| Botellas de agua | 35 | 40 | 🟢 OK |
-| Servilletas | 1 bolsa | 3 bolsas | 🟡 Bajo |
-| Platos | 1 bolsa | 3 bolsas | 🟡 Bajo |
-| Cucharas | 3 bolsas | 3 bolsas | 🟢 OK |
-| **Vasos** | **0** | **3 bolsas** | 🔴 **CRÍTICO** |
-| Café | 1.5 | 2 | 🟢 OK |
-| Azúcar | 0.5 | 2 | 🟡 Bajo |
-| Crema para café | 0.5 | 2 | 🟡 Bajo |
-
----
-
-### 3.7 Equipo Láser (Alta Especialización)
-
-| Equipo | Stock Actual | Capacidad | Estado |
-|--------|--------------|-----------|--------|
-| Contenedores RPB y rígidos | 3 | 4 | 🟢 OK |
-| Lentes protectores láser | 5 | 6 | 🟢 OK |
-| Láser ultravioleta | 3 | 3 | 🟢 OK |
-| Láser rojo | 2 | 3 | 🟢 OK |
-| Láser foto disparo | 3 | 3 | 🟢 OK |
-| Láser infrarrojo | 3 | 3 | 🟢 OK |
-
----
-
-## 4. ANÁLISIS PARA INTEGRACIÓN EN LA APP 🚀
-
-### 4.1 Módulos Que Ya Están Listos ✅
-- ✅ **Catálogo de servicios** → Tabla `servicios` (agregar precios actuales)
-- ✅ **Inventario** → Tabla `inventario` (cargar inventario real de Santiago)
-- ✅ **Gastos** → Tabla `gastos` (crear categorías sugeridas)
-
-### 4.2 Mejoras Necesarias ⚠️
-
-**A) Módulo de Inventario:**
-- Agregar categorías claras:
-  - `INSTRUMENTAL_MEDICO`
-  - `CONSUMIBLES_MEDICOS`
-  - `MEDICAMENTOS`
-  - `LIMPIEZA`
-  - `CAFETERIA`
-  - `EQUIPO_LASER`
-- Alertas automáticas cuando stock < 30% de capacidad
-- Lista de compras automática basada en consumo histórico
-
-**B) Módulo de Gastos:**
-- Separar en categorías visuales en dashboard:
-  - 📊 Gastos Fijos (renta, servicios)
-  - 🏥 Gastos Médicos (material clínico)
-  - 🧹 Gastos Operativos (limpieza, cafetería)
-- Vincular compras de consumibles → actualización automática de inventario
-- Gráfica de tendencia: "¿Estoy gastando más este mes?"
-
-**C) Dashboard Ejecutivo:**
-- KPI nuevo: "Costo promedio por paciente atendido"
-- Comparativa: Ingresos por servicio vs Costo de materiales usados
-- Proyección: "A este ritmo de consumo, te quedarás sin [producto] en X días"
-
-### 4.3 Funcionalidades IA Recomendadas 🤖
-
-**Recordatorios Inteligentes:**
-- "Santiago, llevas 3 semanas sin registrar gastos de luz"
-- "El inventario de hisopos está en 0, ¿ya los compraste?"
-- "Históricamente compras Lysol cada 15 días, ¿necesitas agregarlo a la lista?"
-
-**Análisis de Rentabilidad:**
-- "El tratamiento de láser antimicótico cuesta $800 pero gastas $150 en materiales por sesión. Margen: 81%"
-- "La cafetería te cuesta $2,500/mes. ¿Quieres seguir ofreciéndola o reducir gastos?"
-
-**Optimización de Compras:**
-- "Compraste 14 cajas de cubrebocas pero solo usas 2 al mes. Inventario para 7 meses"
-- "Te quedas sin vasos cada 3 semanas. Recomiendo comprar más en la próxima orden"
-
----
-
-## 5. ITEMS CRÍTICOS DETECTADOS 🚨
-
-### Productos Agotados (Stock = 0)
-1. 🔴 **Hisopos de madera** - Necesario para aplicación de medicamentos
-2. 🔴 **Vasos desechables** - Cafetería sin servicio de bebidas
-3. 🔴 **Aromatizantes air wick** - Ambiente de sala de espera
-
-### Productos en Estado Crítico (< 20% capacidad)
-1. 🔴 **Toallas desinfectantes** - 20% (2 de 10)
-2. 🔴 **Toallas secantes** - 10% (1 de 10)
-3. 🔴 **Sanitas** - 8% (12 de 150)
-4. 🔴 **Lysol spray** - 10% (1 de 10)
-
-### Recomendación de Compra Urgente
+Agregar campo `categoria_gasto` (ENUM) en tabla `gastos`:
+```sql
+CREATE TYPE categoria_gasto_enum AS ENUM (
+    'SERVICIOS_BASICOS',      -- Luz, agua, internet
+    'SERVICIOS_PROFESIONALES', -- Contabilidad, asesoría
+    'RENTA_LOCAL',             -- Renta del consultorio
+    'MATERIAL_MEDICO',         -- Gasas, guantes, jeringas
+    'MEDICAMENTOS',            -- Lidocaína, benzocaína
+    'LIMPIEZA',                -- Lysol, toallas, sanitas
+    'CAFETERIA',               -- Café, vasos, servilletas
+    'MANTENIMIENTO',           -- Reparaciones, WD-40
+    'OTROS'
+);
 ```
-LISTA DE COMPRAS PRIORITARIA:
-[ ] Hisopos de madera (1000 unidades)
-[ ] Vasos desechables (3 bolsas)
-[ ] Aromatizantes air wick (6 unidades)
-[ ] Toallas desinfectantes (10 rollos)
-[ ] Toallas secantes (10 unidades)
-[ ] Sanitas (150 unidades)
-[ ] Lysol spray (10 unidades)
-[ ] Guantes talla L (2 cajas más)
-[ ] Lidocaína 2% (3 más)
+
+**Beneficio:**
+- Dashboard puede mostrar gráficas separadas por categoría
+- Alertas: "Gastos de cafetería aumentaron 30% este mes"
+- Análisis: "Material médico representa 35% de gastos variables"
+
+---
+
+## 3. INVENTARIO - UNIDADES DE MEDIDA VARIABLES 📦
+
+### 3.1 Problema Detectado: Unidades de Medida Inconsistentes
+
+**Ejemplos reales del cliente:**
+- Alcohol → **2 botellas** (pero podría ser litros)
+- Hidróxido de potasio → **2 lt**
+- Gasas estériles → **210 piezas**
+- Cubrebocas → **14 cajas**
+- Café → **1.5 kg** (asumiendo)
+- Guantes → **2 cajas** (pero cada caja tiene X pares)
+
+**📌 Estructura Actual de Tabla `inventario`:**
+
+```sql
+-- Revisar estructura actual
+SELECT column_name, data_type 
+FROM information_schema.columns 
+WHERE table_name = 'inventario';
+```
+
+❌ **Problema:**
+- Probablemente solo tiene campo `cantidad` (número)
+- No hay campo para unidad de medida
+- No diferencia entre "2 litros" vs "2 cajas"
+
+✅ **Solución propuesta:**
+
+**Agregar campos:**
+```sql
+ALTER TABLE inventario 
+ADD COLUMN unidad_medida VARCHAR(20) CHECK (unidad_medida IN (
+    'PZA',      -- Piezas (gasas, jeringas, hojas bisturí)
+    'CAJA',     -- Cajas (guantes, cubrebocas)
+    'LITRO',    -- Litros (alcohol, químicos)
+    'KG',       -- Kilogramos (café, azúcar)
+    'BOTELLA',  -- Botellas (cuando no se mide en litros)
+    'ROLLO',    -- Rollos (film, toallas)
+    'BOLSA',    -- Bolsas (servilletas, vasos)
+    'UNIDAD'    -- Unidad (drill, extintor)
+)),
+ADD COLUMN cantidad_por_unidad INTEGER DEFAULT 1;
+-- Para cuando una caja tiene X piezas
+```
+
+**Ejemplo de registro:**
+```sql
+INSERT INTO inventario (nombre, cantidad, unidad_medida, cantidad_por_unidad)
+VALUES 
+    ('Alcohol', 3, 'LITRO', 1),
+    ('Guantes talla M', 3, 'CAJA', 100),  -- 3 cajas de 100 pares
+    ('Gasas estériles', 210, 'PZA', 1),
+    ('Café', 1.5, 'KG', 1);
+```
+
+**Beneficio:**
+- Cliente puede registrar: "Alcohol - 3 - Litros"
+- App calcula: "Si tienes 3 cajas de guantes con 100 pares c/u = 300 pares disponibles"
+- Alertas más precisas: "Te quedan 0.5 litros de alcohol (17% del stock)"
+
+---
+
+## 4. PRODUCTOS/MATERIALES - CATEGORIZACIÓN 🏷️
+
+### 4.1 Categorías Identificadas de Inventario
+
+Del análisis de operación real, se identifican 7 categorías:
+
+| Categoría | Ejemplo de Productos | Unidad Típica |
+|-----------|---------------------|---------------|
+| INSTRUMENTAL_MEDICO | Tijeras, pinzas, mangos bisturí | UNIDAD |
+| CONSUMIBLES_MEDICOS | Gasas, jeringas, hojas bisturí | PZA |
+| MEDICAMENTOS | Lidocaína, benzocaína | LITRO/PZA |
+| LIMPIEZA | Lysol, toallas, sanitas | ROLLO/BOTELLA |
+| CAFETERIA | Café, vasos, servilletas | KG/BOLSA |
+| EQUIPO_LASER | Láseres, lentes protectores | UNIDAD |
+| OFICINA | Folders, plumas | PZA |
+
+**📌 Mejora de Lógica:**
+
+✅ **Agregar campo `categoria_producto` en tabla `inventario`:**
+```sql
+CREATE TYPE categoria_producto_enum AS ENUM (
+    'INSTRUMENTAL_MEDICO',
+    'CONSUMIBLES_MEDICOS',
+    'MEDICAMENTOS',
+    'LIMPIEZA',
+    'CAFETERIA',
+    'EQUIPO_LASER',
+    'OFICINA'
+);
+
+ALTER TABLE inventario ADD COLUMN categoria categoria_producto_enum;
+```
+
+**Beneficio:**
+- Reportes separados: "Gasto mensual en material médico vs cafetería"
+- Filtros en frontend: "Mostrar solo productos de limpieza"
+- Dashboard: Gráfica de distribución de inventario por categoría
+
+---
+
+## 5. VINCULACIÓN GASTOS ↔ INVENTARIO 🔗
+
+### 5.1 Problema: Gastos e Inventario Desconectados
+
+**Situación actual del cliente:**
+> "Cuando compro materiales lo pongo en gastos como inversión"
+
+**📌 Problema de lógica:**
+- Cliente registra gasto: "$2,500 en materiales médicos"
+- **NO actualiza inventario** manualmente
+- Inventario se desactualiza
+- No hay trazabilidad de compra → entrada de stock
+
+❌ **Flujo actual (desconectado):**
+```
+Compra materiales → Registra gasto → [FIN]
+                     (inventario NO se actualiza)
+```
+
+✅ **Flujo propuesto (conectado):**
+```
+Compra materiales → Registra gasto → Opción: "¿Actualizar inventario?"
+                                     → Agregar productos + cantidades
+                                     → Inventario se actualiza automático
+                                     → Gasto queda vinculado a productos
+```
+
+**Implementación:**
+
+1. **Tabla de vinculación:**
+```sql
+CREATE TABLE gastos_inventario (
+    id SERIAL PRIMARY KEY,
+    gasto_id INTEGER REFERENCES gastos(id),
+    producto_id INTEGER REFERENCES inventario(id),
+    cantidad_comprada DECIMAL(10,2),
+    precio_unitario DECIMAL(10,2),
+    fecha_entrada TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+2. **Endpoint backend:**
+```python
+POST /api/gastos/con-inventario
+{
+    "concepto": "Compra materiales médicos",
+    "monto": 2500,
+    "categoria": "MATERIAL_MEDICO",
+    "productos": [
+        {"id": 15, "cantidad": 100, "precio_unitario": 5},   # Gasas
+        {"id": 23, "cantidad": 200, "precio_unitario": 10}   # Jeringas
+    ]
+}
+```
+
+3. **Lógica automática:**
+- Crea registro en `gastos`
+- Actualiza `inventario.cantidad` sumando lo comprado
+- Crea registros en `gastos_inventario` para trazabilidad
+- Dashboard muestra: "Este gasto agregó 100 gasas y 200 jeringas al inventario"
+
+**Beneficio:**
+- Inventario siempre actualizado
+- Histórico de precios de compra
+- Análisis: "¿Está subiendo el precio de las gasas?"
+
+---
+
+## 6. DASHBOARD - MÉTRICAS FINANCIERAS 📊
+
+### 6.1 KPIs Necesarios Según Operación Real
+
+**Métricas que el cliente necesita ver:**
+
+| KPI | Descripción | Fuente de Datos |
+|-----|-------------|-----------------|
+| Gastos Fijos/mes | Suma de renta + servicios | `gastos` categoría fija |
+| Gastos Variables/mes | Suma de materiales + limpieza | `gastos` categoría variable |
+| Costo por paciente | Gasto total / pacientes atendidos | `gastos` / `citas` |
+| Margen por servicio | Precio - costo materiales | `servicios` - `gastos_inventario` |
+| Productos por acabarse | Stock < 30% capacidad | `inventario` |
+| Servicios más rentables | Top 5 con mejor margen | Cálculo precio-costo |
+
+**📌 Endpoint backend necesario:**
+```python
+GET /api/stats/metricas-financieras
+Response:
+{
+    "gastos_fijos_mes": 11000,
+    "gastos_variables_mes": 15000,
+    "total_pacientes_mes": 80,
+    "costo_promedio_paciente": 325,
+    "servicios_rentables": [
+        {"servicio": "Láser antimicótico", "margen": 85},
+        {"servicio": "Pedicure clínico", "margen": 78}
+    ],
+    "productos_criticos": [...]
+}
 ```
 
 ---
 
-## 6. TAREAS PENDIENTES PARA IMPLEMENTACIÓN 📝
+## 7. DATOS A CARGAR COMO CORTESÍA 🎁
 
-### Prioridad Alta 🔴
-1. ✅ Cargar catálogo de servicios con precios reales de Santiago
-2. ✅ Cargar inventario actual (este snapshot) en la base de datos
-3. ⚠️ Configurar alertas de stock bajo para productos críticos
-4. ⚠️ Crear categorías de gastos (Fijos, Médicos, Operativos, Cafetería)
-5. 🔴 **URGENTE:** Generar lista de compras para productos críticos
+### 7.1 Lo que NOSOTROS cargaremos:
 
-### Prioridad Media 🟡
-1. Dashboard con separación visual de tipos de gastos
-2. Vinculación: Registro de gasto → Actualización de inventario
-3. Reportes: "Análisis de rentabilidad por servicio"
-4. Lista de compras automática basada en consumo
-5. Historial de precios de productos para análisis de inflación
+✅ **Servicios (8 servicios con precios)**
+- Script SQL listo con los 8 servicios y precios
+- Campos completos: precio, anestesia, sesiones, categoría
 
-### Prioridad Baja 🟢
-1. Proyecciones de consumo basadas en histórico
-2. Recomendaciones de IA para optimización de compras
-3. Comparativas mes a mes de gastos operativos
-4. Integración con proveedores para pedidos automáticos
+✅ **Catálogo de Productos (tipos solamente)**
+- ~95 tipos de productos identificados
+- Con categoría y unidad de medida sugerida
+- **SIN cantidades** (cliente las agregará)
 
----
+✅ **Categorías predefinidas**
+- Categorías de gastos (9 tipos)
+- Categorías de productos (7 tipos)
+- Unidades de medida (8 opciones)
 
-## 7. RESUMEN EJECUTIVO PARA SANTIAGO 📋
+✅ **Horarios sugeridos**
+- Si el cliente mencionó horarios de operación, los cargamos
 
-**Lo que tenemos:**
-- ✅ Catálogo completo de 8 servicios principales con precios
-- ✅ Inventario de 95+ productos diferentes organizados
-- ✅ Estructura de gastos definida (fijos vs variables)
+### 7.2 Lo que el CLIENTE hará:
 
-**Lo que necesitamos hacer:**
-- 🔴 **URGENTE:** Comprar productos críticos (7 productos agotados o casi)
-- 🟡 Cargar toda esta información en la app para empezar a usarla
-- 🟡 Crear sistema de alertas para que no te quedes sin material
+📝 **Stock inicial**
+- Contar sus productos y registrar cantidades
 
-**Beneficios una vez implementado:**
-- 📊 Verás en tiempo real qué productos se están acabando
-- 💰 Sabrás exactamente cuánto ganas vs cuánto gastas por servicio
-- 🤖 La app te recordará comprar cosas antes de que se acaben
-- 📈 Podrás tomar mejores decisiones sobre precios y eficiencia
+📝 **Actualización de precios**
+- Si suben precios de servicios, los modifica
 
-**Próximo paso:**
-Crear un script SQL para cargar este inventario completo en la base de datos y activar las alertas de stock.
+📝 **Gastos diarios**
+- Registrar gastos conforme ocurran
 
 ---
 
-**Última actualización:** 06/01/2026 - 16:00 hrs  
-**Preparado por:** Sistema de documentación PodoskiSolution  
-**Próxima revisión:** Al implementar módulo de inventario completo
+## 8. RESUMEN DE MEJORAS DE LÓGICA NECESARIAS 🚀
+
+### Prioridad ALTA (Bloquean funcionalidad)
+
+1. ✅ **Agregar unidades de medida a inventario**
+   - Campo `unidad_medida` (ENUM)
+   - Campo `cantidad_por_unidad` (para cajas, bolsas)
+
+2. ✅ **Categorización de gastos**
+   - Campo `categoria_gasto` (ENUM con 9 categorías)
+   - Dashboard con gráficas separadas
+
+3. ✅ **Vinculación gastos ↔ inventario**
+   - Tabla `gastos_inventario`
+   - Endpoint `/api/gastos/con-inventario`
+   - Actualización automática de stock
+
+### Prioridad MEDIA (Mejoran experiencia)
+
+4. ⚠️ **Categorización de productos**
+   - Campo `categoria_producto` en inventario
+   - Filtros en frontend
+
+5. ⚠️ **Servicios multi-sesión**
+   - Campos adicionales en tabla `servicios`
+   - Lógica para trackear sesiones completadas
+
+6. ⚠️ **Dashboard financiero**
+   - Endpoint `/api/stats/metricas-financieras`
+   - Componente frontend con KPIs
+
+### Prioridad BAJA (Nice to have)
+
+7. 🟢 **Histórico de precios**
+   - Tabla `productos_precios_historico`
+   - Análisis de inflación
+
+8. 🟢 **Proyecciones de consumo**
+   - IA para predecir cuándo comprar
+
+---
+
+## 9. SCRIPTS SQL A CREAR 📝
+
+### 9.1 Migración de Base de Datos
+
+```sql
+-- 1. Agregar campos a servicios
+ALTER TABLE servicios 
+ADD COLUMN requiere_anestesia BOOLEAN DEFAULT FALSE,
+ADD COLUMN sesiones_estimadas VARCHAR(20) DEFAULT '1',
+ADD COLUMN categoria_servicio VARCHAR(50);
+
+-- 2. Crear ENUM de categorías de gastos
+CREATE TYPE categoria_gasto_enum AS ENUM (...);
+ALTER TABLE gastos ADD COLUMN categoria categoria_gasto_enum;
+
+-- 3. Agregar unidades de medida a inventario
+ALTER TABLE inventario
+ADD COLUMN unidad_medida VARCHAR(20),
+ADD COLUMN cantidad_por_unidad INTEGER DEFAULT 1,
+ADD COLUMN categoria categoria_producto_enum;
+
+-- 4. Crear tabla de vinculación
+CREATE TABLE gastos_inventario (...);
+
+-- 5. Cargar servicios del cliente
+INSERT INTO servicios VALUES (...); -- 8 servicios
+
+-- 6. Cargar catálogo de productos (solo tipos)
+INSERT INTO inventario (nombre, categoria, unidad_medida) 
+VALUES (...); -- ~95 productos
+```
+
+---
+
+## 10. PLAN DE IMPLEMENTACIÓN ⚡
+
+### Fase 1: Mejoras de Base de Datos (2-3 horas)
+- Crear migraciones SQL
+- Agregar campos faltantes
+- Crear ENUMs y tablas nuevas
+
+### Fase 2: Backend - Nuevos Endpoints (3-4 horas)
+- `POST /api/gastos/con-inventario`
+- `GET /api/stats/metricas-financieras`
+- Actualizar endpoints existentes con nuevos campos
+
+### Fase 3: Frontend - Componentes Nuevos (4-5 horas)
+- Selector de unidad de medida en formulario inventario
+- Selector de categoría en formulario gastos
+- Dashboard con gráficas de gastos por categoría
+- Vista de "Métricas Financieras"
+
+### Fase 4: Carga de Datos Cortesía (1 hora)
+- Ejecutar scripts SQL con servicios
+- Cargar catálogo de productos (tipos)
+- Verificar que todo funcione
+
+**Total estimado: 10-13 horas de desarrollo**
+
+---
+
+**Última actualización:** 06/01/2026 - 16:30 hrs  
+**Siguiente paso:** Crear scripts SQL de migración y carga inicial

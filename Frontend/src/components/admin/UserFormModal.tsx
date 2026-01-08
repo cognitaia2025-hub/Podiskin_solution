@@ -124,6 +124,26 @@ const UserFormModal: React.FC<UserFormModalProps> = ({
             </select>
           </div>
 
+          {/* Cédula Profesional (solo para Podólogos) */}
+          {roles.find(r => r.id === formData.id_rol)?.nombre_rol === 'Podologo' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cédula Profesional *
+              </label>
+              <input
+                type="text"
+                value={formData.cedula_profesional || ''}
+                onChange={(e) => onChange({ cedula_profesional: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ej: 12345678"
+                required
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Número de cédula profesional del podólogo
+              </p>
+            </div>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3 pt-4">
             <button

@@ -48,6 +48,7 @@ export interface ProductListItem {
     stock_minimo: number;
     stock_maximo: number;
     unidad_medida: string;
+    cantidad_por_unidad?: number;
     costo_unitario?: number | null;
     precio_venta?: number | null;
     activo: boolean;
@@ -96,6 +97,7 @@ export interface CreateProductRequest {
     stock_minimo?: number;
     stock_maximo?: number;
     unidad_medida: string;
+    cantidad_por_unidad?: number;
     costo_unitario?: number;
     precio_venta?: number;
     margen_ganancia?: number;

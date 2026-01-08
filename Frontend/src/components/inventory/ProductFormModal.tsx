@@ -38,7 +38,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
         codigo_producto: '',
         nombre: '',
         categoria: 'Consumible',
-        unidad_medida: 'pieza',
+        unidad_medida: 'PZA',
+        cantidad_por_unidad: 1,
         stock_actual: 0,
         stock_minimo: 5,
         stock_maximo: 100,
@@ -53,6 +54,7 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 nombre: product.nombre,
                 categoria: product.categoria,
                 unidad_medida: product.unidad_medida,
+                cantidad_por_unidad: product.cantidad_por_unidad || 1,
                 stock_minimo: product.stock_minimo,
                 stock_maximo: product.stock_maximo,
                 costo_unitario: product.costo_unitario || undefined,
@@ -63,7 +65,8 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                 codigo_producto: '',
                 nombre: '',
                 categoria: 'Consumible',
-                unidad_medida: 'pieza',
+                unidad_medida: 'PZA',
+                cantidad_por_unidad: 1,
                 stock_actual: 0,
                 stock_minimo: 5,
                 stock_maximo: 100,
@@ -185,13 +188,36 @@ const ProductFormModal: React.FC<ProductFormModalProps> = ({
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Unidad de Medida *
                             </label>
-                            <input
-                                type="text"
+                            <select
                                 value={formData.unidad_medida}
                                 onChange={(e) => handleChange('unidad_medida', e.target.value)}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                placeholder="pieza, caja, litro, etc."
                                 required
+                            >
+                                <option value="">Seleccione unidad...</option>
+                                <option value="PZA">Piezas (PZA)</option>
+                                <option value="CAJA">Cajas (CAJA)</option>
+                                <option value="LITRO">Litros (LITRO)</option>
+                                <option value="KG">Kilogramos (KG)</option>
+                                <option value="BOTELLA">Botellas (BOTELLA)</option>
+                                <option value="ROLLO">Rollos (ROLLO)</option>
+                                <option value="BOLSA">Bolsas (BOLSA)</option>
+                                <option value="UNIDAD">Unidad (UNIDAD)</option>
+                            </select>
+                        </div>
+
+                        {/* Cantidad por Unidad */}
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Cantidad por Unidad
+                                <span className="text-gray-500 text-xs ml-1">(ej: 100 pares por caja)</span>
+                            </label>
+                            <input
+                                type="number"
+                                value={formData.cantidad_por_unidad || 1}
+                                onChange={(e) => handleChange('cantidad_por_unidad', parseInt(e.target.value))}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                min="1"
                             />
                         </div>
                     </div>

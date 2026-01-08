@@ -98,6 +98,131 @@ Los informes sera seprados por dobles lineas de Igual, con la fecha y hora inter
 
 **13. proveedores/** - Proveedores
 
+==========================================
+
+## Nuevos Módulos - Fases 4, 5 y 6 [06/01/26] [Hora actual]
+
+==========================================
+
+### Componentes Agregados en Fase 4 - Reportes y Exportación
+
+**14. reportes/** - Sistema de reportería ejecutiva
+
+- **router.py** (L1-634): 2 endpoints con soporte multi-formato
+  - `GET /api/reportes/gastos-mensuales`: Análisis de gastos con comparación mensual, top 10, tendencia 6 meses
+  - `GET /api/reportes/inventario-estado`: Estado de inventario con productos críticos, exceso, obsoletos
+  - Formatos: JSON (default), CSV (utf-8-sig), Excel (openpyxl con estilos), PDF (reportlab + matplotlib)
+  - Estado: ✅ ACTIVO
+
+- **pdf_generator.py** (L1-515): Generación profesional de PDFs
+  - `crear_grafico_pie_categorias()`: Gráfico de pastel con matplotlib → PNG BytesIO
+  - `crear_grafico_barras_tendencia()`: Gráfico de barras 6 meses
+  - `generar_pdf_gastos()`: PDF 4 páginas (resumen, categorías, gráficos, productos)
+  - `generar_pdf_inventario()`: PDF multipágina con tablas coloreadas (críticos en rojo, exceso en amarillo)
+  - Estado: ✅ ACTIVO
+
+**Dependencias:** openpyxl 3.1.5, reportlab 4.4.7, matplotlib 3.10.8
+
+---
+
+### Componentes Agregados en Fase 5 - Análisis Predictivo
+
+**15. analytics/** - Machine Learning y predicciones
+
+- **predictor.py** (L1-445): 3 clases de análisis predictivo
+  - `DemandPredictor`: Ensemble LinearRegression + RandomForestRegressor (0.3 + 0.7 weights)
+    - Feature engineering: mes_numero, tendencia (rolling 3), estacionalidad
+    - StandardScaler para normalización
+    - Output: Predicciones con intervalos ±15%, métricas MAE/RMSE/R²
+  - `FinancialForecaster`: Proyección financiera con ajuste estacional
+    - Linear regression para ingresos/gastos
+    - Moving averages de 3 períodos
+    - Output: Ingresos/gastos/utilidad/margen con intervalos 90-110%
+  - `InventoryAnalyzer`: Análisis de reorden basado en consumo
+    - Cálculo: punto_reorden = stock_minimo * 1.2
+    - Consumo diario promedio últimos 30 días
+    - Output: Alertas CRITICO/ADVERTENCIA, días restantes, cantidad óptima de compra
+  - Estado: ✅ ACTIVO
+
+- **router.py** (L1-230): 4 endpoints de analytics
+  - `GET /api/analytics/predicciones-demanda`: Predicción 1-12 meses por servicio (específico o agregado)
+  - `GET /api/analytics/forecast-ingresos`: Proyección financiera con métricas de precisión
+  - `GET /api/analytics/alertas-reorden`: Alertas de inventario con recomendaciones
+  - `GET /api/analytics/metricas-predictivas`: Dashboard consolidado (top servicios + predicciones)
+  - Estado: ✅ ACTIVO
+
+**Dependencias:** scikit-learn 1.8.0, pandas 2.3.3
+
+---
+
+### Componentes Agregados en Fase 6 - Automatización
+
+**16. tasks/** - Sistema Celery de tareas asíncronas
+
+- **celery_app.py** (L1-105): Configuración Celery Beat
+  - Broker/Backend: Redis (localhost:6379/0)
+  - Timezone: America/Mexico_City
+  - Task limits: 30 min hard, 25 min soft
+  - Worker config: prefetch 4, max 1000 tasks per child
+  - Beat Schedule (5 tareas periódicas):
+    - `enviar-recordatorios-citas`: Cada hora (crontab minute=0)
+    - `alertar-productos-criticos`: Diario 9:00 AM
+    - `resumen-citas-diario`: Diario 8:00 PM
+    - `reporte-mensual`: Mensual día 1, 10:00 AM
+    - `limpiar-notificaciones-antiguas`: Semanal domingo 2:00 AM
+  - Task routing: cola 'notifications', cola 'emails'
+  - Estado: ✅ ACTIVO
+
+- **notifications.py** (L1-270): Tareas de notificaciones
+  - `enviar_recordatorios_citas()`: Query citas próximas 24h sin notificación reciente, INSERT en tabla notificaciones
+  - `alertar_productos_criticos()`: Query stock <= minimo * 1.2, notifica admins con top 10
+  - `enviar_seguimiento_tratamiento(cita_id, dias_despues=7)`: Seguimiento post-tratamiento (manual)
+  - `limpiar_notificaciones_antiguas(dias=90)`: DELETE notificaciones leídas antiguas
+  - Patrón: Todas usan asyncio.run() wrapper para operaciones asyncpg
+  - Estado: ✅ ACTIVO
+
+- **email_service.py** (L1-350): Sistema SMTP con HTML templates
+  - Config: SMTP_SERVER, SMTP_PORT, SMTP_USER, SMTP_PASSWORD (env vars)
+  - `enviar_email()`: Helper SMTP con TLS, MIMEMultipart, soporte adjuntos
+  - `enviar_confirmacion_cita(cita_id)`: Email HTML con detalles de cita (manual)
+  - `enviar_resumen_diario()`: Query citas mañana, tabla HTML para admins
+  - `enviar_reporte_mensual()`: KPIs mes anterior (citas, pacientes, ingresos, canceladas)
+  - Templates: HTML inline con CSS, tema azul #366092, responsive
+  - Estado: ✅ ACTIVO
+
+**Dependencias:** celery[redis] 5.6.2, jinja2 3.1.6
+
+**Infraestructura:** 
+- `docker-compose.yml`: Servicio Redis 7-alpine agregado
+  - Puerto 6379, volumen redis_data persistente
+  - Healthcheck: redis-cli ping cada 10s
+  - Comando: redis-server --appendonly yes (AOF)
+
+---
+
+### Actualización de main.py
+
+Agregados 2 routers nuevos:
+- Línea ~50: `from backend.reportes.router import router as reportes_router`
+- Línea ~51: `from backend.analytics.router import router as analytics_router`
+- Línea ~280: `app.include_router(reportes_router, prefix="/api")`
+- Línea ~281: `app.include_router(analytics_router, prefix="/api")`
+
+Total de routers activos: **20 módulos**
+
+---
+
+### Resumen para Santiago (Impacto en Backend)
+
+**Reportes (Fase 4):**
+Ahora el servidor puede crear archivos Excel profesionales con colores y bordes, y PDFs con gráficos de pastel que muestran tus gastos por categoría. Ya no necesitas copiar y pegar datos a mano en Excel.
+
+**Predicciones (Fase 5):**
+El servidor usa inteligencia artificial (Machine Learning) para analizar tus datos de los últimos meses y predecir cuántas citas tendrás el próximo mes, cuánto dinero vas a ganar, y cuándo necesitas comprar más productos antes de quedarte sin stock. Es como tener un analista de datos trabajando 24/7.
+
+**Automatización (Fase 6):**
+El servidor ahora funciona como un empleado virtual que trabaja en segundo plano. Cada hora revisa si hay citas para mañana y crea notificaciones automáticas. Cada mañana revisa el inventario y te avisa si algo está bajo. Cada noche te manda un email con la agenda del día siguiente. Todo esto sin que tú tengas que hacer nada.
+
 - router.py: CRUD de proveedores
 - Estado: ✅ ACTIVO
 

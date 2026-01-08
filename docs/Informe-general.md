@@ -98,6 +98,154 @@ Se realizó una auditoría completa del proyecto Podoskin Solution, analizando *
 
 1. **Seguridad robusta**: Sistema de login con diferentes niveles de acceso (administrador, podólogo, recepcionista). Nadie puede ver información que no le corresponde.
 
+==========================================
+
+## Informe de Mejoras Operativas - Fases 4, 5 y 6 [06/01/26] [Hora actual]
+
+==========================================
+
+### Resumen Ejecutivo
+
+Se implementaron **3 fases de mejoras operativas** que agregan capacidades profesionales de reportería, análisis predictivo y automatización. Total: **14 nuevas tareas completadas** (83% del plan de 6 fases).
+
+---
+
+### FASE 4: Reportes y Exportación (Tareas 17-21) ✅ COMPLETADO
+
+**Propósito:** Generar reportes ejecutivos profesionales en múltiples formatos para análisis gerencial.
+
+**Componentes Backend:**
+- `backend/reportes/router.py` (L1-634): 2 endpoints principales
+  - `/api/reportes/gastos-mensuales`: Análisis financiero mensual con comparación vs mes anterior, top 10 gastos, tendencia de 6 meses
+  - `/api/reportes/inventario-estado`: Estado actual de inventario con productos críticos, exceso de stock, análisis de rotación
+- `backend/reportes/pdf_generator.py` (L1-515): Generación profesional de PDFs con gráficos integrados (matplotlib + reportlab)
+
+**Componentes Frontend:**
+- `Frontend/src/services/reportesService.ts` (L1-195): Servicio de API con descarga automática de archivos
+- `Frontend/src/components/reports/ReportGeneratorComponent.tsx` (L1-344): Interfaz completa para generación de reportes
+- Integrado en `AdminPage.tsx` como módulo de reportería
+
+**Formatos Soportados:**
+1. **JSON**: Datos estructurados para integración con otros sistemas
+2. **CSV**: Compatible con Excel, Google Sheets (encoding UTF-8-BOM)
+3. **Excel**: Formato profesional con estilos, colores, encabezados (openpyxl)
+4. **PDF**: Documentos ejecutivos con tablas profesionales y gráficos de matplotlib (pie charts, bar charts)
+
+**Dependencias Instaladas:**
+- openpyxl>=3.1.0
+- reportlab>=4.0.0
+- matplotlib>=3.8.0
+
+---
+
+### FASE 5: Análisis Predictivo con Machine Learning (Tareas 22-25) ✅ COMPLETADO
+
+**Propósito:** Predecir demanda de servicios, proyectar ingresos y optimizar inventario usando ML.
+
+**Componentes Backend:**
+- `backend/analytics/predictor.py` (L1-445): 3 clases de análisis predictivo
+  - **DemandPredictor**: Ensemble de LinearRegression + RandomForestRegressor (pesos 0.3 + 0.7), predicciones con intervalos de confianza ±15%
+  - **FinancialForecaster**: Proyección de ingresos/gastos/utilidad con ajuste estacional, moving averages, margen de ganancia
+  - **InventoryAnalyzer**: Cálculo de punto de reorden, alertas críticas (stock <= mínimo), recomendaciones de compra
+
+- `backend/analytics/router.py` (L1-230): 4 endpoints de análisis
+  - `/api/analytics/predicciones-demanda`: Predicción 1-12 meses de demanda por servicio
+  - `/api/analytics/forecast-ingresos`: Proyección financiera con métricas MAE/RMSE/R²
+  - `/api/analytics/alertas-reorden`: Alertas de inventario crítico con cálculo de días restantes
+  - `/api/analytics/metricas-predictivas`: Dashboard consolidado con top servicios + predicciones
+
+**Características ML:**
+- Feature engineering: mes_numero, tendencia (MA-3), estacionalidad (promedios mensuales)
+- Normalización con StandardScaler
+- Métricas de precisión: MAE, RMSE, R²
+- Intervalos de confianza para todas las predicciones
+
+**Dependencias Instaladas:**
+- scikit-learn>=1.3.0
+- pandas>=2.1.0
+
+---
+
+### FASE 6: Automatización y Notificaciones (Tareas 26-28) ✅ COMPLETADO
+
+**Propósito:** Automatizar tareas operativas repetitivas con Celery y Redis.
+
+**Infraestructura:**
+- `docker-compose.yml`: Agregado servicio Redis 7-alpine con persistencia AOF, healthcheck cada 10s
+- Redis como message broker y result backend para Celery
+
+**Componentes Backend:**
+- `backend/tasks/celery_app.py` (L1-105): Configuración de Celery Beat con 5 tareas programadas
+  - **enviar-recordatorios-citas**: Cada hora (crontab minute=0) - Notifica citas próximas 24h
+  - **alertar-productos-criticos**: Diario 9:00 AM - Stock <= mínimo * 1.2
+  - **resumen-citas-diario**: Diario 8:00 PM - Agenda del día siguiente
+  - **reporte-mensual**: Mensual 1er día 10:00 AM - KPIs del mes anterior
+  - **limpiar-notificaciones-antiguas**: Semanal domingo 2:00 AM - Borra leídas >90 días
+
+- `backend/tasks/notifications.py` (L1-270): 4 tareas de notificaciones
+  - Inserción en tabla `notificaciones` con tipo, mensaje y referencia a cita/producto
+  - Queries optimizadas con asyncpg para alto rendimiento
+  - Manejo de notificaciones duplicadas (evita spam)
+
+- `backend/tasks/email_service.py` (L1-350): Sistema SMTP con 3 tareas de email
+  - **enviar_confirmacion_cita**: Email HTML con detalles de cita (manual)
+  - **enviar_resumen_diario**: Tabla de citas del día para admins
+  - **enviar_reporte_mensual**: KPIs consolidados (citas, pacientes, ingresos, cancelaciones)
+  - Templates HTML inline con estilo profesional (tema azul #366092)
+
+**Configuración Requerida (.env):**
+```
+REDIS_URL=redis://localhost:6379/0
+SMTP_SERVER=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=tu_email@gmail.com
+SMTP_PASSWORD=tu_app_password
+SMTP_FROM=noreply@podoskin.com
+```
+
+**Dependencias Instaladas:**
+- celery[redis]>=5.6.0
+- jinja2>=3.1.0
+
+**Comandos para Producción:**
+```bash
+# 1. Iniciar servicios Docker
+docker-compose up -d
+
+# 2. Worker de Celery (procesa tareas)
+celery -A backend.tasks.celery_app worker --loglevel=info
+
+# 3. Beat scheduler (ejecuta tareas programadas)
+celery -A backend.tasks.celery_app beat --loglevel=info
+```
+
+---
+
+### Tareas Pendientes (17% restante)
+
+**Task 29:** Endpoint WebSocket para notificaciones en tiempo real (backend)
+**Task 30:** Componente `NotificationsPanel.tsx` con conexión WebSocket (frontend)
+
+---
+
+### Impacto para Santiago (Usuario Final)
+
+**FASE 4 - Reportes:**
+Te permite descargar análisis profesionales en Excel o PDF para presentar a contadores, inversionistas o análisis personal. Por ejemplo, puedes generar un reporte de gastos mensuales con gráficas de pastel que muestre en qué categorías gastas más dinero (material, nómina, renta, etc.) y compararlo con el mes anterior. También puedes ver qué productos de inventario están críticos o cuáles no se han movido.
+
+**FASE 5 - Predicciones:**
+La aplicación ahora "adivina" o predice el futuro basándose en tus datos históricos. Por ejemplo, te dice: "El próximo mes probablemente tendrás 45 citas de manicure según la tendencia de los últimos 6 meses" o "Tus ingresos esperados para marzo son $85,000 con margen de ganancia del 42%". También te avisa cuándo debes comprar productos antes de que se acaben, calculando cuántos días te quedan de stock.
+
+**FASE 6 - Automatización:**
+Ahora la aplicación hace tareas repetitivas automáticamente sin que tú tengas que recordarlo:
+- Cada hora revisa si hay citas para mañana y envía notificaciones automáticas
+- Cada mañana a las 9 AM te avisa si algún producto está bajo de stock
+- Cada noche a las 8 PM te envía un correo con la agenda del día siguiente
+- El día 1 de cada mes te envía un reporte por email con todas las estadísticas del mes (cuántas citas, cuántos pacientes nuevos, cuánto ingresaste, etc.)
+
+**Beneficio General:**
+Ya no necesitas estar pendiente de todo manualmente. La app te recuerda, te avisa, te predice y te genera reportes profesionales. Es como tener un asistente virtual que trabaja 24/7 cuidando el negocio.
+
 2. **Agenda inteligente**: El calendario detecta automáticamente si un horario ya está ocupado, evitando que agendes dos citas al mismo tiempo. Puedes arrastrar y soltar citas para cambiarlas de horario.
 
 3. **Expedientes digitales completos**: Toda la información médica de tus pacientes está organizada en un solo lugar: alergias, antecedentes, signos vitales, diagnósticos, tratamientos y fotos clínicas.

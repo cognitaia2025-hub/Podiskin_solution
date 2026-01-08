@@ -1,3 +1,136 @@
+import sys
+import os
+import asyncio
+from unittest.mock import MagicMock, patch
+
+# Windows specific event loop fix for Psycopg3
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
+# Mock user data (move to top so it's available for early patches)
+MOCK_USER_DATA = {
+    "id": 1,
+    "nombre_usuario": "dr.santiago",
+    "nombre_completo": "Dr. Santiago de la Cruz",
+    "email": "santiago@example.com",
+    "rol": "Podologo",
+    "activo": True,
+    "password_hash": "mocked_hash"
+}
+
+MOCK_ADMIN_DATA = {
+    "id": 999,
+    "nombre_usuario": "admin",
+    "nombre_completo": "Administrador Sistema",
+    "email": "admin@example.com",
+    "rol": "Admin",
+    "activo": True,
+    "password_hash": "mocked_hash"
+}
+
+# Pre-patch database to avoid connection issues during import/lifespan
+async def mocked_get_user_by_username(username):
+    if username == "dr.santiago":
+        return MOCK_USER_DATA
+    if username == "admin":
+        return MOCK_ADMIN_DATA
+    return None
+
+# Apply global patches BEFORE any backend imports
+patcher_init_pool = patch("backend.auth.database.init_db_pool", return_value=None)
+patcher_db_connect = patch("backend.db.database.connect", return_value=None)
+
+# Patch get_user_by_username in multiple potential import paths
+patcher_get_user = patch("backend.auth.database.get_user_by_username", side_effect=mocked_get_user_by_username)
+patcher_get_user_alt = patch("auth.database.get_user_by_username", side_effect=mocked_get_user_by_username, create=True)
+patcher_get_user_middleware = patch("backend.auth.middleware.get_user_by_username", side_effect=mocked_get_user_by_username)
+patcher_get_user_middleware_alt = patch("auth.middleware.get_user_by_username", side_effect=mocked_get_user_by_username, create=True)
+patcher_get_user_router = patch("backend.auth.router.get_user_by_username", side_effect=mocked_get_user_by_username)
+patcher_get_user_router_alt = patch("auth.router.get_user_by_username", side_effect=mocked_get_user_by_username, create=True)
+
+# Patch verify_password and crypt context
+patcher_verify_pw = patch("backend.auth.jwt_handler.verify_password", return_value=True)
+patcher_verify_pw_alt = patch("auth.jwt_handler.verify_password", return_value=True, create=True)
+patcher_pwd_context = patch("backend.auth.jwt_handler.pwd_context")
+patcher_pwd_context_alt = patch("auth.jwt_handler.pwd_context", create=True)
+
+# Add mocks for psycopg2, psycopg (v3) and asyncpg to avoid real DB connections
+mock_conn = MagicMock()
+mock_cursor = MagicMock()
+mock_conn.cursor.return_value.__enter__.return_value = mock_cursor
+mock_cursor.fetchone.return_value = None
+mock_cursor.fetchall.return_value = []
+mock_cursor.rowcount = 1
+
+patcher_psycopg2 = patch("psycopg2.connect", return_value=mock_conn)
+
+# Mock psycopg (v3)
+from unittest.mock import AsyncMock, MagicMock
+mock_async_conn = AsyncMock()
+mock_async_cur = AsyncMock()
+
+# Setup async context managers
+mock_async_conn.cursor = MagicMock(return_value=mock_async_cur)
+mock_async_conn.rollback = AsyncMock()
+mock_async_conn.commit = AsyncMock()
+
+mock_async_cur.execute = AsyncMock()
+mock_async_cur.fetchone = AsyncMock(return_value=None)
+mock_async_cur.fetchall = AsyncMock(return_value=[])
+
+async def mocked_async_connect(*args, **kwargs):
+    return mock_async_conn
+
+patcher_psycopg3 = patch("psycopg.AsyncConnection.connect", side_effect=mocked_async_connect)
+
+# Mock psycopg_pool
+mock_pool_v3 = MagicMock()
+async def mocked_pool_open(): pass
+async def mocked_pool_getconn(): return mock_async_conn
+async def mocked_pool_putconn(conn): pass
+mock_pool_v3.open = mocked_pool_open
+mock_pool_v3.getconn = mocked_pool_getconn
+mock_pool_v3.putconn = mocked_pool_putconn
+patcher_psycopg_pool = patch("psycopg_pool.AsyncConnectionPool", return_value=mock_pool_v3)
+
+# Mock asyncpg
+mock_pool = MagicMock()
+mock_pool.acquire.return_value.__aenter__.return_value = MagicMock()
+patcher_asyncpg = patch("asyncpg.create_pool", return_value=mock_pool)
+
+patcher_init_pool.start()
+patcher_db_connect.start()
+patcher_get_user.start()
+patcher_get_user_alt.start()
+patcher_get_user_middleware.start()
+patcher_get_user_middleware_alt.start()
+patcher_get_user_router.start()
+patcher_get_user_router_alt.start()
+patcher_verify_pw.start()
+patcher_verify_pw_alt.start()
+mock_pwd_context = patcher_pwd_context.start()
+mock_pwd_context.verify.return_value = True
+mock_pwd_context_alt = patcher_pwd_context_alt.start()
+if mock_pwd_context_alt:
+    mock_pwd_context_alt.verify.return_value = True
+patcher_psycopg2.start()
+patcher_psycopg3.start()
+patcher_psycopg_pool.start()
+patcher_asyncpg.start()
+
+# Test configuration
+TEST_BASE_URL = "http://test"
+TEST_SECRET_KEY = "your-secret-key-change-in-production-PLEASE"  # Match default in jwt_handler.py
+TEST_ALGORITHM = "HS256"
+
+# Set environment variables for testing before importing app
+os.environ["JWT_SECRET_KEY"] = TEST_SECRET_KEY
+os.environ["DB_HOST"] = "localhost"
+os.environ["DB_NAME"] = "test_db"
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../backend')))
+
 """
 Pytest configuration and fixtures for Podoskin Solution tests
 """
@@ -5,13 +138,7 @@ import pytest
 from httpx import AsyncClient
 from typing import AsyncGenerator, Dict
 from datetime import datetime, timedelta
-import jwt
-
-
-# Test configuration
-TEST_BASE_URL = "http://test"
-TEST_SECRET_KEY = "test_secret_key_for_testing_only"
-TEST_ALGORITHM = "HS256"
+from jose import jwt
 
 
 @pytest.fixture
@@ -30,8 +157,9 @@ def test_token() -> str:
     payload = {
         "sub": "dr.santiago",
         "user_id": 1,
-        "rol": "podologo",
-        "exp": datetime.utcnow() + timedelta(hours=1)
+        "rol": "Podologo",
+        "exp": datetime.utcnow() + timedelta(hours=1),
+        "iat": datetime.utcnow()
     }
     return jwt.encode(payload, TEST_SECRET_KEY, algorithm=TEST_ALGORITHM)
 
@@ -42,8 +170,9 @@ def test_admin_token() -> str:
     payload = {
         "sub": "admin",
         "user_id": 999,
-        "rol": "administrador",
-        "exp": datetime.utcnow() + timedelta(hours=1)
+        "rol": "Admin",
+        "exp": datetime.utcnow() + timedelta(hours=1),
+        "iat": datetime.utcnow()
     }
     return jwt.encode(payload, TEST_SECRET_KEY, algorithm=TEST_ALGORITHM)
 
@@ -54,8 +183,9 @@ def expired_token() -> str:
     payload = {
         "sub": "test_user",
         "user_id": 1,
-        "rol": "podologo",
-        "exp": datetime.utcnow() - timedelta(hours=1)
+        "rol": "Podologo",
+        "exp": datetime.utcnow() - timedelta(hours=1),
+        "iat": datetime.utcnow() - timedelta(hours=2)
     }
     return jwt.encode(payload, TEST_SECRET_KEY, algorithm=TEST_ALGORITHM)
 
@@ -141,21 +271,74 @@ def sample_alergia_data() -> Dict:
     }
 
 
-# Mock app fixture - to be implemented when FastAPI app structure is available
+from httpx import AsyncClient, ASGITransport
+from backend.auth.models import User
+
+# Mock user data
+MOCK_USER_DATA = {
+    "id": 1,
+    "nombre_usuario": "dr.santiago",
+    "nombre_completo": "Dr. Santiago de la Cruz",
+    "email": "santiago@example.com",
+    "rol": "Podologo",
+    "activo": True
+}
+
+MOCK_ADMIN_DATA = {
+    "id": 999,
+    "nombre_usuario": "admin",
+    "nombre_completo": "Administrador Sistema",
+    "email": "admin@example.com",
+    "rol": "Admin",
+    "activo": True
+}
+
+@pytest.fixture
+def mock_user():
+    return User(**MOCK_USER_DATA)
+
+@pytest.fixture
+def mock_admin():
+    return User(**MOCK_ADMIN_DATA)
+
+# Mock app fixture
 @pytest.fixture
 async def async_client() -> AsyncGenerator[AsyncClient, None]:
     """
-    Async HTTP client for testing
-    Note: This requires the actual FastAPI app to be implemented
+    Async HTTP client for testing with mocked authentication
     """
-    # TODO: Import actual app when available
-    # from app.main import app
-    # async with AsyncClient(app=app, base_url=TEST_BASE_URL) as client:
-    #     yield client
+    from backend.main import app
+    from backend.auth.middleware import get_current_user, security
+    from backend.auth.models import User
+    from fastapi import Depends, HTTPException
+    from fastapi.security import HTTPAuthorizationCredentials
+    from typing import Optional
     
-    # For now, create a basic client
-    async with AsyncClient(base_url=TEST_BASE_URL) as client:
+    # Mock user for dependency override
+    async def mocked_get_current_user(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
+        if not credentials:
+            raise HTTPException(status_code=401, detail="Not authenticated")
+        
+        token = credentials.credentials
+        try:
+            # Decode token to see which user it is
+            payload = jwt.decode(token, TEST_SECRET_KEY, algorithms=[TEST_ALGORITHM])
+            username = payload.get("sub")
+            if username == "admin":
+                return User(**MOCK_ADMIN_DATA)
+            return User(**MOCK_USER_DATA)
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid token")
+
+    # Apply override
+    app.dependency_overrides[get_current_user] = mocked_get_current_user
+    
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
+        
+    # Clear overrides
+    app.dependency_overrides = {}
 
 
 # Database fixtures - to be implemented when DB structure is available

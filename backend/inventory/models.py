@@ -11,6 +11,44 @@ from decimal import Decimal
 
 
 # ============================================================================
+# CONSTANTS - Unidades de medida y categorías
+# ============================================================================
+
+UNIDADES_MEDIDA = [
+    "PZA",      # Piezas (gasas, jeringas, hojas bisturí)
+    "CAJA",     # Cajas (guantes, cubrebocas)
+    "LITRO",    # Litros (alcohol, químicos líquidos)
+    "KG",       # Kilogramos (café, azúcar)
+    "BOTELLA",  # Botellas (cuando no se mide en litros exactos)
+    "ROLLO",    # Rollos (film, toallas de papel)
+    "BOLSA",    # Bolsas (servilletas, vasos desechables)
+    "UNIDAD"    # Unidad (drill, extintor, aparatos)
+]
+
+CATEGORIAS_PRODUCTO = [
+    "INSTRUMENTAL_MEDICO",  # Tijeras, pinzas, mangos bisturí
+    "CONSUMIBLES_MEDICOS",  # Gasas, jeringas, hojas bisturí
+    "MEDICAMENTOS",         # Lidocaína, benzocaína
+    "LIMPIEZA",             # Lysol, toallas, sanitas
+    "CAFETERIA",            # Café, vasos, servilletas
+    "EQUIPO_LASER",         # Láseres, lentes protectores
+    "OFICINA"               # Folders, plumas, papelería
+]
+
+# Legacy categories for backwards compatibility
+CATEGORIAS_LEGACY = [
+    "Material_Curacion",
+    "Instrumental",
+    "Medicamento",
+    "Consumible",
+    "Equipo_Medico",
+    "Producto_Venta",
+    "Material_Limpieza",
+    "Papeleria"
+]
+
+
+# ============================================================================
 # RESPONSE MODELS
 # ============================================================================
 
@@ -29,6 +67,7 @@ class ProductResponse(BaseModel):
     stock_minimo: int
     stock_maximo: int
     unidad_medida: str
+    cantidad_por_unidad: Optional[int] = 1  # NUEVO
     costo_unitario: Optional[Decimal] = None
     precio_venta: Optional[Decimal] = None
     margen_ganancia: Optional[Decimal] = None
@@ -56,6 +95,7 @@ class ProductListItem(BaseModel):
     stock_minimo: int
     stock_maximo: int
     unidad_medida: str
+    cantidad_por_unidad: Optional[int] = 1  # NUEVO
     costo_unitario: Optional[Decimal] = None
     precio_venta: Optional[Decimal] = None
     activo: bool
@@ -111,15 +151,13 @@ class ProductCreateRequest(BaseModel):
     codigo_barras: Optional[str] = Field(None, max_length=50)
     nombre: str = Field(..., min_length=1, max_length=200)
     descripcion: Optional[str] = None
-    categoria: str = Field(
-        ...,
-        pattern="^(Material_Curacion|Instrumental|Medicamento|Consumible|Equipo_Medico|Producto_Venta|Material_Limpieza|Papeleria)$",
-    )
+    categoria: str = Field(..., description="Categoría del producto (nuevo formato o legacy)")
     subcategoria: Optional[str] = Field(None, max_length=100)
     stock_actual: int = Field(default=0, ge=0)
     stock_minimo: int = Field(default=5, ge=0)
     stock_maximo: int = Field(default=100, ge=0)
-    unidad_medida: str = Field(..., min_length=1, max_length=50)
+    unidad_medida: str = Field(..., description="Unidad de medida: PZA, CAJA, LITRO, KG, BOTELLA, ROLLO, BOLSA, UNIDAD")
+    cantidad_por_unidad: int = Field(default=1, ge=1, description="Cantidad de piezas por unidad contenedora (ej: 100 guantes por caja)")  # NUEVO
     costo_unitario: Optional[Decimal] = Field(None, ge=0)
     precio_venta: Optional[Decimal] = Field(None, ge=0)
     margen_ganancia: Optional[Decimal] = Field(None, ge=0, le=100)
@@ -139,14 +177,12 @@ class ProductUpdateRequest(BaseModel):
     codigo_barras: Optional[str] = Field(None, max_length=50)
     nombre: Optional[str] = Field(None, min_length=1, max_length=200)
     descripcion: Optional[str] = None
-    categoria: Optional[str] = Field(
-        None,
-        pattern="^(Material_Curacion|Instrumental|Medicamento|Consumible|Equipo_Medico|Producto_Venta|Material_Limpieza|Papeleria)$",
-    )
+    categoria: Optional[str] = Field(None, description="Categoría del producto (nuevo formato o legacy)")
     subcategoria: Optional[str] = Field(None, max_length=100)
     stock_minimo: Optional[int] = Field(None, ge=0)
     stock_maximo: Optional[int] = Field(None, ge=0)
-    unidad_medida: Optional[str] = Field(None, min_length=1, max_length=50)
+    unidad_medida: Optional[str] = Field(None, description="Unidad de medida: PZA, CAJA, LITRO, KG, BOTELLA, ROLLO, BOLSA, UNIDAD")
+    cantidad_por_unidad: Optional[int] = Field(None, ge=1, description="Cantidad de piezas por unidad contenedora")  # NUEVO
     costo_unitario: Optional[Decimal] = Field(None, ge=0)
     precio_venta: Optional[Decimal] = Field(None, ge=0)
     margen_ganancia: Optional[Decimal] = Field(None, ge=0, le=100)

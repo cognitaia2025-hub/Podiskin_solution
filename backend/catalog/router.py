@@ -1,6 +1,12 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Query
 from typing import List, Optional
-from catalog.models import ServiceCreate, ServiceUpdate, ServiceResponse, TIPOS_DISPONIBLES, CATEGORIAS_DISPONIBLES
+from catalog.models import (
+    ServiceCreate,
+    ServiceUpdate,
+    ServiceResponse,
+    TIPOS_DISPONIBLES,
+    CATEGORIAS_DISPONIBLES,
+)
 from catalog import service
 
 router = APIRouter(prefix="/services", tags=["services"])
@@ -8,19 +14,19 @@ router = APIRouter(prefix="/services", tags=["services"])
 
 @router.get("/", response_model=List[ServiceResponse])
 async def list_services(
-    tipo: Optional[str] = Query(None, description="Filtrar por tipo: servicio o tratamiento"),
+    tipo: Optional[str] = Query(
+        None, description="Filtrar por tipo: servicio o tratamiento"
+    ),
     categoria: Optional[str] = Query(None, description="Filtrar por categoría"),
     activo: Optional[bool] = Query(None, description="Filtrar por estado activo"),
-    orden: str = Query("nombre", description="Ordenar por: id, nombre, precio, duracion_minutos"),
-    direccion: str = Query("asc", description="Dirección: asc o desc")
+    orden: str = Query(
+        "nombre", description="Ordenar por: id, nombre, precio, duracion_minutos"
+    ),
+    direccion: str = Query("asc", description="Dirección: asc o desc"),
 ):
     """Lista servicios con filtros y ordenamiento."""
     return await service.get_services(
-        tipo=tipo,
-        categoria=categoria,
-        activo=activo,
-        orden=orden,
-        direccion=direccion
+        tipo=tipo, categoria=categoria, activo=activo, orden=orden, direccion=direccion
     )
 
 

@@ -98,6 +98,94 @@ CRM multicanal con 10 tablas:
 - `etiquetas`: Categorización de conversaciones
 - `log_eventos_bot`: Auditoría de eventos del chatbot
 - `integraciones_webhook`: Configuración de APIs externas
+
+==========================================
+
+## Actualización Infraestructura - Fase 6 [06/01/26] [Hora actual]
+
+==========================================
+
+### Componentes de Infraestructura Agregados
+
+#### 1. **docker-compose.yml** - Actualización de servicios
+
+**Cambios realizados:**
+
+- **Servicio Redis agregado:**
+  - Imagen: `redis:7-alpine`
+  - Container name: `podoskin_redis`
+  - Puerto: 6379:6379
+  - Volumen: `redis_data:/data` (persistencia)
+  - Comando: `redis-server --appendonly yes` (AOF - Append Only File para durabilidad)
+  - Healthcheck: `redis-cli ping` cada 10s, timeout 3s, 5 retries
+  - Network: `podoskin_network`
+  
+- **Servicio PostgreSQL actualizado:**
+  - Healthcheck agregado: `pg_isready -U ${POSTGRES_USER}` cada 10s
+  - Sin cambios en configuración existente
+
+**Propósito:** Redis actúa como message broker y result backend para Celery, permitiendo:
+- Cola de tareas asíncronas
+- Programación de tareas periódicas (Celery Beat)
+- Almacenamiento de resultados de tareas
+- Caché de alto rendimiento (uso futuro)
+
+---
+
+### Nuevas Tablas Utilizadas (Sin cambios en archivos SQL)
+
+Las fases 4-6 NO crearon nuevas tablas, sino que utilizan las existentes:
+
+**Fase 4 - Reportes:**
+- Consultas a `gastos` para reportes mensuales con agregaciones por categoría
+- Consultas a `productos_inventario` para análisis de stock crítico, exceso, rotación
+- Consultas a `detalle_cita` para productos comprados en tratamientos
+
+**Fase 5 - Analytics:**
+- Consultas a `citas` con agregaciones DATE_TRUNC para predicciones de demanda
+- Consultas a `pagos` para proyecciones financieras (ingresos, tendencias)
+- Consultas a `gastos` para cálculo de utilidad neta (ingresos - gastos)
+- Consultas a `productos_inventario` con stock_minimo para alertas de reorden
+
+**Fase 6 - Automatización:**
+- **INSERT en `notificaciones`** (tabla existente definida en 08_recordatorios_automatizacion.sql):
+  - Recordatorios de citas próximas (24h adelante)
+  - Alertas de productos críticos (stock <= minimo * 1.2)
+  - Seguimiento post-tratamiento
+- **Queries a `citas`** para:
+  - Validar citas próximas sin notificación reciente
+  - Resumen diario de agenda para emails
+- **Queries a `productos_inventario`** para alertas de stock bajo
+- **Queries a `usuarios`** para envío de emails a admins
+
+---
+
+### Impacto en Base de Datos
+
+**Sin cambios estructurales:** Las fases 4-6 no requirieron modificar el schema existente. Toda la funcionalidad se implementó mediante:
+1. Queries SQL optimizadas con agregaciones, JOINs y window functions
+2. Sistema de notificaciones usando tabla existente
+3. Análisis de datos históricos para ML sin nuevas columnas
+
+**Operaciones nuevas:**
+- INSERT masivos en `notificaciones` (tareas automáticas cada hora)
+- Queries analíticas complejas con DATE_TRUNC, COALESCE, AVG, SUM, COUNT
+- DELETE periódico de notificaciones antiguas (limpieza cada semana)
+
+**Rendimiento:**
+- Uso de conexiones async con asyncpg para tareas Celery (no bloquean worker)
+- Pool de conexiones configurado en cada tarea
+- Índices existentes suficientes para queries de reportes y analytics
+
+---
+
+### Resumen para Santiago (Impacto en Base de Datos)
+
+**No se modificó tu base de datos existente.** Las nuevas funciones (reportes, predicciones, automatización) usan las mismas tablas que ya tenías (gastos, citas, productos, notificaciones). 
+
+Lo único nuevo es Redis, que es una base de datos súper rápida en memoria que sirve para coordinar las tareas automáticas (como los recordatorios cada hora o los emails diarios). Funciona en paralelo a tu base de datos principal de PostgreSQL sin afectarla.
+
+Es como agregar un asistente que toma notas temporales (Redis) mientras tu archivo principal (PostgreSQL) sigue guardando todos los datos importantes de pacientes, citas y gastos.
 - `plantillas_mensajes`: Templates personalizables
 - `respuestas_automaticas`: Triggers y condiciones
 

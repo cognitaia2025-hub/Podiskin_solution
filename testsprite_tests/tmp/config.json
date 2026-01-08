@@ -1,0 +1,18 @@
+{
+  "status": "commited",
+  "type": "frontend",
+  "scope": "codebase",
+  "localEndpoint": "http://localhost:5173",
+  "loginUser": "adm.santiago.ornelas",
+  "loginPassword": "Santiago.Ornelas.123",
+  "executionArgs": {
+    "projectName": "PodoskiSolution",
+    "projectPath": "c:\\Users\\Salva\\OneDrive\\Escritorio\\PodoskiSolution",
+    "testIds": [],
+    "additionalInstruction": "",
+    "envs": {
+      "API_KEY": "sk-user-GzkZihkkv95VDMWikmqskL-7jjbqeWVP7mium6AoDug59iuAetjooIzj5GMW0sW0egciI6rfdDqNsXiqYE9d2su7DBACk9vtIEQz0OvucAM_5kaAR93q9bdfW4MbfW5TIno"
+    }
+  },
+  "proxy": "http://b1c6be94-bcef-45e2-a9ee-837a5710720f:ZeKHnCdGExNj9il4sN3Yrft7ZCtp9BBW@tun.testsprite.com:8080"
+}

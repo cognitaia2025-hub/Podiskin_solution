@@ -1,0 +1,546 @@
+[
+  {
+    "id": "TC001",
+    "title": "Login success with valid credentials",
+    "description": "Verify that users can successfully log in using valid credentials and are redirected to the dashboard.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid username/email"
+      },
+      {
+        "type": "action",
+        "description": "Enter valid password"
+      },
+      {
+        "type": "action",
+        "description": "Click login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login is successful and dashboard is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC002",
+    "title": "Login failure with invalid credentials",
+    "description": "Verify that login fails with incorrect credentials and an appropriate error message is shown.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the login page"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid username/email"
+      },
+      {
+        "type": "action",
+        "description": "Enter invalid password"
+      },
+      {
+        "type": "action",
+        "description": "Click login button"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify login fails and error message is displayed"
+      }
+    ]
+  },
+  {
+    "id": "TC003",
+    "title": "RBAC enforcement on restricted modules",
+    "description": "Verify that users with different roles have access only to permitted modules and features according to RBAC policies.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as a user with limited role (e.g., receptionist)"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to access admin panel and financial management modules"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify access is blocked or restricted, with appropriate notifications"
+      }
+    ]
+  },
+  {
+    "id": "TC004",
+    "title": "Dashboard KPI data update and empty data handling",
+    "description": "Verify that KPIs and graphs on the dashboard update in real-time and gracefully handle cases with no data.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as authorized user with valid data in system"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard KPIs and graph visualizations display up-to-date data"
+      },
+      {
+        "type": "action",
+        "description": "Clear all data used for KPIs (simulate or use test data)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify dashboard shows appropriate messages or empty states without UI breaking"
+      }
+    ]
+  },
+  {
+    "id": "TC005",
+    "title": "Appointment creation with conflict validation",
+    "description": "Verify that the system allows creating appointments and prevents double-booking conflicts with validations.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login and navigate to the appointment calendar"
+      },
+      {
+        "type": "action",
+        "description": "Create an appointment for a specific date/time slot"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the appointment is successfully created and displayed"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to create another appointment overlapping the same date/time and resource"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the system prevents the conflicting appointment and shows a validation error"
+      }
+    ]
+  },
+  {
+    "id": "TC006",
+    "title": "Appointment drag & drop rescheduling",
+    "description": "Verify that appointments can be rescheduled by dragging and dropping in the calendar without creating conflicts.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the appointment calendar with existing appointments"
+      },
+      {
+        "type": "action",
+        "description": "Drag an existing appointment to a new valid time slot"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify that the appointment time is updated and no conflicts occur"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to drag and drop the appointment into a conflicting slot"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system rejects the move with an error or warning"
+      }
+    ]
+  },
+  {
+    "id": "TC007",
+    "title": "Patient registration with valid data",
+    "description": "Verify that a new patient can be registered successfully with all mandatory fields and the record appears in search.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to the patient management page"
+      },
+      {
+        "type": "action",
+        "description": "Enter all required patient details with valid data"
+      },
+      {
+        "type": "action",
+        "description": "Submit the patient registration form"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the patient is added and visible in patient list and can be searched accurately"
+      }
+    ]
+  },
+  {
+    "id": "TC008",
+    "title": "Patient search by multiple fields",
+    "description": "Verify that patient search returns correct results for queries by name, ID, phone number, and other searchable fields.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to patient management page"
+      },
+      {
+        "type": "action",
+        "description": "Enter patient name in search box"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify relevant patients matching the name appear instantly"
+      },
+      {
+        "type": "action",
+        "description": "Search by patient ID and phone number separately"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify search results correspond exactly to query"
+      }
+    ]
+  },
+  {
+    "id": "TC009",
+    "title": "Patient record update and deactivation",
+    "description": "Verify that patient records can be updated correctly and patients can be deactivated preventing further scheduling.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Select an existing patient in the system"
+      },
+      {
+        "type": "action",
+        "description": "Modify editable patient fields and save"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify updates reflect properly in patient details view"
+      },
+      {
+        "type": "action",
+        "description": "Deactivate the selected patient"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify patient is marked inactive and excluded from active scheduling"
+      }
+    ]
+  },
+  {
+    "id": "TC010",
+    "title": "Medical attention guided flow with required fields validation",
+    "description": "Verify that the medical attention UI enforces step-by-step guidance and blocks progression if required clinical data is missing.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Open medical attention form for a patient"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to proceed to next steps without filling mandatory fields (e.g., SOAP notes)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify progression is blocked and user receives validation errors"
+      },
+      {
+        "type": "action",
+        "description": "Complete all mandatory fields with valid data"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the form progresses and clinical record is saved"
+      }
+    ]
+  },
+  {
+    "id": "TC011",
+    "title": "Financial transaction recording and filter accuracy",
+    "description": "Verify that financial transactions including payments and receipts are recorded properly and filters work by date, patient, status, and amount.",
+    "category": "functional",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to financial management page"
+      },
+      {
+        "type": "action",
+        "description": "Record a new payment linked to a patient and appointment"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify transaction is saved and displays with correct details"
+      },
+      {
+        "type": "action",
+        "description": "Apply filters by date range, patient, and payment status"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify displayed transactions correspond exactly to filter criteria"
+      }
+    ]
+  },
+  {
+    "id": "TC012",
+    "title": "Invoice and receipt generation and verification",
+    "description": "Verify that invoices and receipts can be generated for payments and display correctly with all required information.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Select a completed payment in billing module"
+      },
+      {
+        "type": "action",
+        "description": "Generate invoice and/or receipt document"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify document contains correct patient, treatment, and payment information"
+      }
+    ]
+  },
+  {
+    "id": "TC013",
+    "title": "Inventory management CRUD",
+    "description": "Verify that products and materials can be created, updated, deleted and that inventory levels reflect changes correctly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to inventory management page"
+      },
+      {
+        "type": "action",
+        "description": "Add new inventory item with full details"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify item is listed with correct attributes"
+      },
+      {
+        "type": "action",
+        "description": "Update inventory item information and save"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify updates are reflected in the inventory list"
+      },
+      {
+        "type": "action",
+        "description": "Delete an inventory item"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify item is removed from the inventory list"
+      }
+    ]
+  },
+  {
+    "id": "TC014",
+    "title": "Staff role assignment and availability management",
+    "description": "Verify admin users can manage staff roles, assign permissions, and define work schedules accurately.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Login as administrator and navigate to staff management"
+      },
+      {
+        "type": "action",
+        "description": "Add or update staff roles and permissions"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify role changes are saved and affect user access accordingly"
+      },
+      {
+        "type": "action",
+        "description": "Set staff availability and working hours"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify availability is correctly stored and used in scheduling"
+      }
+    ]
+  },
+  {
+    "id": "TC015",
+    "title": "Real-time notifications functionality",
+    "description": "Verify that system delivers real-time notifications for relevant events via websocket and UI components update accordingly.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Trigger an event that generates a notification (e.g., new appointment, patient update)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify notification is received in real-time and displayed in notifications panel"
+      }
+    ]
+  },
+  {
+    "id": "TC016",
+    "title": "Responsive UI on multiple device sizes",
+    "description": "Verify that all UI screens and components render and remain usable on different viewport sizes: desktop, tablet, and mobile.",
+    "category": "ui",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Access the system on a desktop resolution"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify layout and components render correctly and are fully functional"
+      },
+      {
+        "type": "action",
+        "description": "Resize or use device emulator to view on tablet and mobile sizes"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify UI adapts responsively with no broken elements or lost functionality"
+      }
+    ]
+  },
+  {
+    "id": "TC017",
+    "title": "Password change with validation and success notification",
+    "description": "Verify users can change their password by providing current password, new password and that validations and success/error messages behave correctly.",
+    "category": "security",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to profile settings"
+      },
+      {
+        "type": "action",
+        "description": "Attempt to change password with incorrect current password"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify an error message is shown indicating invalid current password"
+      },
+      {
+        "type": "action",
+        "description": "Change password with valid current password and compliant new password"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify password change is successful and confirmation message is shown"
+      }
+    ]
+  },
+  {
+    "id": "TC018",
+    "title": "Error handling for network failures",
+    "description": "Verify that when network requests fail (e.g., due to server down), the UI shows user-friendly error messages without crashing.",
+    "category": "error handling",
+    "priority": "High",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Simulate network failure during data fetch (e.g., dashboard KPIs)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify error message is shown and UI retains usable state"
+      },
+      {
+        "type": "action",
+        "description": "Simulate network failure during form submission (e.g., patient registration)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify form shows appropriate error and retry options"
+      }
+    ]
+  },
+  {
+    "id": "TC019",
+    "title": "Reports generation and export validation",
+    "description": "Verify that reports can be generated based on selected filters and data, and can be exported in supported formats.",
+    "category": "functional",
+    "priority": "Medium",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Navigate to reports section"
+      },
+      {
+        "type": "action",
+        "description": "Select report type and apply filters (date ranges, staff, treatment types)"
+      },
+      {
+        "type": "action",
+        "description": "Generate report"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify report data matches filter criteria and renders correctly"
+      },
+      {
+        "type": "action",
+        "description": "Export report as PDF and CSV formats"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify exported files are generated correctly and downloadable"
+      }
+    ]
+  },
+  {
+    "id": "TC020",
+    "title": "Voice assistant command integration test",
+    "description": "Verify the voice integration receives commands, executes supported actions and handles unsupported commands gracefully.",
+    "category": "functional",
+    "priority": "Low",
+    "steps": [
+      {
+        "type": "action",
+        "description": "Activate voice assistant and issue a supported command (e.g., schedule appointment)"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the command is processed and UI responds accordingly"
+      },
+      {
+        "type": "action",
+        "description": "Issue an unsupported or invalid command"
+      },
+      {
+        "type": "assertion",
+        "description": "Verify the system responds with a helpful error or prompt"
+      }
+    ]
+  }
+]

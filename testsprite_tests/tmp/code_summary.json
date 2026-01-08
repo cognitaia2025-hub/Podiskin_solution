@@ -1,0 +1,191 @@
+{
+    "tech_stack": [
+        "TypeScript",
+        "React",
+        "Vite",
+        "Python",
+        "FastAPI",
+        "PostgreSQL",
+        "Redis",
+        "TailwindCSS",
+        "React Router",
+        "Axios",
+        "React Hook Form",
+        "Zod"
+    ],
+    "features": [
+        {
+            "name": "Authentication & Authorization",
+            "description": "Sistema de autenticación con JWT, gestión de usuarios, roles y permisos RBAC",
+            "files": [
+                "Frontend/src/auth/AuthContext.tsx",
+                "Frontend/src/auth/ProtectedRoute.tsx",
+                "Frontend/src/pages/LoginPage.tsx",
+                "backend/auth/router.py",
+                "backend/auth/permissions_router.py",
+                "backend/users/router.py"
+            ]
+        },
+        {
+            "name": "Dashboard",
+            "description": "Panel principal con estadísticas, métricas y visualización de datos del negocio",
+            "files": [
+                "Frontend/src/pages/DashboardPage.tsx",
+                "Frontend/src/components/dashboard",
+                "Frontend/src/services/dashboardService.ts",
+                "backend/stats/router.py",
+                "backend/analytics/router.py"
+            ]
+        },
+        {
+            "name": "Appointment Management (Citas)",
+            "description": "Sistema completo de gestión de citas con calendario, vistas múltiples (día/semana/mes/agenda), drag & drop",
+            "files": [
+                "Frontend/src/components/CalendarGrid.tsx",
+                "Frontend/src/components/DayView.tsx",
+                "Frontend/src/components/MonthView.tsx",
+                "Frontend/src/components/AgendaView.tsx",
+                "Frontend/src/components/EventModal.tsx",
+                "Frontend/src/services/appointmentService.ts",
+                "backend/citas/router.py",
+                "backend/citas/service.py"
+            ]
+        },
+        {
+            "name": "Patient Management (Pacientes)",
+            "description": "Gestión completa de pacientes incluyendo registro, búsqueda, historial y datos personales",
+            "files": [
+                "Frontend/src/pages/PatientsPage.tsx",
+                "Frontend/src/components/patients",
+                "Frontend/src/services/patientService.ts",
+                "backend/pacientes/router.py",
+                "backend/pacientes/service.py"
+            ]
+        },
+        {
+            "name": "Medical Records (Expedientes Médicos)",
+            "description": "Sistema de expedientes médicos con diagnósticos, tratamientos, notas clínicas y seguimiento",
+            "files": [
+                "Frontend/src/pages/medical/MedicalRecordsPage.tsx",
+                "Frontend/src/pages/medical/MedicalAttentionPage.tsx",
+                "Frontend/src/components/medical",
+                "Frontend/src/services/medicalRecordsService.ts",
+                "backend/medical_records/router.py"
+            ]
+        },
+        {
+            "name": "Treatment Management (Tratamientos)",
+            "description": "Gestión de tratamientos podológicos, servicios y procedimientos",
+            "files": [
+                "Frontend/src/services/treatmentService.ts",
+                "backend/tratamientos/router.py",
+                "backend/catalog/router.py"
+            ]
+        },
+        {
+            "name": "Billing & Payments (Cobros y Pagos)",
+            "description": "Sistema de facturación, cobros, pagos y gestión financiera",
+            "files": [
+                "Frontend/src/pages/BillingPage.tsx",
+                "Frontend/src/components/billing",
+                "Frontend/src/services/billingService.ts",
+                "backend/pagos/router.py",
+                "backend/facturas/router.py",
+                "backend/cortes_caja/router.py"
+            ]
+        },
+        {
+            "name": "Finances Management",
+            "description": "Gestión de finanzas, gastos, proveedores y reportes financieros",
+            "files": [
+                "Frontend/src/pages/FinancesPage.tsx",
+                "Frontend/src/components/finances",
+                "backend/gastos/router.py",
+                "backend/proveedores/router.py"
+            ]
+        },
+        {
+            "name": "Inventory Management",
+            "description": "Control de inventario de productos y materiales",
+            "files": [
+                "Frontend/src/pages/admin/InventoryPage.tsx",
+                "Frontend/src/components/inventory",
+                "Frontend/src/services/inventoryService.ts",
+                "backend/inventory/router.py"
+            ]
+        },
+        {
+            "name": "Staff Management (Podólogos)",
+            "description": "Gestión de personal médico, podólogos, horarios y disponibilidad",
+            "files": [
+                "Frontend/src/pages/admin/StaffManagementPage.tsx",
+                "Frontend/src/components/StaffAvailability.tsx",
+                "Frontend/src/services/podologosService.ts",
+                "Frontend/src/services/staffService.ts",
+                "backend/podologos/router.py",
+                "backend/podologos/patients_router.py",
+                "backend/horarios/router.py"
+            ]
+        },
+        {
+            "name": "Reports & Analytics",
+            "description": "Sistema de reportes y análisis de datos del negocio",
+            "files": [
+                "Frontend/src/pages/RecordsPage.tsx",
+                "Frontend/src/components/reports",
+                "Frontend/src/services/reportesService.ts",
+                "backend/reportes/router.py",
+                "backend/analytics/router.py"
+            ]
+        },
+        {
+            "name": "Admin Panel",
+            "description": "Panel de administración con gestión de usuarios, roles, permisos, servicios y auditoría",
+            "files": [
+                "Frontend/src/pages/AdminPage.tsx",
+                "Frontend/src/pages/admin",
+                "Frontend/src/services/rolesService.ts",
+                "Frontend/src/services/auditService.ts",
+                "backend/roles/router.py",
+                "backend/audit/router.py"
+            ]
+        },
+        {
+            "name": "User Settings & Profile",
+            "description": "Configuración de usuario y perfil personal",
+            "files": [
+                "Frontend/src/pages/AjustesPage.tsx",
+                "Frontend/src/pages/PerfilPage.tsx"
+            ]
+        },
+        {
+            "name": "Real-time Notifications",
+            "description": "Sistema de notificaciones en tiempo real vía WebSocket",
+            "files": [
+                "Frontend/src/components/notifications",
+                "Frontend/src/services/NotificationService.ts",
+                "backend/ws_notifications/notifications_ws.py"
+            ]
+        },
+        {
+            "name": "Global Navigation & Layout",
+            "description": "Sistema de navegación global, layout y componentes compartidos",
+            "files": [
+                "Frontend/src/components/GlobalNavigation.tsx",
+                "Frontend/src/components/Layout.tsx",
+                "Frontend/src/layouts",
+                "Frontend/src/components/common"
+            ]
+        },
+        {
+            "name": "Voice Integration",
+            "description": "Integración con asistente de voz y Gemini Live",
+            "files": [
+                "Frontend/src/voice",
+                "backend/api/live_sessions_router.py",
+                "backend/api/orchestrator_router.py",
+                "backend/agents"
+            ]
+        }
+    ]
+}

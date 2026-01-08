@@ -83,15 +83,17 @@ async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
             WHERE id = $1
         """
         result = await fetch_one(query, podologo_id)
-            else:
-                logger.warning(f"Podologo with ID {podologo_id} not found")
-                return None
+        
+        if result:
+            logger.info(f"Found podologo with ID {podologo_id}")
+            return result
+        else:
+            logger.warning(f"Podologo with ID {podologo_id} not found")
+            return None
     
     except Exception as e:
         logger.error(f"Error fetching podologo {podologo_id}: {e}")
         raise
-    finally:
-        conn.close()
 
 
 async def create_podologo(podologo_data: PodologoCreate) -> dict:
@@ -104,57 +106,49 @@ async def create_podologo(podologo_data: PodologoCreate) -> dict:
     Returns:
         Datos del podólogo creado
     """
-    conn = get_db_connection()
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            cursor.execute(
-                """
-                INSERT INTO podologos (
-                    cedula_profesional, 
-                    nombre_completo, 
-                    especialidad, 
-                    telefono, 
-                    email, 
-                    activo, 
-                    fecha_contratacion, 
-                    id_usuario
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING 
-                    id, 
-                    cedula_profesional, 
-                    nombre_completo, 
-                    especialidad, 
-                    telefono, 
-                    email, 
-                    activo, 
-                    fecha_contratacion, 
-                    fecha_registro, 
-                    id_usuario
-                """,
-                (
-                    podologo_data.cedula_profesional,
-                    podologo_data.nombre_completo,
-                    podologo_data.especialidad,
-                    podologo_data.telefono,
-                    podologo_data.email,
-                    podologo_data.activo,
-                    podologo_data.fecha_contratacion,
-                    podologo_data.id_usuario,
-                )
+        query = """
+            INSERT INTO podologos (
+                cedula_profesional, 
+                nombre_completo, 
+                especialidad, 
+                telefono, 
+                email, 
+                activo, 
+                fecha_contratacion, 
+                id_usuario
             )
-            result = cursor.fetchone()
-            conn.commit()
-            
-            logger.info(f"Created new podologo: {result['nombre_completo']}")
-            return dict(result)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING 
+                id, 
+                cedula_profesional, 
+                nombre_completo, 
+                especialidad, 
+                telefono, 
+                email, 
+                activo, 
+                fecha_contratacion, 
+                fecha_registro, 
+                id_usuario
+        """
+        result = await execute_returning(
+            query,
+            podologo_data.cedula_profesional,
+            podologo_data.nombre_completo,
+            podologo_data.especialidad,
+            podologo_data.telefono,
+            podologo_data.email,
+            podologo_data.activo,
+            podologo_data.fecha_contratacion,
+            podologo_data.id_usuario,
+        )
+        
+        logger.info(f"Created new podologo: {result['nombre_completo']}")
+        return result
     
     except Exception as e:
-        conn.rollback()
         logger.error(f"Error creating podologo: {e}")
         raise
-    finally:
-        conn.close()
 
 
 async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Optional[dict]:
@@ -168,43 +162,51 @@ async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Op
     Returns:
         Datos del podólogo actualizado o None si no existe
     """
-    conn = get_db_connection()
     try:
         # Construir query dinámicamente solo con campos proporcionados
         update_fields = []
         params = []
+        param_idx = 1
         
         if podologo_data.cedula_profesional is not None:
-            update_fields.append("cedula_profesional = %s")
+            update_fields.append(f"cedula_profesional = ${param_idx}")
             params.append(podologo_data.cedula_profesional)
+            param_idx += 1
         
         if podologo_data.nombre_completo is not None:
-            update_fields.append("nombre_completo = %s")
+            update_fields.append(f"nombre_completo = ${param_idx}")
             params.append(podologo_data.nombre_completo)
+            param_idx += 1
         
         if podologo_data.especialidad is not None:
-            update_fields.append("especialidad = %s")
+            update_fields.append(f"especialidad = ${param_idx}")
             params.append(podologo_data.especialidad)
+            param_idx += 1
         
         if podologo_data.telefono is not None:
-            update_fields.append("telefono = %s")
+            update_fields.append(f"telefono = ${param_idx}")
             params.append(podologo_data.telefono)
+            param_idx += 1
         
         if podologo_data.email is not None:
-            update_fields.append("email = %s")
+            update_fields.append(f"email = ${param_idx}")
             params.append(podologo_data.email)
+            param_idx += 1
         
         if podologo_data.activo is not None:
-            update_fields.append("activo = %s")
+            update_fields.append(f"activo = ${param_idx}")
             params.append(podologo_data.activo)
+            param_idx += 1
         
         if podologo_data.fecha_contratacion is not None:
-            update_fields.append("fecha_contratacion = %s")
+            update_fields.append(f"fecha_contratacion = ${param_idx}")
             params.append(podologo_data.fecha_contratacion)
+            param_idx += 1
         
         if podologo_data.id_usuario is not None:
-            update_fields.append("id_usuario = %s")
+            update_fields.append(f"id_usuario = ${param_idx}")
             params.append(podologo_data.id_usuario)
+            param_idx += 1
         
         if not update_fields:
             logger.warning(f"No fields to update for podologo {podologo_id}")
@@ -212,41 +214,35 @@ async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Op
         
         params.append(podologo_id)
         
-        with conn.cursor(cursor_factory=RealDictCursor) as cursor:
-            query = f"""
-                UPDATE podologos 
-                SET {', '.join(update_fields)}
-                WHERE id = %s
-                RETURNING 
-                    id, 
-                    cedula_profesional, 
-                    nombre_completo, 
-                    especialidad, 
-                    telefono, 
-                    email, 
-                    activo, 
-                    fecha_contratacion, 
-                    fecha_registro, 
-                    id_usuario
-            """
-            
-            cursor.execute(query, params)
-            result = cursor.fetchone()
-            conn.commit()
-            
-            if result:
-                logger.info(f"Updated podologo {podologo_id}")
-                return dict(result)
-            else:
-                logger.warning(f"Podologo {podologo_id} not found for update")
-                return None
+        query = f"""
+            UPDATE podologos 
+            SET {', '.join(update_fields)}
+            WHERE id = ${param_idx}
+            RETURNING 
+                id, 
+                cedula_profesional, 
+                nombre_completo, 
+                especialidad, 
+                telefono, 
+                email, 
+                activo, 
+                fecha_contratacion, 
+                fecha_registro, 
+                id_usuario
+        """
+        
+        result = await execute_returning(query, *params)
+        
+        if result:
+            logger.info(f"Updated podologo {podologo_id}")
+            return result
+        else:
+            logger.warning(f"Podologo {podologo_id} not found for update")
+            return None
     
     except Exception as e:
-        conn.rollback()
         logger.error(f"Error updating podologo {podologo_id}: {e}")
         raise
-    finally:
-        conn.close()
 
 
 async def delete_podologo(podologo_id: int) -> bool:
@@ -259,33 +255,25 @@ async def delete_podologo(podologo_id: int) -> bool:
     Returns:
         True si se eliminó, False si no existe
     """
-    conn = get_db_connection()
     try:
-        with conn.cursor() as cursor:
-            cursor.execute(
-                """
-                UPDATE podologos 
-                SET activo = false 
-                WHERE id = %s
-                """,
-                (podologo_id,)
-            )
-            affected_rows = cursor.rowcount
-            conn.commit()
-            
-            if affected_rows > 0:
-                logger.info(f"Soft deleted podologo {podologo_id}")
-                return True
-            else:
-                logger.warning(f"Podologo {podologo_id} not found for deletion")
-                return False
+        query = """
+            UPDATE podologos 
+            SET activo = false 
+            WHERE id = $1
+            RETURNING id
+        """
+        result = await execute_returning(query, podologo_id)
+        
+        if result:
+            logger.info(f"Soft deleted podologo {podologo_id}")
+            return True
+        else:
+            logger.warning(f"Podologo {podologo_id} not found for deletion")
+            return False
     
     except Exception as e:
-        conn.rollback()
         logger.error(f"Error deleting podologo {podologo_id}: {e}")
         raise
-    finally:
-        conn.close()
 
 
 async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:

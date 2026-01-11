@@ -15,7 +15,11 @@ Este repositorio es parte de ese camino.
 Después de **dos años de aprendizaje autodidacta**, de equivocarme más de lo que acierto y de aprender a golpes conceptuales, presento este proyecto. Es **funcional**, existe, resuelve problemas reales… pero no está “terminado”. Y no debería estarlo.
 Sigo mejorándolo, refactorizándolo, cuestionándolo. Porque así funciona esto: el software no se acaba, **evoluciona**, o muere.
 
-Aquí no hay promesas grandilocuentes. Hay trabajo honesto, curiosidad constante y ganas de hacerlo cada vez mejor.
+el codigo es 100% generado con IA pero quí no hay promesas, Hay trabajo honesto, a base de curiosidad constante una lista aun interminable de aprendizaje de terminos y conceptos y entendimiento de ellos para sber que pedir y como pedirlo y sobre todo ganas de hacerlo cada vez mejor. 
+Desarrolladores no se frustren, muchos de ustedes no saben codigo binaro, aun asi hubo una comunidad de tras de ustedes que a ayudado a democratizar la programacion.
+
+¡Gracias!
+
 El README ya cuenta el *qué*.
 Esto explica el *por qué*.
 

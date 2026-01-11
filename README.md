@@ -1,6 +1,6 @@
 
 # Agradecimiento a la comunidad.
-Quiero comenzar esto con algo que, honestamente, me debía desde hace tiempo: **respeto y agradecimiento a toda la comunidad de programación**.
+*respeto y agradecimiento a toda la comunidad de programación*.
 Durante mucho tiempo usé software como quien usa electricidad: das clic, funciona, y ya. y la verdad es que, no es magia. Es sudor mental, horas interminables, café frío, bugs absurdos a las 3 a.m. y decisiones técnicas que nadie ve pero de las que todo depende.
 
 No tenía dimensión real del **esfuerzo brutal** que hay detrás de cada sistema, cada API, cada interfaz que “solo funciona”. Hoy sí. Y duele un poco aceptarlo… pero también te vuelve humilde.

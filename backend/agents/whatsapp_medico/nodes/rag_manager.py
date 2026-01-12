@@ -85,8 +85,10 @@ async def node_rag_manager(state: AgentState) -> Dict[str, Any]:
                             'termino_busqueda': termino
                         }
                     }
-            except:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"Error parsing JSON de tratamientos: {e}")
+            except Exception as e:
+                logger.error(f"Error inesperado en búsqueda de tratamientos: {e}", exc_info=True)
     
     if tipo_consulta in ['horario', 'disponibilidad']:
         logger.info("🔑 [PRIORIDAD 1] Consultando tabla estructurada: horarios_trabajo")
@@ -113,8 +115,10 @@ async def node_rag_manager(state: AgentState) -> Dict[str, Any]:
                             'dia_semana': dia_semana
                         }
                     }
-            except:
-                pass
+            except json.JSONDecodeError as e:
+                logger.warning(f"Error parsing JSON de horarios: {e}")
+            except Exception as e:
+                logger.error(f"Error inesperado en búsqueda de horarios: {e}", exc_info=True)
     
     if tipo_consulta == 'cita':
         logger.info("🔑 [PRIORIDAD 1] Consultando tabla estructurada: citas")
@@ -136,8 +140,10 @@ async def node_rag_manager(state: AgentState) -> Dict[str, Any]:
                         'contact_id': contact_id
                     }
                 }
-        except:
-            pass
+        except json.JSONDecodeError as e:
+            logger.warning(f"Error parsing resultado de citas: {e}")
+        except Exception as e:
+            logger.error(f"Error inesperado en consulta de citas: {e}", exc_info=True)
     
     # ========================================================================
     # PASO 3: PRIORIDAD 2 - Knowledge Base Validada (pgvector)
@@ -162,8 +168,12 @@ async def node_rag_manager(state: AgentState) -> Dict[str, Any]:
                     'categoria': kb_data.get('categoria')
                 }
             }
-    except:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"Error parsing JSON de knowledge base: {e}")
+    except KeyError as e:
+        logger.debug(f"Clave faltante en resultado de KB: {e}")
+    except Exception as e:
+        logger.error(f"Error inesperado en búsqueda de KB: {e}", exc_info=True)
     
     # ========================================================================
     # PASO 4: PRIORIDAD 3 - Contexto Conversacional (aislado)
@@ -191,8 +201,12 @@ async def node_rag_manager(state: AgentState) -> Dict[str, Any]:
                         'conversaciones_ids': [c['conversacion_id'] for c in conversations]
                     }
                 }
-    except:
-        pass
+    except json.JSONDecodeError as e:
+        logger.warning(f"Error parsing JSON de conversaciones: {e}")
+    except KeyError as e:
+        logger.debug(f"Clave faltante en resultado de conversaciones: {e}")
+    except Exception as e:
+        logger.error(f"Error inesperado en búsqueda de conversaciones: {e}", exc_info=True)
     
     # ========================================================================
     # PASO 5: SI NADA FUNCIONA - Escalar a Humano

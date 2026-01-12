@@ -298,8 +298,8 @@ async def twilio_webhook_handler(
                 """,
                 str(e), datetime.now(), MessageSid
             )
-        except:
-            pass
+        except Exception as db_error:
+            logger.error(f"Error al actualizar error en BD: {db_error}")
         
         # Responder con mensaje de error genérico
         twiml_resp = MessagingResponse()

@@ -30,21 +30,22 @@ from auth import get_current_user, User
 from agents.orchestrator import execute_orchestrator, SIMPLE_FUNCTIONS, COMPLEX_FUNCTIONS_MAPPING
 
 # Import database
-from pacientes.database import db as pacientes_db
+from db import get_connection
 
 # Import services for tool execution
 from tratamientos.service import create_signos_vitales, calcular_imc, clasificar_imc
 from pacientes.service import PacientesService, AlergiasService
 from pacientes.models import AlergiaCreate
 
+# Import Redis service for sessions
+from .live_sessions_redis import get_live_sessions_service
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/live", tags=["live_sessions"])
 
-# In-memory session store
-# TODO: Replace with Redis for production to support horizontal scaling and persistence
-# Migration path: Use Redis with same data structure, add TTL on keys
-active_sessions: Dict[str, Dict[str, Any]] = {}
+# Redis service for session management (with memory fallback)
+sessions_service = get_live_sessions_service()
 
 # Session configuration
 SESSION_TTL_MINUTES = int(os.getenv("SESSION_TTL_MINUTES", "30"))
@@ -89,7 +90,10 @@ class ToolCallResponse(BaseModel):
 
 def create_session_token(session_id: str, ttl_minutes: int = SESSION_TTL_MINUTES) -> SessionStartResponse:
     """
-    Create an ephemeral session token with TTL
+    Create an ephemeral session token with TTL.
+    
+    Note: This is now a helper that returns SessionStartResponse format.
+    Actual storage is handled by sessions_service.
     
     Args:
         session_id: Unique session identifier
@@ -98,6 +102,7 @@ def create_session_token(session_id: str, ttl_minutes: int = SESSION_TTL_MINUTES
     Returns:
         SessionStartResponse with token and expiration
     """
+    import secrets
     token = secrets.token_urlsafe(32)
     expires_at = datetime.utcnow() + timedelta(minutes=ttl_minutes)
     
@@ -108,9 +113,9 @@ def create_session_token(session_id: str, ttl_minutes: int = SESSION_TTL_MINUTES
     )
 
 
-def validate_session_token(session_id: str, token: str) -> bool:
+async def validate_session_token(session_id: str, token: str) -> bool:
     """
-    Validate a session token
+    Validate a session token using Redis service.
     
     Args:
         session_id: Session identifier
@@ -119,40 +124,16 @@ def validate_session_token(session_id: str, token: str) -> bool:
     Returns:
         True if valid, False otherwise
     """
-    if session_id not in active_sessions:
-        logger.warning(f"Session not found: {session_id}")
-        return False
-    
-    session = active_sessions[session_id]
-    
-    # Check token matches
-    if session['token'] != token:
-        logger.warning(f"Token mismatch for session: {session_id}")
-        return False
-    
-    # Check not expired
-    if datetime.utcnow() > session['expires_at']:
-        logger.info(f"Session expired: {session_id}")
-        del active_sessions[session_id]
-        return False
-    
-    return True
+    return await sessions_service.validate_session(session_id, token)
 
 
-def cleanup_expired_sessions():
+async def cleanup_expired_sessions():
     """
-    Clean up expired sessions from the store
-    This should be called periodically (e.g., via background task)
+    Clean up expired sessions.
+    With Redis, this is automatic via TTL.
+    With memory fallback, this manually removes expired sessions.
     """
-    now = datetime.utcnow()
-    expired = [sid for sid, sess in active_sessions.items() if now > sess['expires_at']]
-    
-    for session_id in expired:
-        logger.info(f"Cleaning up expired session: {session_id}")
-        del active_sessions[session_id]
-    
-    if expired:
-        logger.info(f"Cleaned up {len(expired)} expired sessions")
+    await sessions_service.cleanup_expired_sessions()
 
 
 async def validate_patient_access(patient_id: str, user: User) -> bool:
@@ -181,7 +162,7 @@ async def validate_patient_access(patient_id: str, user: User) -> bool:
     
     # Check if patient exists
     query = "SELECT id, activo FROM pacientes WHERE id = $1"
-    async with pacientes_db.get_connection() as conn:
+    async with get_connection() as conn:
         row = await conn.fetchrow(query, patient_id_int)
         
         if not row:
@@ -257,27 +238,19 @@ async def start_session(
     await validate_patient_access(config.patientId, current_user)
     
     # Cleanup expired sessions before creating new one
-    cleanup_expired_sessions()
+    await cleanup_expired_sessions()
     
     # Create unique session ID
     session_id = str(uuid.uuid4())
     
-    # Create ephemeral token
-    session_token = create_session_token(session_id, ttl_minutes=SESSION_TTL_MINUTES)
-    
-    # Store session data
-    active_sessions[session_id] = {
-        'session_id': session_id,
-        'token': session_token.token,
-        'user_id': str(current_user.id),
-        'username': current_user.nombre_usuario,
-        'patient_id': config.patientId,
-        'appointment_id': config.appointmentId,
-        'created_at': datetime.utcnow(),
-        'expires_at': session_token.expiresAt,
-        'active': True,
-        'tool_calls': []  # Track tool calls for audit
-    }
+    # Create session using Redis service
+    session_response = await sessions_service.create_session(
+        session_id=session_id,
+        patient_id=config.patientId,
+        appointment_id=config.appointmentId,
+        user_id=str(current_user.id),
+        ttl_minutes=SESSION_TTL_MINUTES
+    )
     
     # Log session creation for audit
     logger.info(
@@ -287,7 +260,7 @@ async def start_session(
         f"Appointment: {config.appointmentId}"
     )
     
-    return session_token
+    return SessionStartResponse(**session_response)
 
 
 @router.delete("/session/{session_id}")
@@ -311,13 +284,13 @@ async def stop_session(
         Status message with session ID
     """
     
-    if session_id not in active_sessions:
+    session = await sessions_service.get_session(session_id)
+    
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found or already closed"
         )
-    
-    session = active_sessions[session_id]
     
     # Validate ownership - only the user who created the session can stop it
     if session['user_id'] != str(current_user.id):
@@ -330,17 +303,19 @@ async def stop_session(
             detail="Not authorized to stop this session"
         )
     
+    # Calculate duration
+    created_at = datetime.fromisoformat(session['created_at'])
+    duration = (datetime.utcnow() - created_at).total_seconds()
+    
     # Log session closure for audit
     logger.info(
         f"Voice session stopped: {session_id} | "
         f"User: {current_user.nombre_usuario} | "
-        f"Duration: {(datetime.utcnow() - session['created_at']).total_seconds():.1f}s | "
-        f"Tool calls: {len(session['tool_calls'])}"
+        f"Duration: {duration:.1f}s"
     )
     
-    # Mark as inactive and remove from active sessions
-    session['active'] = False
-    del active_sessions[session_id]
+    # Delete session
+    await sessions_service.delete_session(session_id)
     
     return {
         "status": "closed",
@@ -392,16 +367,15 @@ async def execute_tool_call(
     session_id = request.sessionId
     
     # Validate session exists
-    if session_id not in active_sessions:
+    session = await sessions_service.get_session(session_id)
+    if not session:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Session not found or expired"
         )
     
-    session = active_sessions[session_id]
-    
     # Validate session token
-    if not validate_session_token(session_id, x_session_token):
+    if not await validate_session_token(session_id, x_session_token):
         logger.warning(
             f"Invalid session token for tool call: {session_id} | "
             f"Tool: {request.toolName}"
@@ -614,7 +588,7 @@ async def execute_simple_function(
     elif function_name == "query_patient_data":
         # Query patient from database directly
         try:
-            async with pacientes_db.get_connection() as conn:
+            async with get_connection() as conn:
                 patient = await PacientesService.get_paciente_by_id(conn, int(patient_id))
                 
                 if not patient:
@@ -654,7 +628,7 @@ async def execute_simple_function(
                 notas=args.get('notas')
             )
             
-            async with pacientes_db.get_connection() as conn:
+            async with get_connection() as conn:
                 result = await AlergiasService.create_alergia(
                     conn, 
                     int(patient_id), 
@@ -781,40 +755,19 @@ async def health_check():
         Health status with active session count
     """
     # Cleanup expired sessions before reporting
-    cleanup_expired_sessions()
+    await cleanup_expired_sessions()
     
+    # Note: Redis service doesn't expose count directly for security
+    # In production, use Redis SCAN or separate counter
     return {
         "status": "healthy",
         "service": "live_sessions",
-        "active_sessions": len(active_sessions),
+        "redis_enabled": sessions_service.redis_enabled,
         "session_ttl_minutes": SESSION_TTL_MINUTES,
         "timestamp": datetime.utcnow().isoformat()
     }
 
 
-@router.get("/sessions/active", dependencies=[Depends(get_current_user)])
-async def list_active_sessions(current_user: User = Depends(get_current_user)):
-    """
-    List active sessions for current user (admin/debug endpoint)
-    
-    Returns:
-        List of active session IDs for the current user
-    """
-    user_sessions = [
-        {
-            'session_id': sid,
-            'patient_id': sess['patient_id'],
-            'created_at': sess['created_at'].isoformat(),
-            'expires_at': sess['expires_at'].isoformat(),
-            'tool_calls_count': len(sess['tool_calls'])
-        }
-        for sid, sess in active_sessions.items()
-        if sess['user_id'] == str(current_user.id)
-    ]
-    
-    return {
-        'user_id': str(current_user.id),
-        'username': current_user.nombre_usuario,
-        'active_sessions': user_sessions,
-        'count': len(user_sessions)
-    }
+# Note: list_active_sessions endpoint removed
+# Reason: Not compatible with Redis architecture (no efficient session enumeration)
+# Alternative: Track sessions per user in separate Redis set if needed

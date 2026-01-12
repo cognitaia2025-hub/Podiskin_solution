@@ -12,7 +12,7 @@ def fix_categories():
             port=int(os.getenv("DB_PORT", "5432")),
             database=os.getenv("DB_NAME", "podoskin_db"),
             user=os.getenv("DB_USER", "podoskin_user"),
-            password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
+            password=os.getenv("DB_PASSWORD"),  # Requerido en .env
         )
         cur = conn.cursor()
 

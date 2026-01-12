@@ -35,6 +35,31 @@ class EstadoCita(str, Enum):
     NO_ASISTIO = "No_Asistio"
 
 
+class UnidadTiempo(str, Enum):
+    """Unidades de tiempo para recordatorios."""
+
+    MINUTOS = "minutos"
+    HORAS = "horas"
+    DIAS = "días"
+
+
+class MetodoEnvio(str, Enum):
+    """Métodos de envío de recordatorios."""
+
+    WHATSAPP = "whatsapp"
+    EMAIL = "email"
+    SMS = "sms"
+
+
+class FrecuenciaRecurrencia(str, Enum):
+    """Frecuencias de recurrencia."""
+
+    DAILY = "DAILY"
+    WEEKLY = "WEEKLY"
+    MONTHLY = "MONTHLY"
+    YEARLY = "YEARLY"
+
+
 # ============================================================================
 # REQUEST MODELS
 # ============================================================================
@@ -185,3 +210,117 @@ class DisponibilidadResponse(BaseModel):
     fecha: str
     podologo: PodologoInfo
     slots: List[SlotDisponibilidad]
+
+
+# ============================================================================
+# RECORDATORIOS
+# ============================================================================
+
+
+class RecordatorioCreate(BaseModel):
+    """Modelo para crear un recordatorio."""
+
+    tiempo: int = Field(..., gt=0, description="Cantidad de tiempo antes de la cita")
+    unidad: UnidadTiempo = Field(..., description="Unidad de tiempo")
+    metodo_envio: MetodoEnvio = Field(
+        default=MetodoEnvio.WHATSAPP, description="Método de envío del recordatorio"
+    )
+
+
+class RecordatorioResponse(BaseModel):
+    """Modelo de respuesta para un recordatorio."""
+
+    id: int
+    id_cita: int
+    tiempo: int
+    unidad: str
+    enviado: bool
+    fecha_envio: Optional[datetime] = None
+    metodo_envio: str
+    error_envio: Optional[str] = None
+    fecha_creacion: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RecordatorioListResponse(BaseModel):
+    """Lista de recordatorios."""
+
+    total: int
+    recordatorios: List[RecordatorioResponse]
+
+
+# ============================================================================
+# RECURRENCIA / SERIES
+# ============================================================================
+
+
+class ReglaRecurrencia(BaseModel):
+    """Regla de recurrencia para citas."""
+
+    frequency: FrecuenciaRecurrencia = Field(..., description="Frecuencia de recurrencia")
+    interval: int = Field(default=1, gt=0, description="Intervalo entre ocurrencias")
+    count: Optional[int] = Field(None, gt=0, description="Número total de ocurrencias")
+    until: Optional[datetime] = Field(None, description="Fecha hasta la cual se repite")
+    byweekday: Optional[List[int]] = Field(
+        None, description="Días de la semana (0=Lun, 6=Dom)"
+    )
+
+    @field_validator("byweekday")
+    @classmethod
+    def validate_weekdays(cls, v):
+        if v is not None:
+            if not all(0 <= day <= 6 for day in v):
+                raise ValueError("byweekday debe contener valores entre 0 y 6")
+        return v
+
+
+class SerieCreate(BaseModel):
+    """Modelo para crear una serie de citas recurrentes."""
+
+    regla_recurrencia: ReglaRecurrencia = Field(..., description="Regla de recurrencia")
+    fecha_inicio: datetime = Field(..., description="Fecha de inicio de la serie")
+    fecha_fin: Optional[datetime] = Field(None, description="Fecha de fin de la serie")
+    id_paciente: int = Field(..., gt=0, description="ID del paciente")
+    id_podologo: int = Field(..., gt=0, description="ID del podólogo")
+    tipo_cita: TipoCita = Field(default=TipoCita.CONSULTA, description="Tipo de cita")
+    duracion_minutos: int = Field(default=30, gt=0, description="Duración de cada cita")
+    hora_inicio: str = Field(..., description="Hora de inicio en formato HH:MM")
+    notas_serie: Optional[str] = Field(None, max_length=500, description="Notas para toda la serie")
+
+
+class SerieUpdate(BaseModel):
+    """Modelo para actualizar una serie."""
+
+    fecha_fin: Optional[datetime] = None
+    activa: Optional[bool] = None
+    notas_serie: Optional[str] = Field(None, max_length=500)
+
+
+class SerieResponse(BaseModel):
+    """Modelo de respuesta para una serie."""
+
+    id: int
+    regla_recurrencia: dict
+    fecha_inicio: datetime
+    fecha_fin: Optional[datetime] = None
+    id_paciente: int
+    id_podologo: int
+    tipo_cita: str
+    duracion_minutos: int
+    hora_inicio: str
+    notas_serie: Optional[str] = None
+    activa: bool
+    fecha_creacion: datetime
+    paciente: Optional[PacienteInfo] = None
+    podologo: Optional[PodologoInfo] = None
+    citas_generadas: int = 0
+
+    model_config = {"from_attributes": True}
+
+
+class SerieListResponse(BaseModel):
+    """Lista de series."""
+
+    total: int
+    series: List[SerieResponse]

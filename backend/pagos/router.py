@@ -76,7 +76,7 @@ async def listar_pagos(
         )
 
     try:
-        result = pagos_service.get_all(
+        result = await pagos_service.get_all(
             id_cita=id_cita,
             id_paciente=id_paciente,
             estado_pago=estado_pago,
@@ -92,7 +92,7 @@ async def listar_pagos(
         return result
 
     except Exception as e:
-        logger.error(f"Error listando pagos: {e}")
+        logger.error(f"Error listando pagos: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener lista de pagos",
@@ -122,7 +122,7 @@ async def crear_pago(
 
         ip_address = get_client_ip(request)
 
-        pago_creado = pagos_service.create(
+        pago_creado = await pagos_service.create(
             pago_data=pago, usuario_id=current_user.id, ip_address=ip_address
         )
 
@@ -131,7 +131,7 @@ async def crear_pago(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Error creando pago: {e}")
+        logger.error(f"Error creando pago: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al crear el pago",
@@ -153,7 +153,7 @@ async def obtener_pago(pago_id: int, current_user: dict = Depends(get_current_us
         )
 
     try:
-        pago = pagos_service.get_by_id(pago_id)
+        pago = await pagos_service.get_by_id(pago_id)
 
         if not pago:
             raise HTTPException(
@@ -166,7 +166,7 @@ async def obtener_pago(pago_id: int, current_user: dict = Depends(get_current_us
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error obteniendo pago {pago_id}: {e}")
+        logger.error(f"Error obteniendo pago {pago_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener el pago",
@@ -195,7 +195,7 @@ async def actualizar_pago(
     try:
         ip_address = get_client_ip(request)
 
-        pago_actualizado = pagos_service.update(
+        pago_actualizado = await pagos_service.update(
             pago_id=pago_id,
             pago_data=pago_update,
             usuario_id=current_user.id,
@@ -207,7 +207,7 @@ async def actualizar_pago(
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except Exception as e:
-        logger.error(f"Error actualizando pago {pago_id}: {e}")
+        logger.error(f"Error actualizando pago {pago_id}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al actualizar el pago",
@@ -231,11 +231,11 @@ async def obtener_pagos_cita(
         )
 
     try:
-        pagos = pagos_service.get_by_cita(id_cita)
+        pagos = await pagos_service.get_by_cita(id_cita)
         return pagos
 
     except Exception as e:
-        logger.error(f"Error obteniendo pagos de cita {id_cita}: {e}")
+        logger.error(f"Error obteniendo pagos de cita {id_cita}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener pagos de la cita",
@@ -257,11 +257,11 @@ async def listar_pagos_pendientes(current_user: dict = Depends(get_current_user)
         )
 
     try:
-        pagos = pagos_service.get_pendientes()
+        pagos = await pagos_service.get_pendientes()
         return pagos
 
     except Exception as e:
-        logger.error(f"Error obteniendo pagos pendientes: {e}")
+        logger.error(f"Error obteniendo pagos pendientes: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener pagos pendientes",
@@ -287,14 +287,14 @@ async def obtener_estadisticas(
         )
 
     try:
-        stats = pagos_service.get_stats(
+        stats = await pagos_service.get_stats(
             fecha_desde=fecha_desde, fecha_hasta=fecha_hasta
         )
 
         return stats
 
     except Exception as e:
-        logger.error(f"Error obteniendo estadísticas de pagos: {e}")
+        logger.error(f"Error obteniendo estadísticas de pagos: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error al obtener estadísticas",

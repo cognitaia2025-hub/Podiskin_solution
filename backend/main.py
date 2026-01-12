@@ -52,6 +52,9 @@ from api.twilio_webhook import router as twilio_webhook_router
 # Importar WhatsApp Management API
 from api.whatsapp_management_api import router as whatsapp_mgmt_router
 
+# Importar Web Chat API (mismo agente para web y WhatsApp)
+from api.web_chat_api import router as web_chat_router
+
 # Importar middleware de rate limiting
 from middleware.rate_limit import rate_limit_middleware
 
@@ -95,6 +98,30 @@ async def lifespan(app: FastAPI):
     """
     # ✅ Startup
     logger.info("Starting Podoskin Solution Backend...")
+    
+    # ⚠️ Validar variables de entorno críticas
+    required_env_vars = [
+        "DB_HOST",
+        "DB_PORT", 
+        "DB_NAME",
+        "DB_USER",
+        "DB_PASSWORD",  # Crítico para seguridad
+    ]
+    
+    missing_vars = [var for var in required_env_vars if not os.getenv(var)]
+    
+    if missing_vars:
+        logger.error(f"❌ FALTAN VARIABLES DE ENTORNO CRÍTICAS: {', '.join(missing_vars)}")
+        logger.error("📝 Revisa el archivo .env.example para la configuración requerida")
+        raise RuntimeError(
+            f"Variables de entorno requeridas no configuradas: {', '.join(missing_vars)}. "
+            "Revisa .env.example"
+        )
+    
+    # Validar que DB_PASSWORD no sea el valor inseguro por defecto
+    db_password = os.getenv("DB_PASSWORD")
+    if db_password == "podoskin_password_123":
+        logger.warning("⚠️ ADVERTENCIA: Usando password por defecto inseguro!")
 
     # Inicializar pool centralizado de AsyncPG
     try:
@@ -104,6 +131,7 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Database pool initialized (AsyncPG)")
     except Exception as e:
         logger.error(f"❌ Failed to initialize database pool: {e}")
+        raise
 
     yield  # ← La aplicación corre aquí
 
@@ -169,6 +197,7 @@ app.include_router(live_sessions_router)
 app.include_router(orchestrator_router)
 app.include_router(twilio_webhook_router)  # Twilio WhatsApp Webhook
 app.include_router(whatsapp_mgmt_router)  # WhatsApp Management API
+app.include_router(web_chat_router)  # Web Chat API (mismo agente que WhatsApp)
 
 # Importar módulo de permisos
 from auth.permissions_router import router as permissions_router
@@ -215,13 +244,15 @@ async def get_appointments(
             fecha_inicio = datetime.fromisoformat(
                 start_date.replace("Z", "+00:00")
             ).date()
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning(f"Formato de fecha inválido en start_date: {start_date} - {e}")
+            fecha_inicio = None
     if end_date:
         try:
             fecha_fin = datetime.fromisoformat(end_date.replace("Z", "+00:00")).date()
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.warning(f"Formato de fecha inválido en end_date: {end_date} - {e}")
+            fecha_fin = None
 
     # Llamar al servicio de citas
     citas, total = await citas_service.obtener_citas(

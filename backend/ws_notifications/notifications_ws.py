@@ -6,29 +6,14 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query, s
 from fastapi.responses import JSONResponse
 from auth import decode_access_token
 from ws_notifications.connection_manager import manager
+from db import get_connection, release_connection
 import logging
-import asyncpg
-import os
 from typing import Optional
 import json
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-# Configuración de base de datos
-DB_CONFIG = {
-    'host': os.getenv('DB_HOST', 'localhost'),
-    'port': int(os.getenv('DB_PORT', 5432)),
-    'database': os.getenv('DB_NAME', 'podoskin_db'),
-    'user': os.getenv('DB_USER', 'podoskin_user'),
-    'password': os.getenv('DB_PASSWORD', 'podoskin_password_123'),
-}
-
-
-async def get_db_connection():
-    """Obtiene conexión a la base de datos"""
-    return await asyncpg.connect(**DB_CONFIG)
 
 
 def verify_websocket_token(token: str) -> Optional[dict]:
@@ -95,7 +80,7 @@ async def websocket_notifications_endpoint(
         })
         
         # Enviar contador inicial de notificaciones no leídas
-        conn = await get_db_connection()
+        conn = await get_connection()
         try:
             count = await conn.fetchval(
                 "SELECT COUNT(*) FROM notificaciones WHERE usuario_id = $1 AND leido = FALSE",
@@ -106,7 +91,7 @@ async def websocket_notifications_endpoint(
                 "count": count
             })
         finally:
-            await conn.close()
+            await release_connection(conn)
         
         # Loop para recibir mensajes del cliente
         while True:
@@ -117,7 +102,7 @@ async def websocket_notifications_endpoint(
                 message = json.loads(data)
                 action = message.get("action")
                 
-                conn = await get_db_connection()
+                conn = await get_connection()
                 
                 try:
                     # Marcar notificación como leída
@@ -205,7 +190,7 @@ async def websocket_notifications_endpoint(
                         })
                 
                 finally:
-                    await conn.close()
+                    await release_connection(conn)
                     
             except json.JSONDecodeError:
                 await websocket.send_json({
@@ -247,7 +232,7 @@ async def broadcast_notification(notification_id: int):
     Args:
         notification_id: ID de la notificación a enviar
     """
-    conn = await get_db_connection()
+    conn = await get_connection()
     
     try:
         # Obtener notificación de la BD
@@ -313,4 +298,4 @@ async def broadcast_notification(notification_id: int):
             return JSONResponse(content={"status": "user_offline", "user_id": user_id})
     
     finally:
-        await conn.close()
+        await release_connection(conn)

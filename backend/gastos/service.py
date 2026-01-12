@@ -57,8 +57,8 @@ class GastosService:
             return [dict(g) for g in gastos] if gastos else []
 
         except Exception as e:
-            logger.error(f"Error en get_all gastos: {e}")
-            return []
+            logger.error(f"Error en get_all gastos: {e}", exc_info=True)
+            raise RuntimeError(f"Error obteniendo lista de gastos: {e}") from e
         finally:
             if conn:
                 await release_connection(conn)
@@ -86,8 +86,8 @@ class GastosService:
             return [dict(r) for r in resumen] if resumen else []
 
         except Exception as e:
-            logger.error(f"Error en get_resumen gastos: {e}")
-            return []
+            logger.error(f"Error en get_resumen gastos: {e}", exc_info=True)
+            raise RuntimeError(f"Error obteniendo resumen de gastos: {e}") from e
         finally:
             if conn:
                 await release_connection(conn)

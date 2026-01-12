@@ -52,7 +52,8 @@ export const useNotifications = (token: string | null): UseNotificationsReturn =
     // Evitar múltiples conexiones
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `ws://localhost:8000/ws/notifications?token=${token}`;
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001';
+    const wsUrl = apiUrl.replace('http://', 'ws://').replace('https://', 'wss://') + `/ws/notifications?token=${token}`;
 
     try {
       const ws = new WebSocket(wsUrl);

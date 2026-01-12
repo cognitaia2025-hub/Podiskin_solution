@@ -7,10 +7,8 @@ from datetime import datetime as dt, date
 from dotenv import load_dotenv
 from .models import PodologoCreate, PodologoUpdate, PodologoResponse
 import logging
-from db import fetch_all, fetch_one, execute_returning
-
-# Import asyncpg database for async operations
-from pacientes.database import db as pacientes_db
+import asyncpg
+from db import fetch_all, fetch_one, execute_returning, get_connection
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -304,7 +302,7 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
     ) % 7  # Python usa 0=Lunes, convertir a 0=Domingo
 
     try:
-        async with pacientes_db.get_connection() as conn:
+        async with get_connection() as conn:
             # Query para obtener podólogos con disponibilidad
             query = """
             WITH podologo_slots AS (

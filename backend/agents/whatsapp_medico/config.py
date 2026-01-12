@@ -19,7 +19,10 @@ DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "podoskin_db")
 DB_USER = os.getenv("DB_USER", "podoskin_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+DB_PASSWORD = os.getenv("DB_PASSWORD")  # ⚠️ REQUERIDO en .env
+if not DB_PASSWORD:
+    import logging
+    logging.getLogger(__name__).error("DB_PASSWORD no configurado - WhatsApp agent fallará")
 
 # URL de conexión para psycopg (usado por PostgresSaver)
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"

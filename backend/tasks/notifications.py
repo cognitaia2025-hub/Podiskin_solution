@@ -16,7 +16,7 @@ DB_CONFIG = {
     'port': int(os.getenv('POSTGRES_PORT', 5432)),
     'database': os.getenv('POSTGRES_DB', 'podoskin_db'),
     'user': os.getenv('POSTGRES_USER', 'podoskin_user'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'podoskin_password_123'),
+    'password': os.getenv('POSTGRES_PASSWORD') or os.getenv('DB_PASSWORD'),  # Requerido
 }
 
 

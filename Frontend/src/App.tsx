@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { startOfWeek, endOfWeek } from 'date-fns';
+import { startOfWeek, endOfWeek, addWeeks, subWeeks, addMonths, subMonths, addDays, subDays } from 'date-fns';
 import Layout from './components/Layout';
 import AppLayout from './layouts/AppLayout';
 import { GlobalProvider } from './context/GlobalContext';
@@ -157,6 +157,43 @@ function AppContent() {
     if (query) {
       setCurrentView('agenda');
     }
+  };
+
+  // Funciones de navegación de periodos
+  const handlePrevPeriod = () => {
+    switch (currentView) {
+      case 'day':
+        setSelectedDate(prev => subDays(prev, 1));
+        break;
+      case 'week':
+        setSelectedDate(prev => subWeeks(prev, 1));
+        break;
+      case 'month':
+        setSelectedDate(prev => subMonths(prev, 1));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleNextPeriod = () => {
+    switch (currentView) {
+      case 'day':
+        setSelectedDate(prev => addDays(prev, 1));
+        break;
+      case 'week':
+        setSelectedDate(prev => addWeeks(prev, 1));
+        break;
+      case 'month':
+        setSelectedDate(prev => addMonths(prev, 1));
+        break;
+      default:
+        break;
+    }
+  };
+
+  const handleTodayClick = () => {
+    setSelectedDate(new Date());
   };
 
   const handleSaveAppointment = async (apptData: Partial<Appointment>) => {
@@ -318,7 +355,11 @@ function AppContent() {
                   onViewChange={setCurrentView}
                   selectedDoctors={selectedDoctors}
                   onDoctorFilterChange={handleDoctorFilterChange}
+                  onTodayClick={handleTodayClick}
+                  onPrevPeriod={handlePrevPeriod}
+                  onNextPeriod={handleNextPeriod}
                   onSearch={handleSearch}
+                  currentDate={selectedDate}
                   doctors={doctors}
                 >
                   {renderCalendarView()}

@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, Calendar, FileText, CheckCircle2, AlertCircle, Bell, Repeat, Stethoscope } from 'lucide-react';
-import { format } from 'date-fns';
+import { X, Clock, User, Calendar, FileText, CheckCircle2, AlertCircle, Bell, Repeat, Stethoscope, UserPlus } from 'lucide-react';
+import { format, addMinutes } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useNavigate } from 'react-router-dom';
 import type { Appointment, Doctor, Patient, AppointmentStatus, AppointmentType, Reminder, RecurrenceFrequency } from '../types/appointments';
+import { createReminder, getReminders, deleteReminder, createSeries } from '../services/appointmentService';
+import { getServices, type Service } from '../services/catalogService';
+import { createPatient } from '../services/patientService';
 
 interface EventModalProps {
     isOpen: boolean;
@@ -27,6 +30,17 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
     const [showPatientDropdown, setShowPatientDropdown] = useState(false);
     const [showReminders, setShowReminders] = useState(false);
     const [showRecurrence, setShowRecurrence] = useState(false);
+    const [isNewPatient, setIsNewPatient] = useState(false);
+    const [newPatientData, setNewPatientData] = useState({
+        primer_nombre: '',
+        segundo_nombre: '',
+        primer_apellido: '',
+        segundo_apellido: '',
+        telefono: '',
+        email: ''
+    });
+    const [services, setServices] = useState<Service[]>([]);
+    const [selectedService, setSelectedService] = useState<Service | null>(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -34,11 +48,72 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
                 estado: 'Pendiente',
                 es_primera_vez: false,
                 tipo_cita: 'Consulta',
+                recordatorios: [],
                 ...initialData
             });
             setSearchPatient('');
+            setIsNewPatient(false);
+            setNewPatientData({
+                primer_nombre: '',
+                segundo_nombre: '',
+                primer_apellido: '',
+                segundo_apellido: '',
+                telefono: '',
+                email: ''
+            });
+            
+            // Cargar servicios
+            getServices({ activo: true })
+                .then(data => setServices(data.servicios || data))
+                .catch(err => console.error('Error cargando servicios:', err));
+            
+            // Cargar recordatorios existentes si hay una cita
+            if (initialData?.id) {
+                getReminders(initialData.id)
+                    .then(reminders => {
+                        setFormData(prev => ({
+                            ...prev,
+                            recordatorios: reminders.map(r => ({
+                                tiempo: r.tiempo,
+                                unidad_tiempo: r.unidad_tiempo,
+                                metodo_envio: r.metodo_envio
+                            }))
+                        }));
+                    })
+                    .catch(err => console.error('Error cargando recordatorios:', err));
+            }
         }
     }, [isOpen, initialData]);
+
+    // Auto-calcular hora fin cuando cambia servicio u hora inicio
+    useEffect(() => {
+        if (selectedService && formData.fecha_hora_inicio) {
+            const newEndTime = addMinutes(formData.fecha_hora_inicio, selectedService.duracion_minutos);
+            setFormData(prev => ({ ...prev, fecha_hora_fin: newEndTime }));
+        }
+    }, [selectedService, formData.fecha_hora_inicio]);
+
+    // Auto-asignar color según podólogo seleccionado
+    useEffect(() => {
+        if (formData.id_podologo) {
+            const doctor = doctors.find(d => d.id === formData.id_podologo);
+            if (doctor) {
+                // Asignar colores fijos por podólogo
+                let color = '#8B5CF6'; // Color por defecto (púrpura)
+                
+                // Santiago (Jesús Ornelas Reynoso) = Azul
+                if (doctor.name.toLowerCase().includes('santiago') || doctor.name.toLowerCase().includes('ornelas')) {
+                    color = '#3B82F6';
+                }
+                // Ibeth = Rosa
+                else if (doctor.name.toLowerCase().includes('ibeth')) {
+                    color = '#EC4899';
+                }
+                
+                setFormData(prev => ({ ...prev, color }));
+            }
+        }
+    }, [formData.id_podologo, doctors]);
 
     if (!isOpen) return null;
 
@@ -74,9 +149,43 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
         onClose();
     };
 
-    const handleSave = () => {
-        if (!formData.id_paciente || !formData.id_podologo || !formData.fecha_hora_inicio || !formData.fecha_hora_fin) {
-            alert('Por favor completa todos los campos obligatorios');
+    const handleSave = async () => {
+        // Validar datos básicos
+        if (!formData.id_podologo || !formData.fecha_hora_inicio || !formData.fecha_hora_fin) {
+            alert('Por favor completa todos los campos obligatorios (Podólogo, Fecha y Hora)');
+            return;
+        }
+
+        // Si es nuevo paciente, crear primero
+        if (isNewPatient) {
+            if (!newPatientData.primer_nombre || !newPatientData.primer_apellido || !newPatientData.telefono) {
+                alert('Para registrar un nuevo paciente, completa: Primer Nombre, Primer Apellido y Teléfono');
+                return;
+            }
+
+            try {
+                const newPatient = await createPatient({
+                    primer_nombre: newPatientData.primer_nombre,
+                    segundo_nombre: newPatientData.segundo_nombre || undefined,
+                    primer_apellido: newPatientData.primer_apellido,
+                    segundo_apellido: newPatientData.segundo_apellido || undefined,
+                    telefono_principal: newPatientData.telefono,
+                    email: newPatientData.email || undefined,
+                    activo: true
+                });
+                
+                // Asignar el nuevo paciente a la cita
+                formData.id_paciente = newPatient.id;
+            } catch (error) {
+                console.error('Error creando paciente:', error);
+                alert('Error al registrar el nuevo paciente. Por favor intenta de nuevo.');
+                return;
+            }
+        }
+
+        // Validar que tengamos paciente
+        if (!formData.id_paciente) {
+            alert('Por favor selecciona o registra un paciente');
             return;
         }
 
@@ -87,13 +196,41 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
             end: formData.fecha_hora_fin!,
             patientId: formData.id_paciente,
             doctorId: formData.id_podologo,
-            title: `${formData.tipo_cita} - ${selectedPatient?.name || 'Paciente'}`,
+            title: `${formData.tipo_cita} - ${selectedPatient?.name || newPatientData.primer_nombre}`,
             type: formData.tipo_cita?.toLowerCase(),
             status: 'programada',
             notes: formData.notas_recepcion,
         };
 
+        // Guardar cita primero
         onSave(appointmentData);
+        
+        // Si hay recordatorios y tenemos un ID de cita, crearlos
+        if (formData.id && formData.recordatorios && formData.recordatorios.length > 0) {
+            try {
+                for (const recordatorio of formData.recordatorios) {
+                    await createReminder(formData.id, recordatorio);
+                }
+            } catch (error) {
+                console.error('Error creando recordatorios:', error);
+                alert('La cita se guardó pero hubo un problema al crear los recordatorios');
+            }
+        }
+        
+        // Si es recurrente, crear la serie
+        if (formData.es_recurrente && formData.id && formData.regla_recurrencia) {
+            try {
+                await createSeries({
+                    id_cita_plantilla: formData.id,
+                    regla_recurrencia: formData.regla_recurrencia,
+                    fecha_inicio: formData.fecha_hora_inicio!,
+                    fecha_fin: formData.regla_recurrencia.until
+                });
+            } catch (error) {
+                console.error('Error creando serie recurrente:', error);
+                alert('La cita se guardó pero hubo un problema al crear la serie recurrente');
+            }
+        }
     };
 
     return (
@@ -118,65 +255,150 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
                 </div>
 
                 <div className="p-6 space-y-5 overflow-y-auto max-h-[calc(90vh-180px)]">
-                    {/* Patient Search */}
+                    {/* Patient Search or New Patient */}
                     <div className="space-y-2">
-                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                            <User className="w-4 h-4 text-primary-600" />
-                            Paciente <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                placeholder="Buscar por nombre o teléfono..."
-                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
-                                value={selectedPatient ? selectedPatient.name : searchPatient}
-                                onChange={(e) => {
-                                    setSearchPatient(e.target.value);
-                                    setShowPatientDropdown(true);
+                        <div className="flex items-center justify-between">
+                            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                                <User className="w-4 h-4 text-primary-600" />
+                                Paciente <span className="text-red-500">*</span>
+                            </label>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsNewPatient(!isNewPatient);
                                     setFormData({ ...formData, id_paciente: undefined });
+                                    setSearchPatient('');
                                 }}
-                                onFocus={() => setShowPatientDropdown(true)}
-                            />
-                            {showPatientDropdown && searchPatient && !selectedPatient && (
-                                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                                    {filteredPatients.length > 0 ? (
-                                        filteredPatients.map(patient => (
-                                            <button
-                                                key={patient.id}
-                                                onClick={() => {
-                                                    setFormData({ ...formData, id_paciente: patient.id });
-                                                    setSearchPatient('');
-                                                    setShowPatientDropdown(false);
-                                                }}
-                                                className="w-full px-4 py-3 text-left hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-0"
-                                            >
-                                                <div className="font-medium text-gray-900">{patient.name}</div>
-                                                <div className="text-sm text-gray-500">{patient.phone}</div>
-                                            </button>
-                                        ))
-                                    ) : (
-                                        <div className="px-4 py-3 text-gray-500 text-sm">No se encontraron pacientes</div>
-                                    )}
-                                </div>
-                            )}
-                            {selectedPatient && (
-                                <div className="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between">
-                                    <div>
-                                        <div className="font-medium text-primary-900">{selectedPatient.name}</div>
-                                        <div className="text-sm text-primary-700">{selectedPatient.phone} • {selectedPatient.email}</div>
-                                    </div>
-                                    <button
-                                        onClick={() => {
-                                            setFormData({ ...formData, id_paciente: undefined });
-                                            setSearchPatient('');
-                                        }}
-                                        className="text-primary-600 hover:text-primary-800"
-                                    >
-                                        <X className="w-5 h-5" />
-                                    </button>
-                                </div>
-                            )}
+                                className="flex items-center gap-1 text-xs font-medium text-primary-600 hover:text-primary-700"
+                            >
+                                <UserPlus className="w-3.5 h-3.5" />
+                                {isNewPatient ? 'Buscar existente' : 'Registrar nuevo'}
+                            </button>
                         </div>
+
+                        {!isNewPatient ? (
+                            /* Búsqueda de paciente existente */
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nombre o teléfono..."
+                                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
+                                    value={selectedPatient ? selectedPatient.name : searchPatient}
+                                    onChange={(e) => {
+                                        setSearchPatient(e.target.value);
+                                        setShowPatientDropdown(true);
+                                        setFormData({ ...formData, id_paciente: undefined });
+                                    }}
+                                    onFocus={() => setShowPatientDropdown(true)}
+                                />
+                                {showPatientDropdown && searchPatient && !selectedPatient && (
+                                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                                        {filteredPatients.length > 0 ? (
+                                            filteredPatients.map(patient => (
+                                                <button
+                                                    key={patient.id}
+                                                    onClick={() => {
+                                                        setFormData({ ...formData, id_paciente: patient.id });
+                                                        setSearchPatient('');
+                                                        setShowPatientDropdown(false);
+                                                    }}
+                                                    className="w-full px-4 py-3 text-left hover:bg-primary-50 transition-colors border-b border-gray-100 last:border-0"
+                                                >
+                                                    <div className="font-medium text-gray-900">{patient.name}</div>
+                                                    <div className="text-sm text-gray-500">{patient.phone}</div>
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="px-4 py-3 text-gray-500 text-sm">No se encontraron pacientes</div>
+                                        )}
+                                    </div>
+                                )}
+                                {selectedPatient && (
+                                    <div className="mt-2 p-3 bg-primary-50 border border-primary-200 rounded-lg flex items-center justify-between">
+                                        <div>
+                                            <div className="font-medium text-primary-900">{selectedPatient.name}</div>
+                                            <div className="text-sm text-primary-700">{selectedPatient.phone} • {selectedPatient.email}</div>
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                setFormData({ ...formData, id_paciente: undefined });
+                                                setSearchPatient('');
+                                            }}
+                                            className="text-primary-600 hover:text-primary-800"
+                                        >
+                                            <X className="w-5 h-5" />
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        ) : (
+                            /* Formulario para nuevo paciente */
+                            <div className="space-y-3 p-4 bg-gray-50 rounded-lg border-2 border-gray-200">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Primer Nombre *</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Juan"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.primer_nombre}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, primer_nombre: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Segundo Nombre</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Carlos"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.segundo_nombre}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, segundo_nombre: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Primer Apellido *</label>
+                                        <input
+                                            type="text"
+                                            placeholder="Pérez"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.primer_apellido}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, primer_apellido: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Segundo Apellido</label>
+                                        <input
+                                            type="text"
+                                            placeholder="López"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.segundo_apellido}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, segundo_apellido: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Teléfono *</label>
+                                        <input
+                                            type="tel"
+                                            placeholder="1234567890"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.telefono}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, telefono: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-medium text-gray-600">Email</label>
+                                        <input
+                                            type="email"
+                                            placeholder="correo@ejemplo.com"
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-primary-500 focus:ring-1 focus:ring-primary-200 outline-none"
+                                            value={newPatientData.email}
+                                            onChange={(e) => setNewPatientData({ ...newPatientData, email: e.target.value })}
+                                        />
+                                    </div>
+                                </div>
+                                <p className="text-xs text-gray-500">El paciente se registrará automáticamente al guardar la cita</p>
+                            </div>
+                        )}
                     </div>
 
                     {/* Doctor Selector */}
@@ -201,32 +423,70 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
                         </div>
                     </div>
 
+                    {/* Service Selector */}
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <Stethoscope className="w-4 h-4 text-primary-600" />
+                            Servicio (Opcional)
+                        </label>
+                        <select
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
+                            value={selectedService?.id || ''}
+                            onChange={(e) => {
+                                const service = services.find(s => s.id === Number(e.target.value));
+                                setSelectedService(service || null);
+                            }}
+                        >
+                            <option value="">Consulta General (sin servicio definido)</option>
+                            {services.map(service => (
+                                <option key={service.id} value={service.id}>
+                                    {service.nombre} - {service.duracion_minutos} min - ${service.precio}
+                                </option>
+                            ))}
+                        </select>
+                        {selectedService && (
+                            <p className="text-xs text-primary-600">
+                                Duración: {selectedService.duracion_minutos} minutos (la hora de fin se calculará automáticamente)
+                            </p>
+                        )}
+                    </div>
+
                     {/* Date and Time */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                <Clock className="w-4 h-4 text-primary-600" />
-                                Hora de Inicio <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="datetime-local"
-                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
-                                value={formData.fecha_hora_inicio ? format(new Date(formData.fecha_hora_inicio), "yyyy-MM-dd'T'HH:mm") : ''}
-                                onChange={(e) => setFormData({ ...formData, fecha_hora_inicio: new Date(e.target.value) })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                                <Clock className="w-4 h-4 text-primary-600" />
-                                Hora de Fin <span className="text-red-500">*</span>
-                            </label>
-                            <input
-                                type="datetime-local"
-                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
-                                value={formData.fecha_hora_fin ? format(new Date(formData.fecha_hora_fin), "yyyy-MM-dd'T'HH:mm") : ''}
-                                onChange={(e) => setFormData({ ...formData, fecha_hora_fin: new Date(e.target.value) })}
-                            />
-                        </div>
+                    <div className="space-y-2">
+                        <label className="flex items-center gap-2 text-sm font-semibold text-gray-700">
+                            <Clock className="w-4 h-4 text-primary-600" />
+                            Fecha y Hora de Inicio <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                            type="datetime-local"
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-all outline-none"
+                            value={formData.fecha_hora_inicio ? format(new Date(formData.fecha_hora_inicio), "yyyy-MM-dd'T'HH:mm") : ''}
+                            onChange={(e) => {
+                                const newStart = new Date(e.target.value);
+                                setFormData({ ...formData, fecha_hora_inicio: newStart });
+                                // Si hay servicio seleccionado, calcular hora fin
+                                if (selectedService) {
+                                    setFormData(prev => ({ 
+                                        ...prev, 
+                                        fecha_hora_inicio: newStart,
+                                        fecha_hora_fin: addMinutes(newStart, selectedService.duracion_minutos) 
+                                    }));
+                                } else {
+                                    // Duración por defecto: 30 minutos
+                                    setFormData(prev => ({ 
+                                        ...prev, 
+                                        fecha_hora_inicio: newStart,
+                                        fecha_hora_fin: addMinutes(newStart, 30) 
+                                    }));
+                                }
+                            }}
+                        />
+                        {formData.fecha_hora_inicio && formData.fecha_hora_fin && (
+                            <p className="text-xs text-gray-500">
+                                Hora de fin calculada: {format(new Date(formData.fecha_hora_fin), "HH:mm", { locale: es })}
+                                {selectedService && ` (${selectedService.duracion_minutos} min)`}
+                            </p>
+                        )}
                     </div>
 
                     {/* Appointment Type */}
@@ -244,25 +504,6 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
                                 >
                                     {type}
                                 </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Color Picker */}
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-gray-700">Color de la Cita</label>
-                        <div className="flex gap-2">
-                            {['#3B82F6', '#10B981', '#EF4444', '#8B5CF6', '#F59E0B', '#EC4899'].map((color) => (
-                                <button
-                                    key={color}
-                                    onClick={() => setFormData({ ...formData, color })}
-                                    className={`w-10 h-10 rounded-full border-2 transition-all ${formData.color === color
-                                        ? 'border-gray-800 ring-2 ring-offset-2 ring-gray-400 scale-110'
-                                        : 'border-gray-200 hover:scale-105'
-                                        }`}
-                                    style={{ backgroundColor: color }}
-                                    title={color}
-                                />
                             ))}
                         </div>
                     </div>

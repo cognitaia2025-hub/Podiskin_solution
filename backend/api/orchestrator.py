@@ -6,8 +6,12 @@ Expone el Agente Padre Orquestador como endpoint REST
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
+import logging
 
 from agents.orchestrator import execute_orchestrator
+from auth import decode_access_token, get_current_user
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/orchestrator", tags=["orchestrator"])
 
@@ -29,18 +33,10 @@ class OrchestratorResponse(BaseModel):
     audit_log: list = []
 
 
-def get_current_user_id(authorization: str = Header(...)) -> str:
-    """Extract user ID from authorization header"""
-    # TODO: Implement proper JWT validation
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid authorization header")
-    return "user_123"  # Placeholder
-
-
 @router.post("/execute", response_model=OrchestratorResponse)
 async def execute_orchestrator_endpoint(
     request: OrchestratorRequest,
-    user_id: str = Depends(get_current_user_id)
+    current_user: dict = Depends(get_current_user)
 ):
     """
     Execute orchestrator for complex medical functions
@@ -48,7 +44,24 @@ async def execute_orchestrator_endpoint(
     - Classifies query as simple or complex
     - Routes to appropriate SubAgent if needed
     - Validates and returns response
+    
+    Requires valid JWT token with medical staff permissions.
     """
+    user_id = current_user.get('id')
+    user_role = current_user.get('rol', 'unknown')
+    
+    logger.info(f"🎯 [Orchestrator] Executing function: {request.function_name}")
+    logger.info(f"   User: {user_id} (role: {user_role})")
+    
+    # Validar que el usuario tenga permisos (médico, admin, recepcionista)
+    allowed_roles = ['admin', 'podologo', 'recepcionista']
+    if user_role not in allowed_roles:
+        logger.warning(f"⚠️ Unauthorized orchestrator access by {user_id} (role: {user_role})")
+        raise HTTPException(
+            status_code=403,
+            detail=f"Acceso denegado. Rol '{user_role}' no autorizado para usar el orquestador."
+        )
+    
     try:
         # Extract context
         patient_id = request.context.get("patient_id")

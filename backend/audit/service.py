@@ -29,7 +29,7 @@ class AuditService:
                 port=int(os.getenv("DB_PORT", "5432")),
                 dbname=os.getenv("DB_NAME", "podoskin_db"),
                 user=os.getenv("DB_USER", "podoskin_user"),
-                password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
+                password=os.getenv("DB_PASSWORD"),  # Requerido en .env
                 row_factory=dict_row
             )
         return self.conn

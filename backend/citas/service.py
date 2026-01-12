@@ -782,3 +782,420 @@ async def obtener_disponibilidad(id_podologo: int, fecha: date) -> Dict[str, Any
         },
         "slots": slots,
     }
+
+
+# ============================================================================
+# RECORDATORIOS
+# ============================================================================
+
+
+async def crear_recordatorio(
+    id_cita: int,
+    tiempo: int,
+    unidad: str,
+    metodo_envio: str = "whatsapp"
+) -> Dict[str, Any]:
+    """
+    Crea un recordatorio para una cita.
+    
+    Args:
+        id_cita: ID de la cita
+        tiempo: Cantidad de tiempo antes de la cita
+        unidad: Unidad de tiempo (minutos, horas, días)
+        metodo_envio: Método de envío (whatsapp, email, sms)
+        
+    Returns:
+        Diccionario con los datos del recordatorio creado
+    """
+    # Validar que la cita existe
+    query_cita = "SELECT id FROM citas WHERE id = %s"
+    cita = await execute_query_one(query_cita, (id_cita,))
+    if not cita:
+        raise ValueError(f"Cita con ID {id_cita} no encontrada")
+    
+    # Insertar recordatorio
+    query = """
+        INSERT INTO cita_recordatorios (id_cita, tiempo, unidad, metodo_envio)
+        VALUES (%s, %s, %s, %s)
+        ON CONFLICT (id_cita, tiempo, unidad) DO UPDATE 
+        SET metodo_envio = EXCLUDED.metodo_envio
+        RETURNING id, id_cita, tiempo, unidad, enviado, fecha_envio, 
+                  metodo_envio, error_envio, fecha_creacion
+    """
+    recordatorio = await execute_query_one(
+        query,
+        (id_cita, tiempo, unidad, metodo_envio)
+    )
+    
+    logger.info(f"Recordatorio creado para cita {id_cita}: {tiempo} {unidad}")
+    return recordatorio
+
+
+async def obtener_recordatorios_cita(id_cita: int) -> List[Dict[str, Any]]:
+    """
+    Obtiene todos los recordatorios de una cita.
+    
+    Args:
+        id_cita: ID de la cita
+        
+    Returns:
+        Lista de recordatorios
+    """
+    query = """
+        SELECT id, id_cita, tiempo, unidad, enviado, fecha_envio,
+               metodo_envio, error_envio, fecha_creacion
+        FROM cita_recordatorios
+        WHERE id_cita = %s
+        ORDER BY tiempo, unidad
+    """
+    recordatorios = await execute_query(query, (id_cita,))
+    return recordatorios or []
+
+
+async def eliminar_recordatorio(id_recordatorio: int, id_cita: int) -> bool:
+    """
+    Elimina un recordatorio específico.
+    
+    Args:
+        id_recordatorio: ID del recordatorio
+        id_cita: ID de la cita (para validación)
+        
+    Returns:
+        True si se eliminó correctamente
+    """
+    query = """
+        DELETE FROM cita_recordatorios
+        WHERE id = %s AND id_cita = %s
+        RETURNING id
+    """
+    result = await execute_query_one(query, (id_recordatorio, id_cita))
+    
+    if result:
+        logger.info(f"Recordatorio {id_recordatorio} eliminado")
+        return True
+    return False
+
+
+# ============================================================================
+# SERIES / RECURRENCIA
+# ============================================================================
+
+
+async def crear_serie(serie_data: Any, creado_por: int) -> Dict[str, Any]:
+    """
+    Crea una serie de citas recurrentes.
+    
+    Args:
+        serie_data: Datos de la serie (SerieCreate)
+        creado_por: ID del usuario que crea la serie
+        
+    Returns:
+        Diccionario con los datos de la serie creada
+    """
+    import json
+    
+    # Validar paciente y podólogo
+    if not await validar_paciente_activo(serie_data.id_paciente):
+        raise ValueError(f"Paciente {serie_data.id_paciente} no existe o no está activo")
+    
+    if not await validar_podologo_activo(serie_data.id_podologo):
+        raise ValueError(f"Podólogo {serie_data.id_podologo} no existe o no está activo")
+    
+    # Preparar regla de recurrencia como JSON
+    regla_json = json.dumps(serie_data.regla_recurrencia.model_dump())
+    
+    # Insertar serie
+    query = """
+        INSERT INTO cita_series (
+            regla_recurrencia, fecha_inicio, fecha_fin, id_paciente,
+            id_podologo, tipo_cita, duracion_minutos, hora_inicio,
+            notas_serie, creado_por, activa
+        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, true)
+        RETURNING id, regla_recurrencia, fecha_inicio, fecha_fin, id_paciente,
+                  id_podologo, tipo_cita, duracion_minutos, hora_inicio::text,
+                  notas_serie, activa, fecha_creacion
+    """
+    
+    serie = await execute_query_one(
+        query,
+        (
+            regla_json,
+            serie_data.fecha_inicio,
+            serie_data.fecha_fin,
+            serie_data.id_paciente,
+            serie_data.id_podologo,
+            serie_data.tipo_cita.value,
+            serie_data.duracion_minutos,
+            serie_data.hora_inicio,
+            serie_data.notas_serie,
+            creado_por
+        )
+    )
+    
+    logger.info(f"Serie creada: ID {serie['id']}")
+    
+    # Nota: El trigger automáticamente generará las citas
+    # Contar citas generadas
+    query_count = "SELECT COUNT(*) as total FROM citas WHERE serie_id = %s"
+    count_result = await execute_query_one(query_count, (serie['id'],))
+    serie['citas_generadas'] = count_result['total'] if count_result else 0
+    
+    return serie
+
+
+async def obtener_series(
+    id_paciente: Optional[int] = None,
+    id_podologo: Optional[int] = None,
+    activa: Optional[bool] = None,
+    limit: int = 50,
+    offset: int = 0
+) -> Tuple[List[Dict[str, Any]], int]:
+    """
+    Obtiene lista de series con filtros opcionales.
+    
+    Returns:
+        Tupla (series, total_count)
+    """
+    conditions = []
+    params = []
+    param_count = 1
+    
+    if id_paciente is not None:
+        conditions.append(f"s.id_paciente = ${param_count}")
+        params.append(id_paciente)
+        param_count += 1
+    
+    if id_podologo is not None:
+        conditions.append(f"s.id_podologo = ${param_count}")
+        params.append(id_podologo)
+        param_count += 1
+    
+    if activa is not None:
+        conditions.append(f"s.activa = ${param_count}")
+        params.append(activa)
+        param_count += 1
+    
+    where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+    
+    # Contar total
+    query_count = f"""
+        SELECT COUNT(*) as total
+        FROM cita_series s
+        {where_clause}
+    """
+    count_result = await execute_query_one(query_count, tuple(params))
+    total = count_result['total'] if count_result else 0
+    
+    # Obtener series
+    params.extend([limit, offset])
+    query = f"""
+        SELECT 
+            s.id, s.regla_recurrencia, s.fecha_inicio, s.fecha_fin,
+            s.id_paciente, s.id_podologo, s.tipo_cita, s.duracion_minutos,
+            s.hora_inicio::text, s.notas_serie, s.activa, s.fecha_creacion,
+            p.nombre_completo as paciente_nombre,
+            pod.nombre_completo as podologo_nombre,
+            COUNT(c.id) as citas_generadas
+        FROM cita_series s
+        JOIN pacientes p ON s.id_paciente = p.id
+        JOIN podologos pod ON s.id_podologo = pod.id
+        LEFT JOIN citas c ON c.serie_id = s.id
+        {where_clause}
+        GROUP BY s.id, s.regla_recurrencia, s.fecha_inicio, s.fecha_fin,
+                 s.id_paciente, s.id_podologo, s.tipo_cita, s.duracion_minutos,
+                 s.hora_inicio, s.notas_serie, s.activa, s.fecha_creacion,
+                 p.nombre_completo, pod.nombre_completo
+        ORDER BY s.fecha_creacion DESC
+        LIMIT ${param_count} OFFSET ${param_count + 1}
+    """
+    
+    series = await execute_query(query, tuple(params))
+    
+    return series or [], total
+
+
+async def obtener_serie_por_id(id_serie: int) -> Optional[Dict[str, Any]]:
+    """
+    Obtiene una serie por su ID.
+    
+    Returns:
+        Diccionario con los datos de la serie o None
+    """
+    query = """
+        SELECT 
+            s.id, s.regla_recurrencia, s.fecha_inicio, s.fecha_fin,
+            s.id_paciente, s.id_podologo, s.tipo_cita, s.duracion_minutos,
+            s.hora_inicio::text, s.notas_serie, s.activa, s.fecha_creacion,
+            p.nombre_completo as paciente_nombre,
+            pod.nombre_completo as podologo_nombre,
+            COUNT(c.id) as citas_generadas
+        FROM cita_series s
+        JOIN pacientes p ON s.id_paciente = p.id
+        JOIN podologos pod ON s.id_podologo = pod.id
+        LEFT JOIN citas c ON c.serie_id = s.id
+        WHERE s.id = %s
+        GROUP BY s.id, s.regla_recurrencia, s.fecha_inicio, s.fecha_fin,
+                 s.id_paciente, s.id_podologo, s.tipo_cita, s.duracion_minutos,
+                 s.hora_inicio, s.notas_serie, s.activa, s.fecha_creacion,
+                 p.nombre_completo, pod.nombre_completo
+    """
+    return await execute_query_one(query, (id_serie,))
+
+
+async def actualizar_serie(
+    id_serie: int,
+    serie_update: Any
+) -> Optional[Dict[str, Any]]:
+    """
+    Actualiza una serie existente.
+    
+    Returns:
+        Diccionario con los datos actualizados o None
+    """
+    updates = []
+    params = []
+    param_count = 1
+    
+    if serie_update.fecha_fin is not None:
+        updates.append(f"fecha_fin = ${param_count}")
+        params.append(serie_update.fecha_fin)
+        param_count += 1
+    
+    if serie_update.activa is not None:
+        updates.append(f"activa = ${param_count}")
+        params.append(serie_update.activa)
+        param_count += 1
+    
+    if serie_update.notas_serie is not None:
+        updates.append(f"notas_serie = ${param_count}")
+        params.append(serie_update.notas_serie)
+        param_count += 1
+    
+    if not updates:
+        return await obtener_serie_por_id(id_serie)
+    
+    params.append(id_serie)
+    set_clause = ", ".join(updates)
+    
+    query = f"""
+        UPDATE cita_series
+        SET {set_clause}
+        WHERE id = ${param_count}
+        RETURNING id
+    """
+    
+    result = await execute_query_one(query, tuple(params))
+    
+    if result:
+        logger.info(f"Serie {id_serie} actualizada")
+        return await obtener_serie_por_id(id_serie)
+    
+    return None
+
+
+async def desactivar_serie(
+    id_serie: int,
+    cancelar_futuras: bool = False
+) -> Optional[Dict[str, Any]]:
+    """
+    Desactiva una serie y opcionalmente cancela citas futuras.
+    
+    Returns:
+        Diccionario con resultado o None
+    """
+    conn = await get_connection()
+    try:
+        # Llamar a la función de PostgreSQL
+        if cancelar_futuras:
+            query = "SELECT desactivar_serie(%s, true) as resultado"
+        else:
+            query = "SELECT desactivar_serie(%s, false) as resultado"
+        
+        result = await conn.fetchrow(query, id_serie)
+        
+        if result and result['resultado']:
+            # Contar citas canceladas si aplica
+            if cancelar_futuras:
+                query_count = """
+                    SELECT COUNT(*) as total
+                    FROM citas
+                    WHERE serie_id = $1 AND estado = 'Cancelada'
+                    AND fecha_hora_inicio > NOW()
+                """
+                count_result = await conn.fetchrow(query_count, id_serie)
+                citas_canceladas = count_result['total'] if count_result else 0
+            else:
+                citas_canceladas = 0
+            
+            logger.info(f"Serie {id_serie} desactivada. Citas canceladas: {citas_canceladas}")
+            
+            return {
+                "id_serie": id_serie,
+                "desactivada": True,
+                "citas_canceladas": citas_canceladas
+            }
+        
+        return None
+        
+    finally:
+        await release_connection(conn)
+
+
+# ============================================================================
+# BÚSQUEDA
+# ============================================================================
+
+
+async def buscar_citas(termino_busqueda: str, limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    Busca citas por nombre de paciente, podólogo o notas.
+    
+    Args:
+        termino_busqueda: Término a buscar
+        limit: Límite de resultados
+        
+    Returns:
+        Lista de citas que coinciden con el término
+    """
+    # Preparar patrón para búsqueda ILIKE
+    patron = f"%{termino_busqueda}%"
+    
+    query = """
+        SELECT 
+            c.id,
+            c.id_paciente,
+            c.id_podologo,
+            c.fecha_hora_inicio,
+            c.fecha_hora_fin,
+            c.tipo_cita,
+            c.estado,
+            c.motivo_consulta,
+            c.notas_recepcion,
+            c.motivo_cancelacion,
+            c.es_primera_vez,
+            c.recordatorio_24h_enviado,
+            c.recordatorio_2h_enviado,
+            c.fecha_creacion,
+            c.fecha_actualizacion,
+            p.nombre_completo as paciente_nombre,
+            pod.nombre_completo as podologo_nombre
+        FROM citas c
+        JOIN pacientes p ON c.id_paciente = p.id
+        JOIN podologos pod ON c.id_podologo = pod.id
+        WHERE 
+            p.nombre_completo ILIKE %s OR
+            pod.nombre_completo ILIKE %s OR
+            c.notas_recepcion ILIKE %s OR
+            c.motivo_consulta ILIKE %s
+        ORDER BY c.fecha_hora_inicio DESC
+        LIMIT %s
+    """
+    
+    citas = await execute_query(
+        query,
+        (patron, patron, patron, patron, limit)
+    )
+    
+    logger.info(f"Búsqueda '{termino_busqueda}': {len(citas) if citas else 0} resultados")
+    
+    return citas or []

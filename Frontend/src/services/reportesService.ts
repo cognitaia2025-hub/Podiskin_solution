@@ -2,7 +2,9 @@
  * Servicio para generación y descarga de reportes ejecutivos
  */
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { API_BASE_URL } from '../config/api';
+
+const API_URL = API_BASE_URL;
 
 export interface ReporteGastosMensuales {
   periodo: string;

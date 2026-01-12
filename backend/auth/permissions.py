@@ -7,9 +7,7 @@ Valida permisos de usuarios antes de ejecutar acciones.
 from functools import wraps
 from typing import Callable
 from fastapi import HTTPException, status, Depends
-import psycopg
-from psycopg.rows import dict_row
-import os
+from db import get_connection, release_connection
 import logging
 
 logger = logging.getLogger(__name__)
@@ -57,19 +55,7 @@ PERMISSION_TEMPLATES = {
 # FUNCIONES HELPER
 # ============================================================================
 
-def _get_connection():
-    """Obtiene conexión a la base de datos."""
-    return psycopg.connect(
-        host=os.getenv("DB_HOST", "127.0.0.1"),
-        port=int(os.getenv("DB_PORT", "5432")),
-        dbname=os.getenv("DB_NAME", "podoskin_db"),
-        user=os.getenv("DB_USER", "podoskin_user"),
-        password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
-        row_factory=dict_row
-    )
-
-
-def get_user_permissions(user_id: int) -> dict:
+async def get_user_permissions(user_id: int) -> dict:
     """
     Obtiene permisos de un usuario desde la base de datos.
     
@@ -79,27 +65,28 @@ def get_user_permissions(user_id: int) -> dict:
     Returns:
         dict: Diccionario con permisos del usuario
     """
+    conn = await get_connection()
     try:
-        with _get_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute(
-                    "SELECT permisos FROM permisos_usuarios WHERE id_usuario = %s",
-                    (user_id,)
-                )
-                result = cur.fetchone()
-                
-                if result:
-                    return result['permisos']
-                else:
-                    # Si no tiene permisos, asignar plantilla vacía
-                    logger.warning(f"Usuario {user_id} sin permisos registrados")
-                    return {}
+        result = await conn.fetchrow(
+            "SELECT permisos FROM permisos_usuarios WHERE id_usuario = $1",
+            user_id
+        )
+        
+        if result:
+            return result['permisos']
+        else:
+            # Si no tiene permisos, asignar plantilla vacía
+            logger.warning(f"Usuario {user_id} sin permisos registrados")
+            return {}
     except Exception as e:
-        logger.error(f"Error obteniendo permisos: {e}")
+        logger.error(f"Error obteniendo permisos del usuario {user_id}: {e}", exc_info=True)
+        # Retornar {} como fallback seguro para evitar bloqueo completo
         return {}
+    finally:
+        await release_connection(conn)
 
 
-def check_permission(user_id: int, permission: str) -> bool:
+async def check_permission(user_id: int, permission: str) -> bool:
     """
     Verifica si un usuario tiene un permiso específico.
     
@@ -112,7 +99,7 @@ def check_permission(user_id: int, permission: str) -> bool:
     """
     try:
         module, action = permission.split(":")
-        permisos = get_user_permissions(user_id)
+        permisos = await get_user_permissions(user_id)
         
         if not permisos:
             return False
@@ -153,7 +140,7 @@ def require_permission(permission: str):
             
             user_id = current_user.get('id') if isinstance(current_user, dict) else current_user.id
             
-            if not check_permission(user_id, permission):
+            if not await check_permission(user_id, permission):
                 logger.warning(
                     f"Usuario {user_id} intentó acción sin permiso: {permission}"
                 )
@@ -185,7 +172,7 @@ async def verify_permission(permission: str, current_user: dict = Depends):
     """
     user_id = current_user.get('id') if isinstance(current_user, dict) else current_user.id
     
-    if not check_permission(user_id, permission):
+    if not await check_permission(user_id, permission):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"No tienes permiso para realizar esta acción"

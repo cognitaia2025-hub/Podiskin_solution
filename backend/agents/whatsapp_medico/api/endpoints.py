@@ -12,7 +12,7 @@ from typing import Optional
 
 from auth import get_current_user, User
 from ..graph import whatsapp_graph
-from ..utils import enviar_whatsapp, notificar_escalado
+from ..utils_helpers import enviar_whatsapp, notificar_escalado
 from ..tools import save_rag_learning
 
 logger = logging.getLogger(__name__)

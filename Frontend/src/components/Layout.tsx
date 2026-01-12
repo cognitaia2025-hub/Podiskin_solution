@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { Menu, Search, HelpCircle, Settings, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Menu, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import ViewSelector, { type ViewType } from './ViewSelector';
@@ -13,7 +13,10 @@ interface LayoutProps {
     selectedDoctors?: string[];
     onDoctorFilterChange?: (doctorId: string) => void;
     onTodayClick?: () => void;
+    onPrevPeriod?: () => void;
+    onNextPeriod?: () => void;
     onSearch?: (query: string) => void;
+    currentDate?: Date;
     doctors?: Array<{ id: string; name: string; color?: string }>;
 }
 
@@ -31,7 +34,10 @@ const Layout: React.FC<LayoutProps> = ({
     selectedDoctors = [],
     onDoctorFilterChange,
     onTodayClick,
+    onPrevPeriod,
+    onNextPeriod,
     onSearch,
+    currentDate,
     doctors = []
 }) => {
     const [searchValue, setSearchValue] = React.useState('');
@@ -91,15 +97,25 @@ const Layout: React.FC<LayoutProps> = ({
                         Hoy
                     </button>
                     <div className="flex items-center space-x-1 mr-4">
-                        <button className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
+                        <button 
+                            onClick={onPrevPeriod}
+                            className="p-1 rounded-full hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!onPrevPeriod}
+                            title="Periodo anterior"
+                        >
                             <ChevronLeft className="w-5 h-5" />
                         </button>
-                        <button className="p-1 rounded-full hover:bg-gray-100 text-gray-600">
+                        <button 
+                            onClick={onNextPeriod}
+                            className="p-1 rounded-full hover:bg-gray-100 text-gray-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            disabled={!onNextPeriod}
+                            title="Siguiente periodo"
+                        >
                             <ChevronRight className="w-5 h-5" />
                         </button>
                     </div>
                     <h1 className="text-xl font-medium text-gray-800 hidden sm:block">
-                        {format(new Date(), 'MMMM yyyy', { locale: es }).replace(/^\w/, (c) => c.toUpperCase())}
+                        {format(currentDate || new Date(), 'MMMM yyyy', { locale: es }).replace(/^\w/, (c) => c.toUpperCase())}
                     </h1>
                 </div>
                 <div className="flex items-center gap-4">
@@ -131,12 +147,6 @@ const Layout: React.FC<LayoutProps> = ({
                             onKeyDown={handleSearchSubmit}
                         />
                     </div>
-                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                        <HelpCircle className="w-5 h-5" />
-                    </button>
-                    <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                        <Settings className="w-5 h-5" />
-                    </button>
                 </div>
             </div>
 

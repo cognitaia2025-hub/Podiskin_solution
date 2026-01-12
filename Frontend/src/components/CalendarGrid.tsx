@@ -11,6 +11,7 @@ import EventModal from './EventModal';
 import type { Appointment, Doctor } from '../types/appointments';
 import { getDoctors } from '../services/doctorService';
 import { getPatients } from '../services/patientService';
+import { getAppointments, createAppointment } from '../services/appointmentService';
 
 // Utility to check overlap
 const doEventsOverlap = (a: Appointment, b: Appointment) => {

@@ -52,7 +52,7 @@ async def calculate_top_treatments(
         ]
     except Exception as e:
         # Si la tabla no existe o hay error, retornar lista vacía
-        print(f"Error calculando top treatments: {e}")
+        logger.error(f"Error calculando top treatments: {e}", exc_info=True)
         return []
 
 async def calculate_occupancy_stats(
@@ -124,7 +124,7 @@ async def calculate_occupancy_stats(
             for row in rows
         ]
     except Exception as e:
-        print(f"Error calculando ocupación: {e}")
+        logger.error(f"Error calculando ocupación: {e}", exc_info=True)
         return []
 
 async def calculate_average_occupancy(

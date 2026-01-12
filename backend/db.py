@@ -17,11 +17,20 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Configuración de base de datos
+# NOTA: Mantener fallback solo en db.py por compatibilidad legacy
+# Pero main.py validará antes de inicializar
 DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
 DB_PORT = int(os.getenv("DB_PORT", "5432"))
 DB_NAME = os.getenv("DB_NAME", "podoskin_db")
 DB_USER = os.getenv("DB_USER", "podoskin_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")  # Legacy fallback
+
+# Advertir si se usa password inseguro
+if DB_PASSWORD == "podoskin_password_123":
+    logger.warning(
+        "⚠️ USANDO PASSWORD POR DEFECTO INSEGURO. "
+        "Configura DB_PASSWORD en .env para producción"
+    )
 
 # Pool global de conexiones
 _pool: Optional[asyncpg.Pool] = None

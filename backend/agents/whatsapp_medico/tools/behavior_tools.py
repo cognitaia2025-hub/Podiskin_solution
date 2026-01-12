@@ -58,7 +58,8 @@ async def get_active_behavior_rules() -> list:
         return rules
     
     except Exception as e:
-        logger.error(f"❌ Error obteniendo behavior rules: {e}", exc_info=True)
+        logger.error(f"❌ Error obteniendo behavior rules desde DB: {e}", exc_info=True)
+        # Retornar [] como fallback para no romper el agente
         return []
 
 

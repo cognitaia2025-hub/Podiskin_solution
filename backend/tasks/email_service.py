@@ -5,8 +5,8 @@ Servicio de envío de emails con templates Jinja2
 from tasks.celery_app import celery_app
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from datetime import datetime, timedelta
+from db import get_connection, release_connection
 import asyncio
-import asyncpg
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -21,15 +21,6 @@ SMTP_USER = os.getenv('SMTP_USER', '')
 SMTP_PASSWORD = os.getenv('SMTP_PASSWORD', '')
 SMTP_FROM = os.getenv('SMTP_FROM', 'noreply@podoskin.com')
 
-# Configuración de base de datos
-DB_CONFIG = {
-    'host': os.getenv('POSTGRES_HOST', 'localhost'),
-    'port': int(os.getenv('POSTGRES_PORT', 5432)),
-    'database': os.getenv('POSTGRES_DB', 'podoskin_db'),
-    'user': os.getenv('POSTGRES_USER', 'podoskin_user'),
-    'password': os.getenv('POSTGRES_PASSWORD', 'podoskin_password_123'),
-}
-
 # Configurar Jinja2
 templates_dir = Path(__file__).parent / 'templates'
 templates_dir.mkdir(exist_ok=True)
@@ -38,11 +29,6 @@ jinja_env = Environment(
     loader=FileSystemLoader(str(templates_dir)),
     autoescape=select_autoescape(['html', 'xml'])
 )
-
-
-async def get_db_connection():
-    """Obtiene conexión a la base de datos"""
-    return await asyncpg.connect(**DB_CONFIG)
 
 
 def enviar_email(destinatario: str, asunto: str, html: str, archivos_adjuntos: list = None):
@@ -99,7 +85,7 @@ def enviar_confirmacion_cita(cita_id: int):
 
 async def _enviar_confirmacion_cita_async(cita_id: int):
     """Versión async de enviar confirmación de cita"""
-    conn = await get_db_connection()
+    conn = await get_connection()
     
     try:
         # Obtener información de la cita
@@ -188,7 +174,7 @@ async def _enviar_confirmacion_cita_async(cita_id: int):
     except Exception as e:
         return {'status': 'error', 'error': str(e)}
     finally:
-        await conn.close()
+        await release_connection(conn)
 
 
 @celery_app.task(name='backend.tasks.email_service.enviar_resumen_diario')
@@ -201,7 +187,7 @@ def enviar_resumen_diario():
 
 async def _enviar_resumen_diario_async():
     """Versión async de enviar resumen diario"""
-    conn = await get_db_connection()
+    conn = await get_connection()
     
     try:
         hoy = datetime.now().date()
@@ -302,7 +288,7 @@ async def _enviar_resumen_diario_async():
     except Exception as e:
         return {'status': 'error', 'error': str(e)}
     finally:
-        await conn.close()
+        await release_connection(conn)
 
 
 @celery_app.task(name='backend.tasks.email_service.enviar_reporte_mensual')
@@ -315,7 +301,7 @@ def enviar_reporte_mensual():
 
 async def _enviar_reporte_mensual_async():
     """Versión async de enviar reporte mensual"""
-    conn = await get_db_connection()
+    conn = await get_connection()
     
     try:
         # Calcular mes anterior
@@ -398,4 +384,4 @@ async def _enviar_reporte_mensual_async():
     except Exception as e:
         return {'status': 'error', 'error': str(e)}
     finally:
-        await conn.close()
+        await release_connection(conn)

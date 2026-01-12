@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Bot, User, Lightbulb, Zap, FileText, ClipboardList } from 'lucide-react';
+import { Send, Sparkles, Bot, User, Lightbulb, Zap, FileText, ClipboardList, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 import type { MayaSuggestion } from '../../types/medical';
+import chatService from '../../services/chatService';
 
 interface Message {
   id: string;
@@ -38,6 +39,7 @@ const MayaAssistant: React.FC<MayaAssistantProps> = ({
   const [messages, setMessages] = useState<Message[]>([INITIAL_MESSAGE]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'chat' | 'history'>('chat');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +48,7 @@ const MayaAssistant: React.FC<MayaAssistantProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim()) return;
 
     const userMessage: Message = {
@@ -59,114 +61,132 @@ const MayaAssistant: React.FC<MayaAssistantProps> = ({
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
+    setError(null);
 
-    // Simular respuesta de la IA
-    setTimeout(() => {
-      const responses = [
-        "Entiendo. Basándome en los síntomas que describes, te sugiero considerar las siguientes posibilidades diagnósticas. ¿Te gustaría que autocomplete algunos campos del expediente con esta información?",
-        "He analizado la información disponible. Para el pie diabético, es importante documentar la sensibilidad, circulación y cualquier lesión presente. ¿Deseas que te ayude con el examen físico?",
-        "Perfecto. He generado algunas recomendaciones de tratamiento basadas en las mejores prácticas actuales. Estas incluyen cuidados en casa, medicación recomendada y frecuencia de seguimiento.",
-        "He revisado los antecedentes del paciente. Hay varios factores de riesgo que debemos considerar para el plan de tratamiento. ¿Te gustaría ver un resumen ejecutivo del caso?",
-      ];
+    try {
+      // Obtener info del paciente si está disponible
+      const patientInfo = chatService.getLoggedPatientInfo() || (
+        patientData ? {
+          patient_id: patientData.patient_id,
+          first_name: patientData.primer_nombre,
+          first_last_name: patientData.primer_apellido,
+          is_registered: true,
+        } : undefined
+      );
 
-      const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+      // Llamar al backend real
+      const response = await chatService.sendMessage(
+        userMessage.content,
+        patientInfo
+      );
 
+      // Construir mensaje de respuesta
       const aiMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: randomResponse,
-        timestamp: new Date(),
-        suggestions: [
-          {
-            id: '1',
-            type: 'cie10',
-            confidence: 0.85,
-            content: 'L97 - Úlcera de extremidad inferior',
-            explanation: 'Basado en las lesiones observadas en la exploración física',
-            actionLabel: 'Insertar',
-          },
-          {
-            id: '2',
-            type: 'diagnosis',
-            confidence: 0.72,
-            content: 'Pie diabético con úlcera grado I',
-            explanation: 'Según clasificación de Wagner',
-            actionLabel: 'Ver detalles',
-          },
-        ],
+        content: response.response,
+        timestamp: new Date(response.timestamp),
+        suggestions: response.suggestions?.map((s, idx) => ({
+          id: `sugg-${idx}`,
+          type: 'action',
+          confidence: 0.8,
+          content: s,
+          explanation: '',
+          actionLabel: s,
+        })),
       };
 
       setMessages(prev => [...prev, aiMessage]);
+    } catch (err: any) {
+      console.error('Error sending message:', err);
+      
+      const errorMessage = err.response?.data?.detail || 
+                          err.message || 
+                          'Error conectando con Maya. Por favor intenta de nuevo.';
+      
+      setError(errorMessage);
+      
+      // Mensaje de error visual
+      const errorMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `⚠️ Lo siento, hubo un problema: ${errorMessage}`,
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
-  const handleQuickAction = (action: string) => {
+  const handleQuickAction = async (action: string) => {
     const actionMessages: Record<string, string> = {
-      diagnose: 'Basándome en los síntomas y exploración física, te sugiero los siguientes diagnósticos potenciales:\n\n1. Fascitis plantar (M72.2)\n2. Espolón calcáneo (M77.3)\n3. Tendinitis del tibial posterior (M77.5)\n\n¿Te gustaría que autocomplete el campo de diagnósticos?',
-      summary: 'Generando resumen ejecutivo del paciente...',
-      recommendations: 'Aquí tienes las recomendaciones de tratamiento basadas en el caso:\n\n- Descanso relativo de la zona afectada\n- Aplicación de frío local 15-20 min, 3-4 veces al día\n- Ejercicios de estiramiento de fascia plantar\n- Uso de calzado cómodo y plantillas si es necesario\n- Seguimiento en 2 semanas',
-      autocomplete: 'Para autocompletar campos, puedo escuchar notas de voz o analizar texto libre. ¿Qué campo te gustaría completar?',
+      diagnose: '¿Puedes sugerirme diagnósticos basados en la información actual del paciente?',
+      summary: 'Genera un resumen ejecutivo del expediente de este paciente',
+      recommendations: '¿Qué tratamiento recomiendas para este caso?',
+      autocomplete: 'Ayúdame a completar campos del expediente médico',
     };
 
+    const messageText = actionMessages[action] || 'Ejecutando acción...';
+    
     const userMessage: Message = {
       id: crypto.randomUUID(),
       role: 'user',
-      content: actionMessages[action] || 'Ejecutando acción...',
+      content: messageText,
       timestamp: new Date(),
     };
 
     setMessages(prev => [...prev, userMessage]);
     setIsTyping(true);
+    setError(null);
 
-    setTimeout(() => {
-      let responseContent = '';
-      let suggestions: MayaSuggestion[] | undefined;
+    try {
+      const patientInfo = chatService.getLoggedPatientInfo() || (
+        patientData ? {
+          patient_id: patientData.patient_id,
+          first_name: patientData.primer_nombre,
+          first_last_name: patientData.primer_apellido,
+          is_registered: true,
+        } : undefined
+      );
 
-      switch (action) {
-        case 'diagnose':
-          responseContent = 'He analizado la información del paciente. Considerando los hallazgos en la exploración física, te sugiero los siguientes diagnósticos:\n\n**Diagnóstico Principal:**\n• M72.2 - Fascitis plantar\n\n**Diagnóstico Diferencial:**\n• M77.3 - Espolón calcáneo\n• M77.5 - Tendinitis del tibial posterior';
-          suggestions = [
-            {
-              id: 'cie10-1',
-              type: 'cie10',
-              confidence: 0.89,
-              content: 'M72.2 - Fascitis plantar',
-              explanation: 'Inflamación de la fascia plantar, común en pacientes con dolor en el talón',
-              actionLabel: 'Insertar en Diagnósticos',
-            },
-            {
-              id: 'cie10-2',
-              type: 'cie10',
-              confidence: 0.72,
-              content: 'M77.3 - Espolón calcáneo',
-              explanation: 'Depósito de calcio en el calcáneo, a menudo asociado con fascitis',
-              actionLabel: 'Insertar',
-            },
-          ];
-          break;
-        case 'summary':
-          responseContent = '**RESUMEN EJECUTIVO DEL PACIENTE**\n\n**Datos Generales:**\n• Paciente de edad no especificada\n• Motivo de consulta: Dolor en pie derecho\n\n**Antecedentes Relevantes:**\n• Sin antecedentes patológicos conocidos\n• Alergias: No reportadas\n\n**Exploración Física:**\n• Inspección: Sin deformidades aparentes\n• Palpación: Dolor en región calcánea\n• Sensibilidad: Conservada\n\n**Plan Propuesto:**\n• Tratamiento conservador inicial\n• Seguimiento en 2 semanas';
-          break;
-        case 'recommendations':
-          responseContent = '**PLAN DE TRATAMIENTO RECOMENDADO**\n\n**Fase Aguda (Semana 1-2):**\n• Reposo relativo\n• Hielo local 15-20 min, 3 veces al día\n• Antiinflamatorios según tolerancia\n• Ejercicios de estiramiento suave\n\n**Fase de Recuperación (Semana 2-4):**\n• Fortalecimiento progresivo\n• Entradas de apoyo\n• Plantillas ortopédicas si es necesario\n\n**Cuidado Continuo:**\n• Calzado adecuado\n• Estiramientos diarios\n• Control de peso si aplica';
-          break;
-        case 'autocomplete':
-          responseContent = 'Puedo ayudarte a completar los siguientes campos:\n\n• Exploración física\n• Plan de tratamiento\n• Indicaciones al paciente\n\n simple di el texto que deseas transformar en datos estructurados.';
-          break;
-      }
+      const response = await chatService.sendMessage(
+        messageText,
+        patientInfo,
+        { page: `medical-record-${action}` }
+      );
 
       const aiMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
-        suggestions,
+        content: response.response,
+        timestamp: new Date(response.timestamp),
+        suggestions: response.suggestions?.map((s, idx) => ({
+          id: `sugg-${idx}`,
+          type: 'action',
+          confidence: 0.85,
+          content: s,
+          explanation: '',
+          actionLabel: s,
+        })),
       };
 
       setMessages(prev => [...prev, aiMessage]);
+    } catch (err: any) {
+      console.error('Error in quick action:', err);
+      
+      const errorMsg: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: '⚠️ No pude completar esa acción. Por favor intenta de nuevo.',
+        timestamp: new Date(),
+      };
+      
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -200,8 +220,22 @@ const MayaAssistant: React.FC<MayaAssistantProps> = ({
             <Sparkles className="w-5 h-5 text-violet-600" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-800">Maya</h3>
-            <p className="text-xs text-gray-500">Asistente IA</p>
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              Maya
+              {isTyping && (
+                <span className="text-xs text-violet-600 animate-pulse">escribiendo...</span>
+              )}
+            </h3>
+            <p className="text-xs text-gray-500">
+              {error ? (
+                <span className="text-red-500 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Error de conexión
+                </span>
+              ) : (
+                'Asistente IA'
+              )}
+            </p>
           </div>
         </div>
         

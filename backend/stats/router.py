@@ -333,7 +333,8 @@ async def get_appointments_trend(
 
     except Exception as e:
         logger.warning(
-            f"Error obteniendo tendencia de citas (retornando lista vacía): {e}"
+            f"Error obteniendo tendencia de citas (retornando lista vacía): {e}",
+            exc_info=True
         )
         # Retornar lista vacía en lugar de error 500
         return []

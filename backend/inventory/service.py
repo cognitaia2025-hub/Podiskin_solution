@@ -67,8 +67,8 @@ async def get_all_products(
 
         return productos, total
     except Exception as e:
-        logger.error(f"Error fetching products: {e}")
-        return [], 0
+        logger.error(f"Error fetching products: {e}", exc_info=True)
+        raise RuntimeError(f"Error obteniendo productos del inventario: {e}") from e
 
 
 async def get_product_by_id(product_id: int) -> Optional[dict]:

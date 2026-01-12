@@ -18,6 +18,8 @@ import logging
 from datetime import datetime
 import json
 
+from agents.whatsapp_medico.utils.embeddings import get_embeddings_service
+
 from db import get_pool
 from auth import get_current_user, User
 
@@ -161,10 +163,26 @@ async def responder_duda(
         )
         
         if request.aprobar_y_aprender:
-            # TODO: Llamar a learning_curator para generalizar conocimiento
-            # TODO: Guardar en knowledge_base_validated con aprobado=false
-            # TODO: Generar embedding
-            logger.info(f"Duda #{request.duda_id} marcada para aprendizaje")
+            # Guardar en knowledge base y generar embedding
+            try:
+                embeddings_service = get_embeddings_service()
+                
+                # Generar embedding de la pregunta
+                embedding_bytes = embeddings_service.embed_to_bytes(duda['pregunta'])
+                
+                # Guardar en knowledge_base_validated
+                await pool.execute("""
+                    INSERT INTO knowledge_base_validated (
+                        pregunta, respuesta, embedding, aprobado, created_at
+                    )
+                    VALUES ($1, $2, $3, true, NOW())
+                """, duda['pregunta'], request.respuesta, embedding_bytes)
+                
+                logger.info(f"✅ Duda #{request.duda_id} guardada en knowledge base con embedding")
+                
+            except Exception as embed_error:
+                logger.error(f"Error generando embedding: {embed_error}", exc_info=True)
+                # No fallar la operación completa si falla el embedding
         
         # TODO: Enviar respuesta al paciente vía Twilio
         
@@ -251,7 +269,17 @@ async def update_knowledge_base(
             updates.append(f"pregunta = ${param_counter}")
             params.append(pregunta)
             param_counter += 1
-            # TODO: Regenerar embedding si cambia la pregunta
+            
+            # Regenerar embedding si cambia la pregunta
+            try:
+                embeddings_service = get_embeddings_service()
+                embedding_bytes = embeddings_service.embed_to_bytes(pregunta)
+                updates.append(f"embedding = ${param_counter}")
+                params.append(embedding_bytes)
+                param_counter += 1
+                logger.info(f"✅ Embedding regenerado para knowledge base #{kb_id}")
+            except Exception as embed_error:
+                logger.error(f"Error regenerando embedding: {embed_error}", exc_info=True)
         
         if respuesta is not None:
             updates.append(f"respuesta = ${param_counter}")

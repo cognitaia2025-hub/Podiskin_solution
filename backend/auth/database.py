@@ -16,11 +16,15 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 # Configuración de base de datos (para compatibilidad con módulos legacy)
-DB_HOST = os.getenv("DB_HOST", "127.0.0.1")
-DB_PORT = int(os.getenv("DB_PORT", "5432"))
-DB_NAME = os.getenv("DB_NAME", "podoskin_db")
-DB_USER = os.getenv("DB_USER", "podoskin_user")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
+# NOTA: Fallbacks removidos por seguridad. Usar .env obligatorio
+DB_HOST = os.getenv("DB_HOST") or "127.0.0.1"
+DB_PORT = int(os.getenv("DB_PORT") or "5432")
+DB_NAME = os.getenv("DB_NAME") or "podoskin_db"
+DB_USER = os.getenv("DB_USER") or "podoskin_user"
+DB_PASSWORD = os.getenv("DB_PASSWORD")  # ⚠️ REQUERIDO en .env
+
+if not DB_PASSWORD:
+    logger.error("DB_PASSWORD no configurado en .env - La aplicación fallará")
 
 # Connection string para compatibilidad con módulos legacy
 CONNINFO = f"host={DB_HOST} port={DB_PORT} dbname={DB_NAME} user={DB_USER} password={DB_PASSWORD}"
@@ -175,7 +179,7 @@ async def update_user_password(user_id: int, password_hash: str) -> bool:
 
         return True
     except Exception as e:
-        logger.error(f"Error updating user password: {e}")
+        logger.error(f"Error updating user password for user_id={user_id}: {e}", exc_info=True)
         return False
     finally:
         if conn:
@@ -213,8 +217,8 @@ async def get_all_users(activo_only: bool = True) -> list:
         users = await conn.fetch(query)
         return [dict(user) for user in users] if users else []
     except Exception as e:
-        logger.error(f"Error fetching users: {e}")
-        return []
+        logger.error(f"Error fetching users from database: {e}", exc_info=True)
+        raise RuntimeError(f"Error obteniendo lista de usuarios: {e}") from e
     finally:
         if conn:
             await release_connection(conn)

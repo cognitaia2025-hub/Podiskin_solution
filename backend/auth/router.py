@@ -29,132 +29,16 @@ from .jwt_handler import (
 )
 from .database import get_user_by_username, update_last_login
 from .middleware import get_current_user
+from .redis_service import get_auth_redis_service
 
 logger = logging.getLogger(__name__)
 
 # Crear router
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
-# Diccionario para rate limiting simple (en producción usar Redis)
-# TODO: Migrar a Redis para producción con soporte multi-instancia
-# Redis key pattern: "rate_limit:{username}" con TTL de window_seconds
-_login_attempts: Dict[str, list] = {}
-
-# Blacklist de tokens JWT revocados (en producción usar Redis)
-# TODO: Migrar a Redis para producción con persistencia y soporte multi-instancia
-# Redis key pattern: "token_blacklist:{jti}" con TTL igual al exp del token
-# Almacena JTI (JWT ID) de tokens revocados hasta su expiración
-_token_blacklist: Set[str] = set()
-
-
-def check_rate_limit(
-    username: str, max_attempts: int = 10, window_seconds: int = 60
-) -> tuple[bool, int]:
-    """
-    Verifica si un usuario ha excedido el límite de intentos de login.
-
-    Args:
-        username: Nombre de usuario
-        max_attempts: Máximo de intentos permitidos
-        window_seconds: Ventana de tiempo en segundos
-
-    Returns:
-        Tupla (permitido, segundos_para_reintentar)
-    """
-    import time
-
-    current_time = time.time()
-
-    # Inicializar si no existe
-    if username not in _login_attempts:
-        _login_attempts[username] = []
-
-    # Limpiar intentos antiguos
-    _login_attempts[username] = [
-        attempt_time
-        for attempt_time in _login_attempts[username]
-        if current_time - attempt_time < window_seconds
-    ]
-
-    # Verificar si excede el límite
-    if len(_login_attempts[username]) >= max_attempts:
-        oldest_attempt = _login_attempts[username][0]
-        retry_after = int(window_seconds - (current_time - oldest_attempt))
-        return False, max(retry_after, 1)
-
-    # Agregar intento actual
-    _login_attempts[username].append(current_time)
-
-    return True, 0
-
-
-def add_token_to_blacklist(token: str, jti: Optional[str] = None):
-    """
-    Agrega un token a la blacklist de tokens revocados.
-
-    Args:
-        token: Token JWT a revocar
-        jti: JWT ID (opcional, si no se proporciona se extrae del token)
-
-    Note:
-        En producción, migrar a Redis con patrón:
-        SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
-    """
-    if jti is None:
-        # Extraer JTI del token si no se proporciona
-        is_valid, payload = verify_token(token)
-        if is_valid and payload:
-            jti = payload.get("jti")
-
-    if jti:
-        _token_blacklist.add(jti)
-        logger.info(f"Token added to blacklist: {jti[:8]}...")
-    else:
-        logger.warning("Cannot blacklist token: JTI not found")
-
-
-def is_token_blacklisted(token: str) -> bool:
-    """
-    Verifica si un token está en la blacklist.
-
-    Args:
-        token: Token JWT a verificar
-
-    Returns:
-        True si el token está revocado, False en caso contrario
-
-    Note:
-        En producción, migrar a Redis con:
-        EXISTS token_blacklist:{jti}
-    """
-    is_valid, payload = verify_token(token)
-    if not is_valid or not payload:
-        return False
-
-    jti = payload.get("jti")
-    if not jti:
-        return False
-
-    return jti in _token_blacklist
-
-
-def cleanup_expired_blacklist():
-    """
-    Limpia tokens expirados de la blacklist.
-
-    En memoria, esto es complejo porque necesitamos verificar cada token.
-    Con Redis, los tokens se auto-eliminan con TTL.
-
-    Note:
-        Con Redis no es necesaria esta función, ya que los tokens
-        se eliminan automáticamente al expirar mediante TTL.
-    """
-    # Por ahora, solo registramos el tamaño de la blacklist
-    # En producción con Redis, esta función no es necesaria
-    if len(_token_blacklist) > 1000:
-        logger.warning(
-            f"Token blacklist size: {len(_token_blacklist)} - consider Redis migration"
-        )
+# Servicio Redis para rate limiting, blacklist y refresh tokens
+# Usa Redis cuando está disponible, fallback a memoria
+auth_redis = get_auth_redis_service()
 
 
 # ========================================================================
@@ -265,7 +149,7 @@ async def login(request: Request, credentials: LoginRequest) -> LoginResponse:
     # ========================================================================
     # 1. VERIFICAR RATE LIMIT
     # ========================================================================
-    allowed, retry_after = check_rate_limit(username)
+    allowed, retry_after = await auth_redis.check_rate_limit(username)
     if not allowed:
         logger.warning(f"Rate limit exceeded for user: {username}")
         raise HTTPException(
@@ -357,11 +241,8 @@ async def logout(current_user: User = Depends(get_current_user)):
     """
     Endpoint de logout que revoca el token del usuario actual.
 
-    Agrega el token a la blacklist para que no pueda ser reutilizado.
-
-    En producción, migrar a Redis con:
-    - SETEX token_blacklist:{jti} {ttl_seconds} "revoked"
-    - TTL igual al tiempo restante hasta expiración del token
+    Agrega el token a la blacklist Redis (o memoria) para que no pueda ser reutilizado.
+    Con Redis, el token se auto-elimina al expirar mediante TTL.
 
     Args:
         current_user: Usuario autenticado (dependency injection)
@@ -404,8 +285,13 @@ async def logout_with_revocation(
     """
     token = credentials.credentials
 
-    # Agregar token a la blacklist
-    add_token_to_blacklist(token)
+    # Extraer JTI y exp del token para blacklist
+    is_valid, payload = verify_token(token)
+    if is_valid and payload:
+        jti = payload.get("jti")
+        exp = payload.get("exp")
+        if jti and exp:
+            await auth_redis.add_token_to_blacklist(jti, exp)
 
     logger.info(f"User {current_user.nombre_usuario} logged out with token revocation")
 

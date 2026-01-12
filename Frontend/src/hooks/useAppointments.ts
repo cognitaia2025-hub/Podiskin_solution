@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
+import { useAuth } from '../auth/AuthContext';
 import {
   getAppointments as fetchAppointments,
   createAppointment as apiCreateAppointment,
@@ -27,6 +28,7 @@ interface UseAppointmentsOptions {
 }
 
 export const useAppointments = (options: UseAppointmentsOptions = {}) => {
+  const { user, isAuthenticated } = useAuth();
   const {
     startDate,
     endDate,
@@ -47,6 +49,11 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
   const doctorIdsKey = doctorIds.join(',');
 
   const fetchData = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (!isAuthenticated || !user) {
+      return;
+    }
+    
     try {
       setLoading(true);
       setError(null);
@@ -98,7 +105,7 @@ export const useAppointments = (options: UseAppointmentsOptions = {}) => {
     } finally {
       setLoading(false);
     }
-  }, [startDate?.getTime(), endDate?.getTime(), doctorIdsKey, patientId, status]);
+  }, [isAuthenticated, user, startDate?.getTime(), endDate?.getTime(), doctorIdsKey, patientId, status]);
 
   /**
    * Create a new appointment

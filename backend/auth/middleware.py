@@ -53,14 +53,20 @@ async def get_current_user(
     
     # Verificar si el token está en la blacklist (revocado)
     # Import local para evitar import circular
-    from .router import is_token_blacklisted
-    if is_token_blacklisted(token):
-        logger.warning("Revoked token attempted to access resource")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token revocado. Por favor, inicie sesión nuevamente.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    from .redis_service import get_auth_redis_service
+    auth_redis = get_auth_redis_service()
+    
+    # Extraer JTI del token para verificar blacklist
+    is_valid_check, payload_check = verify_token(token)
+    if is_valid_check and payload_check:
+        jti = payload_check.get("jti")
+        if jti and await auth_redis.is_token_blacklisted(jti):
+            logger.warning(f"Revoked token attempted to access resource: {jti[:8]}...")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token revocado. Por favor, inicie sesión nuevamente.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
     
     # Validar y decodificar el token
     is_valid, payload = verify_token(token)

@@ -59,10 +59,9 @@ api.interceptors.response.use(
         // Only logout if the error indicates token is truly invalid/expired
         // Don't logout for endpoints that might have transient auth issues
         const isLoginEndpoint = error.config?.url?.includes('/auth/');
-        const isWhatsAppEndpoint = error.config?.url?.includes('/whatsapp');
 
-        // If this is a whatsapp endpoint, don't auto-logout (might be polling issue)
-        if (!isWhatsAppEndpoint && !isLoginEndpoint) {
+        // Don't auto-logout for auth endpoints to avoid redirect loops
+        if (!isLoginEndpoint) {
           // Token expired or invalid - logout user
           localStorage.removeItem('token');
           localStorage.removeItem('user');

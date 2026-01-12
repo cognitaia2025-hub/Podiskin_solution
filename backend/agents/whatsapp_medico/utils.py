@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 async def enviar_whatsapp(chat_id: str, mensaje: str) -> bool:
     """
-    Envía mensaje a WhatsApp vía cliente Node.js.
+    Envía mensaje a WhatsApp vía API de WhatsApp.
 
     Args:
         chat_id: ID del chat de WhatsApp
@@ -23,17 +23,18 @@ async def enviar_whatsapp(chat_id: str, mensaje: str) -> bool:
         True si se envió correctamente
     """
     try:
-        # TODO: Integrar con whatsapp-web-js
+        # TODO: Integrar con Twilio WhatsApp API o WhatsApp Business API
         # Por ahora solo logueamos
         logger.info(f"📱 Enviando a {chat_id}: {mensaje[:50]}...")
 
-        # Cuando integres whatsapp-web-js:
+        # Cuando se integre con Twilio:
         # async with httpx.AsyncClient() as client:
         #     response = await client.post(
-        #         "http://localhost:3000/send-message",
-        #         json={"chatId": chat_id, "message": mensaje}
+        #         "https://api.twilio.com/2010-04-01/Accounts/{ACCOUNT_SID}/Messages.json",
+        #         auth=(ACCOUNT_SID, AUTH_TOKEN),
+        #         data={"To": f"whatsapp:{chat_id}", "From": f"whatsapp:{TWILIO_NUMBER}", "Body": mensaje}
         #     )
-        #     return response.status_code == 200
+        #     return response.status_code == 201
 
         return True
 

@@ -37,36 +37,9 @@ services:
       timeout: 3s
       retries: 5
 
-  whatsapp-service:
-    build:
-      context: ./whatsapp-web-js
-      dockerfile: Dockerfile
-    container_name: podoskin_whatsapp
-    environment:
-      BACKEND_URL: http://host.docker.internal:8000
-      PORT: 3000
-    ports:
-      - "3000:3000"
-    volumes:
-      - whatsapp_sessions:/app/.wwebjs_auth
-      - whatsapp_cache:/app/.wwebjs_cache
-    networks:
-      - podoskin_network
-    restart: unless-stopped
-    depends_on:
-      - postgres
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
 volumes:
   postgres_data:
   redis_data:
-  whatsapp_sessions:
-  whatsapp_cache:
 
 networks:
   podoskin_network:

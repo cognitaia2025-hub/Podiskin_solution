@@ -67,14 +67,8 @@ from analytics.router import router as analytics_router
 # Importar WebSocket para notificaciones
 from ws_notifications.notifications_ws import router as websocket_router
 
-# Importar WhatsApp Management
-from whatsapp_management import router as whatsapp_router
-
-# Importar Agente WhatsApp (LangGraph)
+# Importar Agente WhatsApp (LangGraph) - AI Agent System
 from agents.whatsapp_medico.api import router as whatsapp_agent_router
-
-# Importar Puente WhatsApp (Node.js Bridge)
-from whatsapp_bridge import router as whatsapp_bridge_router
 
 # Configurar logging - Solo WARNING y ERROR para reducir ruido
 # Cambiar a INFO temporalmente si necesitas depurar
@@ -153,9 +147,7 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(medical_records_router)
 app.include_router(reportes_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
-app.include_router(whatsapp_router)  # WhatsApp Management
-app.include_router(whatsapp_agent_router)  # WhatsApp Agent (LangGraph)
-app.include_router(whatsapp_bridge_router)  # WhatsApp Bridge (Node.js)
+app.include_router(whatsapp_agent_router)  # WhatsApp Agent (LangGraph) - AI System
 
 # WebSocket para notificaciones en tiempo real (sin prefix /api)
 app.include_router(websocket_router)

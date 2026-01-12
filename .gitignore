@@ -20,12 +20,6 @@ desktop.ini
 .env
 .env.local
 
-# WhatsApp session data
-.wwebjs_auth/
-.wwebjs_cache/
-**/session/
-**/.wwebjs_cache/
-
 # Python
 __pycache__/
 *.pyc

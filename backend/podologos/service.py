@@ -19,10 +19,10 @@ logger = logging.getLogger(__name__)
 async def get_all_podologos(activo_only: bool = True) -> List[dict]:
     """
     Obtener todos los podólogos
-    
+
     Args:
         activo_only: Si True, solo devuelve podólogos activos
-    
+
     Returns:
         Lista de podólogos
     """
@@ -41,16 +41,16 @@ async def get_all_podologos(activo_only: bool = True) -> List[dict]:
                 id_usuario
             FROM podologos
         """
-        
+
         if activo_only:
             query += " WHERE activo = true"
-        
+
         query += " ORDER BY nombre_completo ASC"
-        
+
         result = await fetch_all(query)
         logger.info(f"Retrieved {len(result)} podólogos (activo_only={activo_only})")
         return result
-    
+
     except Exception as e:
         logger.error(f"Error fetching podólogos: {e}")
         raise
@@ -59,10 +59,10 @@ async def get_all_podologos(activo_only: bool = True) -> List[dict]:
 async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
     """
     Obtener un podólogo por ID
-    
+
     Args:
         podologo_id: ID del podólogo
-    
+
     Returns:
         Datos del podólogo o None si no existe
     """
@@ -83,14 +83,14 @@ async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
             WHERE id = $1
         """
         result = await fetch_one(query, podologo_id)
-        
+
         if result:
             logger.info(f"Found podologo with ID {podologo_id}")
             return result
         else:
             logger.warning(f"Podologo with ID {podologo_id} not found")
             return None
-    
+
     except Exception as e:
         logger.error(f"Error fetching podologo {podologo_id}: {e}")
         raise
@@ -99,10 +99,10 @@ async def get_podologo_by_id(podologo_id: int) -> Optional[dict]:
 async def create_podologo(podologo_data: PodologoCreate) -> dict:
     """
     Crear un nuevo podólogo
-    
+
     Args:
         podologo_data: Datos del podólogo a crear
-    
+
     Returns:
         Datos del podólogo creado
     """
@@ -142,23 +142,25 @@ async def create_podologo(podologo_data: PodologoCreate) -> dict:
             podologo_data.fecha_contratacion,
             podologo_data.id_usuario,
         )
-        
+
         logger.info(f"Created new podologo: {result['nombre_completo']}")
         return result
-    
+
     except Exception as e:
         logger.error(f"Error creating podologo: {e}")
         raise
 
 
-async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Optional[dict]:
+async def update_podologo(
+    podologo_id: int, podologo_data: PodologoUpdate
+) -> Optional[dict]:
     """
     Actualizar un podólogo existente
-    
+
     Args:
         podologo_id: ID del podólogo a actualizar
         podologo_data: Datos a actualizar
-    
+
     Returns:
         Datos del podólogo actualizado o None si no existe
     """
@@ -167,53 +169,53 @@ async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Op
         update_fields = []
         params = []
         param_idx = 1
-        
+
         if podologo_data.cedula_profesional is not None:
             update_fields.append(f"cedula_profesional = ${param_idx}")
             params.append(podologo_data.cedula_profesional)
             param_idx += 1
-        
+
         if podologo_data.nombre_completo is not None:
             update_fields.append(f"nombre_completo = ${param_idx}")
             params.append(podologo_data.nombre_completo)
             param_idx += 1
-        
+
         if podologo_data.especialidad is not None:
             update_fields.append(f"especialidad = ${param_idx}")
             params.append(podologo_data.especialidad)
             param_idx += 1
-        
+
         if podologo_data.telefono is not None:
             update_fields.append(f"telefono = ${param_idx}")
             params.append(podologo_data.telefono)
             param_idx += 1
-        
+
         if podologo_data.email is not None:
             update_fields.append(f"email = ${param_idx}")
             params.append(podologo_data.email)
             param_idx += 1
-        
+
         if podologo_data.activo is not None:
             update_fields.append(f"activo = ${param_idx}")
             params.append(podologo_data.activo)
             param_idx += 1
-        
+
         if podologo_data.fecha_contratacion is not None:
             update_fields.append(f"fecha_contratacion = ${param_idx}")
             params.append(podologo_data.fecha_contratacion)
             param_idx += 1
-        
+
         if podologo_data.id_usuario is not None:
             update_fields.append(f"id_usuario = ${param_idx}")
             params.append(podologo_data.id_usuario)
             param_idx += 1
-        
+
         if not update_fields:
             logger.warning(f"No fields to update for podologo {podologo_id}")
             return await get_podologo_by_id(podologo_id)
-        
+
         params.append(podologo_id)
-        
+
         query = f"""
             UPDATE podologos 
             SET {', '.join(update_fields)}
@@ -230,16 +232,16 @@ async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Op
                 fecha_registro, 
                 id_usuario
         """
-        
+
         result = await execute_returning(query, *params)
-        
+
         if result:
             logger.info(f"Updated podologo {podologo_id}")
             return result
         else:
             logger.warning(f"Podologo {podologo_id} not found for update")
             return None
-    
+
     except Exception as e:
         logger.error(f"Error updating podologo {podologo_id}: {e}")
         raise
@@ -248,10 +250,10 @@ async def update_podologo(podologo_id: int, podologo_data: PodologoUpdate) -> Op
 async def delete_podologo(podologo_id: int) -> bool:
     """
     Eliminar un podólogo (soft delete - marca como inactivo)
-    
+
     Args:
         podologo_id: ID del podólogo a eliminar
-    
+
     Returns:
         True si se eliminó, False si no existe
     """
@@ -263,14 +265,14 @@ async def delete_podologo(podologo_id: int) -> bool:
             RETURNING id
         """
         result = await execute_returning(query, podologo_id)
-        
+
         if result:
             logger.info(f"Soft deleted podologo {podologo_id}")
             return True
         else:
             logger.warning(f"Podologo {podologo_id} not found for deletion")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error deleting podologo {podologo_id}: {e}")
         raise
@@ -279,10 +281,10 @@ async def delete_podologo(podologo_id: int) -> bool:
 async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
     """
     Obtener podólogos disponibles (activos) con verificación de calendario
-    
+
     Args:
         fecha: Fecha opcional para verificar disponibilidad (formato YYYY-MM-DD)
-    
+
     Returns:
         Lista de podólogos disponibles con información de slots
     """
@@ -291,14 +293,16 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
         fecha_obj = date.today()
     else:
         try:
-            fecha_obj = dt.strptime(fecha, '%Y-%m-%d').date()
+            fecha_obj = dt.strptime(fecha, "%Y-%m-%d").date()
         except ValueError:
             logger.warning(f"Invalid date format: {fecha}, using today")
             fecha_obj = date.today()
-    
+
     # Obtener día de la semana (0=Domingo, 6=Sábado)
-    dia_semana = (fecha_obj.weekday() + 1) % 7  # Python usa 0=Lunes, convertir a 0=Domingo
-    
+    dia_semana = (
+        fecha_obj.weekday() + 1
+    ) % 7  # Python usa 0=Lunes, convertir a 0=Domingo
+
     try:
         async with pacientes_db.get_connection() as conn:
             # Query para obtener podólogos con disponibilidad
@@ -344,32 +348,34 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
                 citas_agendadas,
                 (slots_totales - citas_agendadas)::integer as slots_libres
             FROM podologo_slots
-            WHERE tiene_horario > 0  -- Solo podólogos con horario para ese día
-            ORDER BY slots_libres DESC, nombre_completo
+            -- Mostrar TODOS los podólogos activos, incluso sin horario
+            ORDER BY tiene_horario DESC, slots_libres DESC, nombre_completo
             """
-            
+
             rows = await conn.fetch(query, dia_semana, fecha_obj)
-        
+
         result = []
         for row in rows:
-            result.append({
-                'id': row['id'],
-                'cedula_profesional': row['cedula_profesional'],
-                'nombre_completo': row['nombre_completo'],
-                'especialidad': row['especialidad'],
-                'telefono': row['telefono'],
-                'email': row['email'],
-                'activo': row['activo'],
-                'tiene_horario_dia': row['tiene_horario_dia'],
-                'slots_disponibles_totales': row['slots_disponibles_totales'],
-                'citas_agendadas': row['citas_agendadas'],
-                'slots_libres': row['slots_libres'],
-                'fecha_consultada': fecha_obj.isoformat()
-            })
-        
+            result.append(
+                {
+                    "id": row["id"],
+                    "cedula_profesional": row["cedula_profesional"],
+                    "nombre_completo": row["nombre_completo"],
+                    "especialidad": row["especialidad"],
+                    "telefono": row["telefono"],
+                    "email": row["email"],
+                    "activo": row["activo"],
+                    "tiene_horario_dia": row["tiene_horario_dia"],
+                    "slots_disponibles_totales": row["slots_disponibles_totales"],
+                    "citas_agendadas": row["citas_agendadas"],
+                    "slots_libres": row["slots_libres"],
+                    "fecha_consultada": fecha_obj.isoformat(),
+                }
+            )
+
         logger.info(f"Found {len(result)} available podologos for {fecha_obj}")
         return result
-    
+
     except Exception as e:
         logger.error(f"Error getting available podologos: {e}")
         # Fallback to simple active query
@@ -377,24 +383,21 @@ async def get_podologos_disponibles(fecha: Optional[str] = None) -> List[dict]:
 
 
 async def get_available_podologos(
-    conn: asyncpg.Connection,
-    fecha: date,
-    hora_inicio: str,
-    hora_fin: str
+    conn: asyncpg.Connection, fecha: date, hora_inicio: str, hora_fin: str
 ) -> List[Dict[str, Any]]:
     """
     Obtiene podólogos disponibles en un horario específico.
-    
+
     Verifica que el podólogo:
     1. Esté activo
     2. No tenga citas conflictivas en ese horario
-    
+
     Args:
         conn: Conexión a BD
         fecha: Fecha de la consulta
         hora_inicio: Hora de inicio (HH:MM)
         hora_fin: Hora de fin (HH:MM)
-        
+
     Returns:
         Lista de podólogos disponibles con su información
     """
@@ -420,16 +423,16 @@ async def get_available_podologos(
         HAVING COUNT(c.id) = 0
         ORDER BY u.nombre_completo
     """
-    
+
     rows = await conn.fetch(query, fecha, hora_inicio, hora_fin)
-    
+
     return [
         {
-            "id": row['id'],
-            "nombre_usuario": row['nombre_usuario'],
-            "nombre_completo": row['nombre_completo'],
-            "email": row['email'],
-            "disponible": True
+            "id": row["id"],
+            "nombre_usuario": row["nombre_usuario"],
+            "nombre_completo": row["nombre_completo"],
+            "email": row["email"],
+            "disponible": True,
         }
         for row in rows
     ]
@@ -441,11 +444,11 @@ async def create_podologo_from_user(
     nombre_completo: str,
     email: str,
     telefono: str = "",
-    especialidad: str = "Podología General"
+    especialidad: str = "Podología General",
 ) -> dict:
     """
     Crear registro de podólogo al crear un usuario con rol Podologo
-    
+
     Args:
         id_usuario: ID del usuario creado
         cedula_profesional: Cédula profesional del podólogo
@@ -453,7 +456,7 @@ async def create_podologo_from_user(
         email: Email
         telefono: Teléfono (opcional)
         especialidad: Especialidad (default: Podología General)
-    
+
     Returns:
         Datos del podólogo creado
     """
@@ -483,15 +486,15 @@ async def create_podologo_from_user(
                     email,
                     True,  # activo
                     date.today(),  # fecha_contratacion
-                    id_usuario
-                )
+                    id_usuario,
+                ),
             )
             result = cursor.fetchone()
             conn.commit()
-            
+
             logger.info(f"Created podologo record for user {id_usuario}")
             return dict(result)
-    
+
     except Exception as e:
         conn.rollback()
         logger.error(f"Error creating podologo: {e}")

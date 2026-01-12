@@ -33,20 +33,16 @@ class HorariosService:
             params.append(activo)
         
         query += " ORDER BY h.id_podologo, h.dia_semana, h.hora_inicio"
-        return await fetch_all(query, *params)
-                
-                cur.execute(query, params)
-                horarios = cur.fetchall()
-                
-                # Agregar nombre del día
-                for h in horarios:
-                    h['dia_semana_nombre'] = DIAS_SEMANA[h['dia_semana']]
-                    h['hora_inicio'] = str(h['hora_inicio'])
-                    h['hora_fin'] = str(h['hora_fin'])
-                
-                return horarios
-        finally:
-            conn.close()
+        horarios = await fetch_all(query, *params)
+        
+        # Agregar nombre del día
+        for h in horarios:
+            h['dia_semana_nombre'] = DIAS_SEMANA[h['dia_semana']]
+            h['hora_inicio'] = str(h['hora_inicio'])
+            h['hora_fin'] = str(h['hora_fin'])
+        
+        return horarios
+
     
     def get_by_id(self, horario_id: int) -> Optional[dict]:
         """Obtiene un horario por ID."""

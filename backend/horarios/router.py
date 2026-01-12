@@ -8,7 +8,7 @@ from auth.middleware import get_current_user
 
 router = APIRouter(prefix="/horarios", tags=["Horarios"])
 
-@router.get("/", response_model=List[HorarioResponse])
+@router.get("", response_model=List[HorarioResponse])
 async def get_horarios(
     id_podologo: Optional[int] = None,
     activo: Optional[bool] = None,
@@ -38,7 +38,7 @@ async def get_horario(
         raise HTTPException(status_code=404, detail=f"Horario con ID {horario_id} no encontrado")
     return horario
 
-@router.post("/", response_model=HorarioResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=HorarioResponse, status_code=status.HTTP_201_CREATED)
 async def create_horario(
     horario: HorarioCreate,
     current_user: dict = Depends(get_current_user)

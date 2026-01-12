@@ -40,7 +40,7 @@ def get_client_ip(request: Request) -> str:
 # ENDPOINTS
 # ============================================================================
 
-@router.get("/", response_model=FacturaListResponse)
+@router.get("", response_model=FacturaListResponse)
 async def listar_facturas(
     id_pago: Optional[int] = Query(None, description="Filtrar por ID de pago"),
     rfc_receptor: Optional[str] = Query(None, description="Filtrar por RFC del receptor"),
@@ -84,7 +84,7 @@ async def listar_facturas(
         )
 
 
-@router.post("/", response_model=FacturaResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=FacturaResponse, status_code=status.HTTP_201_CREATED)
 async def crear_factura(
     request: Request,
     factura: FacturaCreate,

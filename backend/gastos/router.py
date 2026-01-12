@@ -5,9 +5,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
 from .service import gastos_service
-from citas.database import (
-    _get_connection as get_db_connection_citas,
-)  # Para transacciones
+from db import get_connection, release_connection
 
 router = APIRouter(prefix="/gastos", tags=["Gastos"])
 
@@ -85,7 +83,7 @@ class GastoConInventarioRequest(BaseModel):
     )
 
 
-@router.get("/")
+@router.get("")
 async def listar_gastos(
     categoria: Optional[str] = Query(
         None, description="Categoría del gasto (nuevo o legacy)"
@@ -103,7 +101,7 @@ async def resumen_gastos():
     return await gastos_service.get_resumen()
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def crear_gasto(gasto: GastoCreate):
     """Registra un nuevo gasto."""
     # Validar categoría (acepta nuevas categorías o legacy)
@@ -148,25 +146,22 @@ async def crear_gasto_con_inventario(request: GastoConInventarioRequest):
             f"La suma de productos (${suma_productos:.2f}) excede el monto del gasto (${request.monto:.2f})",
         )
 
-    conn = None
     try:
         # Obtener conexión con transacción
-        conn = get_db_connection_citas()
-        cur = conn.cursor()
-
-        # 1. Insertar gasto
-        insert_gasto_query = """
-            INSERT INTO gastos (
-                categoria, concepto, monto, fecha_gasto, metodo_pago,
-                factura_disponible, folio_factura, registrado_por, notas
-            ) VALUES (
-                %s, %s, %s, %s, %s, %s, %s, %s, %s
-            )
-            RETURNING id
-        """
-        cur.execute(
-            insert_gasto_query,
-            (
+        conn = await get_connection()
+        async with conn.transaction():
+            # 1. Insertar gasto
+            insert_gasto_query = """
+                INSERT INTO gastos (
+                    categoria, concepto, monto, fecha_gasto, metodo_pago,
+                    factura_disponible, folio_factura, registrado_por, notas
+                ) VALUES (
+                    $1, $2, $3, $4, $5, $6, $7, $8, $9
+                )
+                RETURNING id
+            """
+            gasto_id = await conn.fetchval(
+                insert_gasto_query,
                 request.categoria,
                 request.concepto,
                 request.monto,
@@ -176,58 +171,53 @@ async def crear_gasto_con_inventario(request: GastoConInventarioRequest):
                 request.folio_factura,
                 request.registrado_por,
                 request.notas,
-            ),
-        )
-        gasto_id = cur.fetchone()[0]
-
-        # 2. Insertar vinculación en gastos_inventario y actualizar stock
-        productos_actualizados = []
-        for producto in request.productos:
-            # Verificar que el producto existe
-            cur.execute(
-                "SELECT id, nombre, stock_actual FROM inventario_productos WHERE id = %s",
-                (producto.id,),
-            )
-            prod_data = cur.fetchone()
-            if not prod_data:
-                conn.rollback()
-                raise HTTPException(404, f"Producto con ID {producto.id} no encontrado")
-
-            prod_id, prod_nombre, stock_actual = prod_data
-
-            # Insertar vinculación
-            cur.execute(
-                """
-                INSERT INTO gastos_inventario (
-                    gasto_id, producto_id, cantidad_comprada, precio_unitario
-                ) VALUES (%s, %s, %s, %s)
-                """,
-                (gasto_id, producto.id, producto.cantidad, producto.precio_unitario),
             )
 
-            # Actualizar stock
-            nuevo_stock = stock_actual + producto.cantidad
-            cur.execute(
-                """
-                UPDATE inventario_productos 
-                SET stock_actual = %s
-                WHERE id = %s
-                """,
-                (nuevo_stock, producto.id),
-            )
+            # 2. Insertar vinculación en gastos_inventario y actualizar stock
+            productos_actualizados = []
+            for producto in request.productos:
+                # Verificar que el producto existe
+                prod_data = await conn.fetchrow(
+                    "SELECT id, nombre, stock_actual FROM inventario_productos WHERE id = $1",
+                    producto.id,
+                )
+                if not prod_data:
+                    raise HTTPException(404, f"Producto con ID {producto.id} no encontrado")
 
-            productos_actualizados.append(
-                {
-                    "id": prod_id,
-                    "nombre": prod_nombre,
-                    "stock_anterior": stock_actual,
-                    "stock_nuevo": nuevo_stock,
-                    "cantidad_agregada": producto.cantidad,
-                }
-            )
+                prod_id, prod_nombre, stock_actual = prod_data["id"], prod_data["nombre"], prod_data["stock_actual"]
 
-        # Commit de transacción
-        conn.commit()
+                # Insertar vinculación
+                await conn.execute(
+                    """
+                    INSERT INTO gastos_inventario (
+                        gasto_id, producto_id, cantidad_comprada, precio_unitario
+                    ) VALUES ($1, $2, $3, $4)
+                    """,
+                    gasto_id, producto.id, producto.cantidad, producto.precio_unitario,
+                )
+
+                # Actualizar stock
+                nuevo_stock = stock_actual + producto.cantidad
+                await conn.execute(
+                    """
+                    UPDATE inventario_productos 
+                    SET stock_actual = $1
+                    WHERE id = $2
+                    """,
+                    nuevo_stock, producto.id,
+                )
+
+                productos_actualizados.append(
+                    {
+                        "id": prod_id,
+                        "nombre": prod_nombre,
+                        "stock_anterior": stock_actual,
+                        "stock_nuevo": nuevo_stock,
+                        "cantidad_agregada": producto.cantidad,
+                    }
+                )
+
+        await release_connection(conn)
 
         return {
             "success": True,
@@ -239,13 +229,7 @@ async def crear_gasto_con_inventario(request: GastoConInventarioRequest):
         }
 
     except HTTPException:
-        if conn:
-            conn.rollback()
         raise
     except Exception as e:
-        if conn:
-            conn.rollback()
         raise HTTPException(500, f"Error al procesar gasto con inventario: {str(e)}")
-    finally:
-        if conn:
-            conn.close()
+

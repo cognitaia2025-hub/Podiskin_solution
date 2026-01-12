@@ -53,7 +53,7 @@ class ProveedorUpdate(BaseModel):
     notas: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 async def listar_proveedores(activo: Optional[bool] = None):
     """Lista todos los proveedores."""
     return proveedores_service.get_all(activo=activo)
@@ -68,7 +68,7 @@ async def obtener_proveedor(id: int):
     return proveedor
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def crear_proveedor(proveedor: ProveedorCreate):
     """Crea un nuevo proveedor."""
     try:

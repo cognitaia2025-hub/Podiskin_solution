@@ -26,6 +26,7 @@ import PerfilPage from './pages/PerfilPage';
 import StaffManagement from './pages/admin/StaffManagement';
 import InventoryPage from './pages/admin/InventoryPage';
 import AuditPage from './pages/admin/AuditPage';
+import { WhatsAppManagement } from './pages/WhatsAppManagement';
 import type { ViewType } from './components/ViewSelector';
 import { useAppointments } from './hooks/useAppointments';
 import type { Doctor, Patient, Appointment } from './types/appointments';
@@ -410,6 +411,12 @@ function AppContent() {
             <Route
               path="/finances"
               element={<FinancesPage />}
+            />
+
+            {/* WhatsApp Management Route */}
+            <Route
+              path="/whatsapp"
+              element={<WhatsAppManagement />}
             />
 
             {/* Redirect /inventory to /admin/inventory */}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation, NavLink } from 'react-router-dom';
-import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3, Users, Package, Coins, ChevronDown, Stethoscope } from 'lucide-react';
+import { Calendar, FileText, FolderOpen, DollarSign, TrendingUp, BarChart3, Users, Package, Coins, ChevronDown, Stethoscope, MessageSquare } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useAuth } from '../auth/AuthContext';
 
@@ -39,6 +39,13 @@ const NAVIGATION_TABS: NavigationTab[] = [
         label: 'Finanzas Adm',
         path: '/finances',
         icon: TrendingUp,
+        enabled: true,
+    },
+    {
+        id: 'whatsapp',
+        label: 'WhatsApp',
+        path: '/whatsapp',
+        icon: MessageSquare,
         enabled: true,
     },
 ];

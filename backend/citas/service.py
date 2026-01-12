@@ -9,12 +9,15 @@ Implementa validaciones, cálculos automáticos y operaciones CRUD.
 import logging
 from datetime import datetime, timedelta, date
 from typing import List, Optional, Dict, Any, Tuple
+from fastapi import HTTPException
 
 from .database import (
     execute_query,
     execute_query_one,
     execute_mutation,
 )
+from db import get_connection, release_connection
+import asyncpg
 
 logger = logging.getLogger(__name__)
 
@@ -53,10 +56,28 @@ async def validar_podologo_activo(id_podologo: int) -> bool:
         True si el podólogo existe y está activo
     """
     query = """
-        SELECT id FROM podologos 
+        SELECT id FROM podologos
         WHERE id = %s AND activo = true
     """
     result = await execute_query_one(query, (id_podologo,))
+    return result is not None
+
+
+async def validar_tratamiento_activo(id_tratamiento: int) -> bool:
+    """
+    Valida que el tratamiento exista y esté activo.
+
+    Args:
+        id_tratamiento: ID del tratamiento
+
+    Returns:
+        True si el tratamiento existe y está activo
+    """
+    query = """
+        SELECT id FROM tratamientos
+        WHERE id = %s AND activo = true
+    """
+    result = await execute_query_one(query, (id_tratamiento,))
     return result is not None
 
 
@@ -184,26 +205,32 @@ async def obtener_citas(
     # Construir WHERE clause dinámicamente
     where_clauses = []
     params = []
+    param_index = 1
 
     if id_paciente:
-        where_clauses.append("c.id_paciente = %s")
+        where_clauses.append(f"c.id_paciente = ${param_index}")
         params.append(id_paciente)
+        param_index += 1
 
     if id_podologo:
-        where_clauses.append("c.id_podologo = %s")
+        where_clauses.append(f"c.id_podologo = ${param_index}")
         params.append(id_podologo)
+        param_index += 1
 
     if fecha_inicio:
-        where_clauses.append("DATE(c.fecha_hora_inicio) >= %s")
+        where_clauses.append(f"DATE(c.fecha_hora_inicio) >= ${param_index}")
         params.append(fecha_inicio)
+        param_index += 1
 
     if fecha_fin:
-        where_clauses.append("DATE(c.fecha_hora_inicio) <= %s")
+        where_clauses.append(f"DATE(c.fecha_hora_inicio) <= ${param_index}")
         params.append(fecha_fin)
+        param_index += 1
 
     if estado:
-        where_clauses.append("c.estado = %s")
+        where_clauses.append(f"c.estado = ${param_index}")
         params.append(estado)
+        param_index += 1
 
     where_clause = "WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
@@ -225,7 +252,7 @@ async def obtener_citas(
         LEFT JOIN podologos pod ON c.id_podologo = pod.id
         {where_clause}
         ORDER BY c.fecha_hora_inicio DESC
-        LIMIT %s OFFSET %s
+        LIMIT ${param_index} OFFSET ${param_index + 1}
     """
 
     # Agregar limit y offset a params
@@ -271,6 +298,7 @@ async def crear_cita(
     motivo_consulta: Optional[str] = None,
     notas_recepcion: Optional[str] = None,
     creado_por: Optional[int] = None,
+    id_tratamiento: Optional[int] = None,
 ) -> Dict[str, Any]:
     """
     Crea una nueva cita.
@@ -296,6 +324,12 @@ async def crear_cita(
 
     if not await validar_podologo_activo(id_podologo):
         raise ValueError("El podólogo no existe o no está activo")
+
+    # Validar tratamiento si se proporciona
+    if id_tratamiento is not None and not await validar_tratamiento_activo(
+        id_tratamiento
+    ):
+        raise ValueError("El tratamiento no existe o no está activo")
 
     # Validar que la fecha sea al menos 1 hora en el futuro
     ahora = datetime.now()
@@ -351,6 +385,164 @@ async def crear_cita(
 
     # Obtener la cita con información completa
     return await obtener_cita_por_id(cita["id"])
+
+
+async def crear_cita_smart(
+    id_paciente: Optional[int],
+    nuevo_paciente: Optional[dict],
+    id_podologo: int,
+    fecha_hora_inicio: datetime,
+    fecha_hora_fin: datetime,
+    tipo_cita: str,
+    motivo_consulta: Optional[str] = None,
+    notas_recepcion: Optional[str] = None,
+    color_hex: Optional[str] = None,
+    creado_por: Optional[int] = None,
+) -> Dict[str, Any]:
+    """
+    Smart create: crea paciente opcionalmente y la cita en una transacción atómica.
+
+    - Si `nuevo_paciente` es proporcionado, crea el paciente y usa su id.
+    - Si `id_paciente` es proporcionado, lo usa.
+    - Valida integridad referencial y reglas de negocio.
+    """
+    conn = None
+    try:
+        conn = await get_connection()
+
+        async with conn.transaction():
+            # Si viene nuevo_paciente, insertar
+            if nuevo_paciente and not id_paciente:
+                # Generar código usando función de PostgreSQL
+                codigo = await conn.fetchval(
+                    "SELECT generar_codigo_paciente($1, $2, CURRENT_TIMESTAMP)",
+                    nuevo_paciente.get("primer_nombre"),
+                    nuevo_paciente.get("primer_apellido"),
+                )
+
+                row = await conn.fetchrow(
+                    """
+                    INSERT INTO pacientes (codigo_paciente, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, telefono_principal, activo, fecha_registro)
+                    VALUES ($1, $2, $3, $4, $5, $6, TRUE, CURRENT_TIMESTAMP)
+                    RETURNING id
+                    """,
+                    codigo,
+                    nuevo_paciente.get("primer_nombre"),
+                    nuevo_paciente.get("segundo_nombre"),
+                    nuevo_paciente.get("primer_apellido"),
+                    nuevo_paciente.get("segundo_apellido"),
+                    nuevo_paciente.get("telefono_principal"),
+                )
+                if not row:
+                    raise Exception("No se pudo crear el paciente")
+                id_paciente = row["id"]
+
+            # Validar paciente
+            patient_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM pacientes WHERE id = $1 AND activo = TRUE)",
+                id_paciente,
+            )
+            if not patient_exists:
+                raise ValueError("El paciente no existe o no está activo")
+
+            # Validar podólogo
+            pod_exists = await conn.fetchval(
+                "SELECT EXISTS(SELECT 1 FROM podologos WHERE id = $1 AND activo = TRUE)",
+                id_podologo,
+            )
+            if not pod_exists:
+                raise ValueError("El podólogo no existe o no está activo")
+
+            # Validar tiempos
+            ahora = datetime.now()
+            if fecha_hora_inicio < ahora + timedelta(hours=1):
+                raise ValueError(
+                    "La cita debe agendarse con al menos 1 hora de anticipación"
+                )
+            if fecha_hora_fin <= fecha_hora_inicio:
+                raise ValueError(
+                    "fecha_hora_fin debe ser posterior a fecha_hora_inicio"
+                )
+
+            # Verificar conflicto horario para el podólogo
+            conflict = await conn.fetchrow(
+                """
+                SELECT id FROM citas
+                WHERE id_podologo = $1
+                AND estado NOT IN ('Cancelada', 'No_Asistio')
+                AND fecha_hora_inicio < $2
+                AND fecha_hora_fin > $3
+                LIMIT 1
+                """,
+                id_podologo,
+                fecha_hora_fin,
+                fecha_hora_inicio,
+            )
+            if conflict:
+                raise ValueError(
+                    "Conflicto de horario: el podólogo ya tiene una cita en ese horario"
+                )
+
+            # Verificar que el paciente no tenga otra cita el mismo día
+            exists_same_day = await conn.fetchrow(
+                """
+                SELECT id FROM citas
+                WHERE id_paciente = $1
+                AND DATE(fecha_hora_inicio) = $2
+                AND estado NOT IN ('Cancelada', 'No_Asistio')
+                LIMIT 1
+                """,
+                id_paciente,
+                fecha_hora_inicio.date(),
+            )
+            if exists_same_day:
+                raise ValueError("El paciente ya tiene una cita agendada para ese día")
+
+            # Determinar si es primera vez (no tiene citas completadas)
+            completed_count = await conn.fetchval(
+                "SELECT COUNT(*) FROM citas WHERE id_paciente = $1 AND estado = 'Completada'",
+                id_paciente,
+            )
+            es_primera_vez = completed_count == 0
+
+            # Insertar la cita
+            insert_query = """
+                INSERT INTO citas (
+                    id_paciente, id_podologo, fecha_hora_inicio, fecha_hora_fin,
+                    tipo_cita, estado, motivo_consulta, notas_recepcion, es_primera_vez, color_hex, creado_por
+                )
+                VALUES ($1,$2,$3,$4,$5,'Confirmada',$6,$7,$8,$9,$10)
+                RETURNING id
+            """
+
+            row = await conn.fetchrow(
+                insert_query,
+                id_paciente,
+                id_podologo,
+                fecha_hora_inicio,
+                fecha_hora_fin,
+                tipo_cita,
+                motivo_consulta,
+                notas_recepcion,
+                es_primera_vez,
+                color_hex,
+                creado_por,
+            )
+
+            if not row:
+                raise Exception("Error al crear la cita")
+
+            created_id = row["id"]
+
+        # fin transaction
+        return await obtener_cita_por_id(created_id)
+
+    except Exception:
+        # re-raise for router to handle
+        raise
+    finally:
+        if conn:
+            await release_connection(conn)
 
 
 async def actualizar_cita(

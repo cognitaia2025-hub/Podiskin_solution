@@ -6,6 +6,7 @@ Lógica de negocio para gestión de roles.
 
 from typing import List, Optional, Dict, Any
 from db import fetch_all, fetch_one, execute_returning
+import json
 
 
 class RolesService:
@@ -20,60 +21,27 @@ class RolesService:
         """
         return await fetch_all(query)
 
-    def get_by_id(self, id: int) -> Optional[Dict[str, Any]]:
+    async def get_by_id(self, id: int) -> Optional[Dict[str, Any]]:
         """Obtiene un rol por ID."""
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
+        query = """
             SELECT id, nombre_rol, descripcion, permisos, activo, fecha_creacion
-            FROM roles WHERE id = %s
-        """,
-            (id,),
-        )
-        row = cur.fetchone()
-        if row:
-            columns = [
-                "id",
-                "nombre_rol",
-                "descripcion",
-                "permisos",
-                "activo",
-                "fecha_creacion",
-            ]
-            return dict(zip(columns, row))
-        return None
+            FROM roles WHERE id = $1
+        """
+        return await fetch_one(query, id)
 
-    def create(
+    async def create(
         self, nombre_rol: str, descripcion: str = None, permisos: dict = None
     ) -> Dict[str, Any]:
         """Crea un nuevo rol."""
-        conn = self._get_connection()
-        cur = conn.cursor()
-        import json
-
         permisos_json = json.dumps(permisos) if permisos else "{}"
-        cur.execute(
-            """
+        query = """
             INSERT INTO roles (nombre_rol, descripcion, permisos, activo)
-            VALUES (%s, %s, %s::jsonb, true)
+            VALUES ($1, $2, $3::jsonb, true)
             RETURNING id, nombre_rol, descripcion, permisos, activo, fecha_creacion
-        """,
-            (nombre_rol, descripcion, permisos_json),
-        )
-        row = cur.fetchone()
-        conn.commit()
-        columns = [
-            "id",
-            "nombre_rol",
-            "descripcion",
-            "permisos",
-            "activo",
-            "fecha_creacion",
-        ]
-        return dict(zip(columns, row))
+        """
+        return await execute_returning(query, nombre_rol, descripcion, permisos_json)
 
-    def update(
+    async def update(
         self,
         id: int,
         nombre_rol: str = None,
@@ -82,54 +50,38 @@ class RolesService:
         activo: bool = None,
     ) -> Optional[Dict[str, Any]]:
         """Actualiza un rol existente."""
-        conn = self._get_connection()
-        cur = conn.cursor()
-
-        # Construir query dinámico
         updates = []
         params = []
+        idx = 1
         if nombre_rol is not None:
-            updates.append("nombre_rol = %s")
+            updates.append(f"nombre_rol = ${idx}")
             params.append(nombre_rol)
+            idx += 1
         if descripcion is not None:
-            updates.append("descripcion = %s")
+            updates.append(f"descripcion = ${idx}")
             params.append(descripcion)
+            idx += 1
         if permisos is not None:
-            import json
-
-            updates.append("permisos = %s::jsonb")
+            updates.append(f"permisos = ${idx}::jsonb")
             params.append(json.dumps(permisos))
+            idx += 1
         if activo is not None:
-            updates.append("activo = %s")
+            updates.append(f"activo = ${idx}")
             params.append(activo)
+            idx += 1
 
         if not updates:
-            return self.get_by_id(id)
+            return await self.get_by_id(id)
 
         params.append(id)
-        query = f"UPDATE roles SET {', '.join(updates)} WHERE id = %s RETURNING id, nombre_rol, descripcion, permisos, activo, fecha_creacion"
-        cur.execute(query, params)
-        row = cur.fetchone()
-        conn.commit()
-        if row:
-            columns = [
-                "id",
-                "nombre_rol",
-                "descripcion",
-                "permisos",
-                "activo",
-                "fecha_creacion",
-            ]
-            return dict(zip(columns, row))
-        return None
+        query = f"UPDATE roles SET {', '.join(updates)} WHERE id = ${idx} RETURNING id, nombre_rol, descripcion, permisos, activo, fecha_creacion"
+        return await execute_returning(query, *params)
 
-    def delete(self, id: int) -> bool:
+    async def delete(self, id: int) -> bool:
         """Elimina un rol (soft delete - pone activo=false)."""
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute("UPDATE roles SET activo = false WHERE id = %s", (id,))
-        conn.commit()
-        return cur.rowcount > 0
+        query = "UPDATE roles SET activo = false WHERE id = $1 RETURNING id"
+        result = await execute_returning(query, id)
+        return result is not None
 
 
 # Singleton

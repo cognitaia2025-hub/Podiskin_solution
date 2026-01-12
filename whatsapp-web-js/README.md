@@ -1,76 +1,144 @@
-# WhatsApp Maya Bridge
+# WhatsApp Service - Podoskin Solution
 
-Cliente WhatsApp para conectar con el agente Maya de Podoskin Solution.
+Servicio Node.js que integra WhatsApp.js con el backend Python y el agente LangGraph.
 
-## Requisitos
+## 🚀 Características
 
-- Node.js v18+
-- Python 3.10+ (para el Bridge API)
+- ✅ **Paro de Emergencia**: Detiene el servicio e invalida la sesión
+- ✅ **Gestión de Contactos Especiales**: Comportamientos personalizados por contacto
+- ✅ **Gestión de Grupos**: Control de bot en grupos de WhatsApp
+- ✅ **Integración con LangGraph**: Procesamiento inteligente de mensajes
+- ✅ **Notificaciones Admin**: Alertas para contactos prioritarios
 
-## Instalación
-
-### 1. Instalar dependencias de Node.js
+## 📦 Instalación
 
 ```bash
 cd whatsapp-web-js
 npm install
 ```
 
-### 2. Instalar dependencias de Python (Bridge)
+## ⚙️ Configuración
+
+1. Copiar `.env.example` a `.env`:
 
 ```bash
-cd backend
-pip install fastapi uvicorn
+cp .env.example .env
 ```
 
-## Ejecución
+1. Editar `.env`:
 
-### Paso 1: Iniciar Bridge API (Python)
+```env
+BACKEND_URL=http://localhost:8000
+PORT=3000
+```
+
+## 🏃 Ejecución
+
+### Desarrollo
 
 ```bash
-cd backend
-.\venv\Scripts\Activate.ps1
-python whatsapp_bridge.py
+npm run dev
 ```
 
-Debería mostrar:
-
-```
-🚀 Iniciando Bridge API...
-✅ Conexión a base de datos establecida
-INFO:     Uvicorn running on http://0.0.0.0:8000
-```
-
-### Paso 2: Iniciar cliente WhatsApp (Node.js)
-
-En otra terminal:
+### Producción
 
 ```bash
-cd whatsapp-web-js
 npm start
 ```
 
-### Paso 3: Escanear código QR
+## 🔌 Endpoints
 
-Cuando aparezca el código QR en la terminal:
+### Control
 
-1. Abre WhatsApp en tu teléfono
-2. Ve a Configuración → Dispositivos vinculados
-3. Escanea el código QR
+**POST** `/control/start`
 
-Una vez conectado verás:
+- Inicia el servicio WhatsApp
+- Genera QR para autenticación
+
+**POST** `/control/emergency-stop`
+
+- Paro de emergencia
+- Invalida sesión actual
+- Requiere nuevo QR al reiniciar
+
+**GET** `/control/status`
+
+- Estado actual del servicio
+- Información del cliente
+
+**GET** `/qr`
+
+- Obtiene QR code actual (base64)
+
+**GET** `/health`
+
+- Health check del servicio
+
+## 🔄 Flujo de Mensajes
 
 ```
-🟢 MAYA - WhatsApp Bot Activo
-   Podoskin Solution
+WhatsApp → index.js → handleMessage()
+                    ↓
+            Verificar contacto especial
+                    ↓
+            Verificar grupo activo
+                    ↓
+            Enviar a LangGraph (Python)
+                    ↓
+        ┌───────────┴───────────┐
+        ↓                       ↓
+    Respuesta Auto         Escalado
+        ↓                       ↓
+    msg.reply()          Notificar Admin
 ```
 
-## Uso
+## 📋 Comportamientos de Contactos
 
-Una vez activo, Maya responderá automáticamente a todos los mensajes de WhatsApp.
+- **normal**: Procesamiento estándar con agente
+- **no_responder**: Ignorar mensajes
+- **prioritario**: Alta prioridad + notificar admin
+- **solo_humano**: Siempre escalar a humano
 
-## Notas
+## 🛡️ Manejo de Errores
 
-- La sesión se guarda en `./session` para no re-escanear QR
-- El teléfono debe tener conexión a internet
-- Para desconectar, usa Ctrl+C en ambas terminales
+- Logs detallados en consola
+- Notificación a admin en errores críticos
+- Reintentos automáticos en fallos de red
+- Estado de error reportado al backend
+
+## 📝 Logs
+
+El servicio genera logs en tiempo real:
+
+- 📱 QR generado
+- ✅ Autenticación exitosa
+- 📨 Mensajes recibidos
+- ✅ Respuestas enviadas
+- ⏸️ Escalamientos
+- ❌ Errores
+
+## 🔧 Troubleshooting
+
+### El servicio no inicia
+
+- Verificar que el backend esté corriendo
+- Revisar variables de entorno en `.env`
+- Verificar puerto 3000 disponible
+
+### QR no se genera
+
+- Esperar 30 segundos después de iniciar
+- Verificar logs en consola
+- Reiniciar con paro de emergencia
+
+### Mensajes no se procesan
+
+- Verificar conexión con backend
+- Revisar logs del agente LangGraph
+- Verificar configuración de contactos
+
+## 📚 Documentación Adicional
+
+- [WhatsApp Web.js Docs](https://wwebjs.dev/)
+- [LangGraph Integration](../backend/agents/whatsapp_medico/README.md)
+- [API Backend](../backend/whatsapp_bridge/README.md)

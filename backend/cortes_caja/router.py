@@ -15,7 +15,7 @@ class CorteCreate(BaseModel):
     notas: Optional[str] = None
 
 
-@router.get("/")
+@router.get("")
 async def listar_cortes():
     """Lista todos los cortes de caja."""
     return cortes_caja_service.get_all()
@@ -30,7 +30,7 @@ async def obtener_corte(fecha: date):
     return corte
 
 
-@router.post("/", status_code=201)
+@router.post("", status_code=201)
 async def crear_corte(corte: CorteCreate):
     """Crea el corte de caja del día."""
     existente = cortes_caja_service.get_by_fecha(corte.fecha)

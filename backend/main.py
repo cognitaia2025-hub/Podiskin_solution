@@ -67,9 +67,19 @@ from analytics.router import router as analytics_router
 # Importar WebSocket para notificaciones
 from ws_notifications.notifications_ws import router as websocket_router
 
-# Configurar logging
+# Importar WhatsApp Management
+from whatsapp_management import router as whatsapp_router
+
+# Importar Agente WhatsApp (LangGraph)
+from agents.whatsapp_medico.api import router as whatsapp_agent_router
+
+# Importar Puente WhatsApp (Node.js Bridge)
+from whatsapp_bridge import router as whatsapp_bridge_router
+
+# Configurar logging - Solo WARNING y ERROR para reducir ruido
+# Cambiar a INFO temporalmente si necesitas depurar
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -143,6 +153,9 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(medical_records_router)
 app.include_router(reportes_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
+app.include_router(whatsapp_router)  # WhatsApp Management
+app.include_router(whatsapp_agent_router)  # WhatsApp Agent (LangGraph)
+app.include_router(whatsapp_bridge_router)  # WhatsApp Bridge (Node.js)
 
 # WebSocket para notificaciones en tiempo real (sin prefix /api)
 app.include_router(websocket_router)
@@ -299,4 +312,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=debug, log_level="info")
+    # log_level="warning" para reducir ruido. Cambiar a "info" para depurar
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=debug, log_level="warning")

@@ -84,9 +84,12 @@ async def buscar_knowledge_base_validada(
         for row in rows:
             kb_embedding = pickle.loads(row['pregunta_embedding'])
             
-            # Similitud coseno normalizada (0-1)
-            similarity = float(np.dot(query_embedding, kb_embedding) / 
-                             (np.linalg.norm(query_embedding) * np.linalg.norm(kb_embedding)))
+            # ✅ Similitud coseno normalizada (-1 a 1, típicamente 0-1 para embeddings)
+            # +epsilon evita división por cero
+            similarity = float(
+                np.dot(query_embedding, kb_embedding) / 
+                (np.linalg.norm(query_embedding) * np.linalg.norm(kb_embedding) + 1e-10)
+            )
             
             if similarity > best_similarity:
                 best_similarity = similarity

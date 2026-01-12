@@ -24,19 +24,30 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "podoskin_password_123")
 # URL de conexión para psycopg (usado por PostgresSaver)
 DB_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
+# Determinar entorno (producción vs desarrollo)
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
 # Inicializar checkpointer
-try:
-    # PostgresSaver.from_conn_string retorna un context manager
-    # Necesitamos usar __enter__ para obtener la instancia
-    conn_string = DB_URL
-    checkpointer_cm = PostgresSaver.from_conn_string(conn_string)
-    checkpointer = checkpointer_cm.__enter__()
-    # Setup crea la tabla langgraph_checkpoints si no existe
-    checkpointer.setup()
-    logger.info("✅ PostgresSaver initialized successfully")
-except Exception as e:
-    logger.error(f"❌ Failed to initialize PostgresSaver: {e}")
-    checkpointer = None
+if ENVIRONMENT == "production":
+    logger.info("✅ Usando PostgresSaver (persistente)")
+    try:
+        # PostgresSaver.from_conn_string retorna un context manager
+        # Necesitamos usar __enter__ para obtener la instancia
+        conn_string = DB_URL
+        checkpointer_cm = PostgresSaver.from_conn_string(conn_string)
+        checkpointer = checkpointer_cm.__enter__()
+        # Setup crea la tabla langgraph_checkpoints si no existe
+        checkpointer.setup()
+        logger.info("✅ PostgresSaver initialized successfully")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize PostgresSaver: {e}")
+        logger.warning("⚠️ Fallback: usando MemorySaver (no persistente)")
+        from langgraph.checkpoint.memory import MemorySaver
+        checkpointer = MemorySaver()
+else:
+    logger.info("⚠️ Usando MemorySaver (desarrollo, no persistente)")
+    from langgraph.checkpoint.memory import MemorySaver
+    checkpointer = MemorySaver()
 
 # Configurar LLM (Claude Haiku 3 - rápido y económico)
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")

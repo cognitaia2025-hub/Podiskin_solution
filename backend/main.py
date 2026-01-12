@@ -49,6 +49,12 @@ from api import live_sessions_router, orchestrator_router
 # Importar Twilio Webhook Router
 from api.twilio_webhook import router as twilio_webhook_router
 
+# Importar WhatsApp Management API
+from api.whatsapp_management_api import router as whatsapp_mgmt_router
+
+# Importar middleware de rate limiting
+from middleware.rate_limit import rate_limit_middleware
+
 # Importar catálogo de servicios
 from catalog.router import router as catalog_router
 
@@ -129,6 +135,9 @@ from config.cors_config import CORS_CONFIG
 # Configurar CORS con configuración centralizada
 app.add_middleware(CORSMiddleware, **CORS_CONFIG)
 
+# Configurar rate limiting middleware (para WhatsApp webhook)
+app.middleware("http")(rate_limit_middleware)
+
 # Incluir routers
 app.include_router(auth_router)
 app.include_router(users_router, prefix="/api")
@@ -159,6 +168,7 @@ app.include_router(websocket_router)
 app.include_router(live_sessions_router)
 app.include_router(orchestrator_router)
 app.include_router(twilio_webhook_router)  # Twilio WhatsApp Webhook
+app.include_router(whatsapp_mgmt_router)  # WhatsApp Management API
 
 # Importar módulo de permisos
 from auth.permissions_router import router as permissions_router

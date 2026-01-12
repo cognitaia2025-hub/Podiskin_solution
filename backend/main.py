@@ -46,6 +46,9 @@ from audit.router import router as audit_router
 # Importar routers de API
 from api import live_sessions_router, orchestrator_router
 
+# Importar Twilio Webhook Router
+from api.twilio_webhook import router as twilio_webhook_router
+
 # Importar catálogo de servicios
 from catalog.router import router as catalog_router
 
@@ -155,6 +158,7 @@ app.include_router(websocket_router)
 # Incluir routers de API
 app.include_router(live_sessions_router)
 app.include_router(orchestrator_router)
+app.include_router(twilio_webhook_router)  # Twilio WhatsApp Webhook
 
 # Importar módulo de permisos
 from auth.permissions_router import router as permissions_router

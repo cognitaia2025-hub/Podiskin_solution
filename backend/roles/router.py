@@ -52,7 +52,7 @@ class RolResponse(BaseModel):
 # ============================================================================
 
 
-@router.get("/")
+@router.get("")
 async def listar_roles():
     """
     Lista todos los roles del sistema.
@@ -62,7 +62,7 @@ async def listar_roles():
     GET /api/roles
     ```
     """
-    roles = roles_service.get_all()
+    roles = await roles_service.get_all()
     # Convertir datetime a string
     for rol in roles:
         if rol.get("fecha_creacion"):
@@ -86,7 +86,7 @@ async def obtener_rol(id: int):
     return rol
 
 
-@router.post("/", response_model=RolResponse, status_code=201)
+@router.post("", response_model=RolResponse, status_code=201)
 async def crear_rol(rol: RolCreate):
     """
     Crea un nuevo rol.

@@ -56,13 +56,21 @@ api.interceptors.response.use(
     // Handle specific HTTP errors
     switch (error.response?.status) {
       case 401:
-        // Token expired or invalid - logout user
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        // Only logout if the error indicates token is truly invalid/expired
+        // Don't logout for endpoints that might have transient auth issues
+        const isLoginEndpoint = error.config?.url?.includes('/auth/');
+        const isWhatsAppEndpoint = error.config?.url?.includes('/whatsapp');
 
-        // Redirect to login if not already there
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login';
+        // If this is a whatsapp endpoint, don't auto-logout (might be polling issue)
+        if (!isWhatsAppEndpoint && !isLoginEndpoint) {
+          // Token expired or invalid - logout user
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+
+          // Redirect to login if not already there
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         break;
 

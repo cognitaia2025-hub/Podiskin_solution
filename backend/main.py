@@ -17,10 +17,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Importar módulo de autenticación
-from auth import auth_router, init_db_pool, close_db_pool, get_current_user, User
-
-# Importar base de datos general (databases library)
-from db import database
+from auth import auth_router, get_current_user, User
 
 # Importar módulo de usuarios
 from users import router as users_router
@@ -70,9 +67,19 @@ from analytics.router import router as analytics_router
 # Importar WebSocket para notificaciones
 from ws_notifications.notifications_ws import router as websocket_router
 
-# Configurar logging
+# Importar WhatsApp Management
+from whatsapp_management import router as whatsapp_router
+
+# Importar Agente WhatsApp (LangGraph)
+from agents.whatsapp_medico.api import router as whatsapp_agent_router
+
+# Importar Puente WhatsApp (Node.js Bridge)
+from whatsapp_bridge import router as whatsapp_bridge_router
+
+# Configurar logging - Solo WARNING y ERROR para reducir ruido
+# Cambiar a INFO temporalmente si necesitas depurar
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.WARNING, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
@@ -85,52 +92,28 @@ async def lifespan(app: FastAPI):
     """
     # ✅ Startup
     logger.info("Starting Podoskin Solution Backend...")
-    
-    # 1. Inicializar auth pool
+
+    # Inicializar pool centralizado de AsyncPG
     try:
+        from db import init_db_pool
+
         await init_db_pool()
-        logger.info("Auth database pool initialized")
+        logger.info("✅ Database pool initialized (AsyncPG)")
     except Exception as e:
-        logger.error(f"Failed to initialize auth database pool: {e}")
-
-    # 2. Conectar base de datos general
-    try:
-        await database.connect()
-        logger.info("General database (databases) connected")
-    except Exception as e:
-        logger.error(f"Failed to connect general database: {e}")
-
-    # 3. Inicializar pool de citas
-    try:
-        from citas.database import init_db_pool as init_citas_pool
-        await init_citas_pool()
-        logger.info("Citas database pool initialized")
-    except Exception as e:
-        logger.error(f"Failed to initialize citas database pool: {e}")
+        logger.error(f"❌ Failed to initialize database pool: {e}")
 
     yield  # ← La aplicación corre aquí
 
     # ✅ Shutdown
     logger.info("Shutting down Podoskin Solution Backend...")
-    
+
     try:
+        from db import close_db_pool
+
         await close_db_pool()
-        logger.info("Auth database pool closed")
+        logger.info("✅ Database pool closed")
     except Exception as e:
-        logger.error(f"Error closing auth database pool: {e}")
-
-    try:
-        await database.disconnect()
-        logger.info("General database (databases) disconnected")
-    except Exception as e:
-        logger.error(f"Error disconnecting general database: {e}")
-
-    try:
-        from citas.database import close_db_pool as close_citas_pool
-        await close_citas_pool()
-        logger.info("Citas database pool closed")
-    except Exception as e:
-        logger.error(f"Error closing citas database pool: {e}")
+        logger.error(f"❌ Error closing database pool: {e}")
 
 
 # Crear aplicación FastAPI
@@ -147,10 +130,7 @@ from config.cors_config import CORS_CONFIG
 
 
 # Configurar CORS con configuración centralizada
-app.add_middleware(
-    CORSMiddleware,
-    **CORS_CONFIG
-)
+app.add_middleware(CORSMiddleware, **CORS_CONFIG)
 
 # Incluir routers
 app.include_router(auth_router)
@@ -173,6 +153,9 @@ app.include_router(stats_router, prefix="/api")
 app.include_router(medical_records_router)
 app.include_router(reportes_router, prefix="/api")
 app.include_router(analytics_router, prefix="/api")
+app.include_router(whatsapp_router)  # WhatsApp Management
+app.include_router(whatsapp_agent_router)  # WhatsApp Agent (LangGraph)
+app.include_router(whatsapp_bridge_router)  # WhatsApp Bridge (Node.js)
 
 # WebSocket para notificaciones en tiempo real (sin prefix /api)
 app.include_router(websocket_router)
@@ -329,4 +312,5 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", 8000))
     debug = os.getenv("DEBUG", "false").lower() == "true"
 
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=debug, log_level="info")
+    # log_level="warning" para reducir ruido. Cambiar a "info" para depurar
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=debug, log_level="warning")

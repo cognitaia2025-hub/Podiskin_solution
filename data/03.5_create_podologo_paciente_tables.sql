@@ -155,14 +155,14 @@ COMMENT ON VIEW v_pacientes_con_podologos IS 'Vista completa de pacientes con su
 
 CREATE OR REPLACE FUNCTION get_pacientes_podologo(p_podologo_id INTEGER)
 RETURNS TABLE (
-    paciente_id INTEGER,
-    nombre_completo VARCHAR,
-    telefono VARCHAR,
+    paciente_id BIGINT,
+    nombre_completo TEXT,
+    telefono TEXT,
     ultimo_tratamiento TEXT,
     fecha_ultimo_tratamiento DATE,
     tiene_interino BOOLEAN,
-    podologo_interino_id INTEGER,
-    podologo_interino_nombre VARCHAR
+    podologo_interino_id BIGINT,
+    podologo_interino_nombre TEXT
 ) AS $$
 BEGIN
     RETURN QUERY

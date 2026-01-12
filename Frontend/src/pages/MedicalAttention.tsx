@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { clsx } from 'clsx';
+import { useSearchParams } from 'react-router-dom';
 import type { MedicalRecord, FormMode } from '../types/medical';
 import { MedicalFormProvider, useMedicalForm } from '../context/MedicalFormContext';
 import { useGlobalContext } from '../context/GlobalContext';
+import { getPatientById } from '../services/patientService';
 import PatientSidebar from '../components/medical/PatientSidebar';
 import MedicalRecordForm from '../components/medical/MedicalRecordForm';
 import MayaAssistant from '../components/medical/MayaAssistant';
 import EvolutionSidebar from '../components/medical/EvolutionSidebar';
-import { Save, Send } from 'lucide-react';
+import { Save, Send, Loader2 } from 'lucide-react';
 
 // Componente interno que usa el contexto
 const MedicalAttentionContent: React.FC = () => {
@@ -160,7 +162,7 @@ const MedicalAttentionContent: React.FC = () => {
               Guiado
             </button>
           </div>
-          
+
           {/* Action buttons */}
           <button
             onClick={handleSave}
@@ -240,10 +242,115 @@ const MedicalAttentionContent: React.FC = () => {
 
 // Componente principal exportado
 const MedicalAttention: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const [initialData, setInitialData] = useState<Partial<MedicalRecord> | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadAppointmentData = async () => {
+      const citaId = searchParams.get('citaId');
+      const pacienteId = searchParams.get('pacienteId');
+      const podologoId = searchParams.get('podologoId');
+      const tipoCita = searchParams.get('tipoCita');
+
+      // Si no hay parámetros, usar datos por defecto
+      if (!citaId || !pacienteId) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Cargar datos del paciente desde el backend
+        const patient = await getPatientById(pacienteId);
+
+        // Preparar datos iniciales para el formulario
+        const data: Partial<MedicalRecord> = {
+          id_paciente: pacienteId,
+          id_podologo: podologoId || '1',
+          informacion_personal: {
+            primer_nombre: patient.name.split(' ')[0] || '',
+            segundo_nombre: patient.name.split(' ')[1] || '',
+            primer_apellido: patient.name.split(' ')[2] || patient.name.split(' ')[1] || '',
+            segundo_apellido: patient.name.split(' ')[3] || '',
+            fecha_nacimiento: patient.fecha_nacimiento || '',
+            sexo: 'M', // Por defecto, debería venir del backend
+            curp: patient.curp || '',
+            estado_civil: patient.estado_civil || '',
+            escolaridad: '',
+            ocupacion: patient.ocupacion || '',
+            religion: '',
+            calle: '',
+            numero_exterior: '',
+            colonia: '',
+            ciudad: '',
+            estado: '',
+            codigo_postal: '',
+            telefono_principal: patient.phone || '',
+            telefono_secundario: '',
+            correo_electronico: patient.email || '',
+            como_supo_de_nosotros: '',
+          },
+          motivo_consulta: {
+            sintomas_principales: `Cita programada: ${tipoCita || 'Consulta'}`,
+            fecha_inicio_sintomas: '',
+            evolucion_sintomas: '',
+            automedicacion: '',
+          },
+        };
+
+        setInitialData(data);
+      } catch (err) {
+        console.error('Error cargando datos de cita:', err);
+        setError('No se pudieron cargar los datos del paciente. Usando datos por defecto.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAppointmentData();
+  }, [searchParams]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-100">
+        <div className="text-center">
+          <Loader2 className="w-12 h-12 text-primary-600 animate-spin mx-auto mb-4" />
+          <p className="text-gray-600 font-medium">Cargando datos del paciente...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full bg-gray-100">
+        <div className="bg-white p-6 rounded-lg shadow-md max-w-md">
+          <div className="text-amber-600 mb-4">
+            <svg className="w-12 h-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <p className="text-gray-700 text-center mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="w-full px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <MedicalFormProvider
-      patientId="p1"
-      podologoId="1"
+      patientId={searchParams.get('pacienteId') || 'p1'}
+      podologoId={searchParams.get('podologoId') || '1'}
+      initialData={initialData}
       autoSaveInterval={30000}
     >
       <MedicalAttentionContent />

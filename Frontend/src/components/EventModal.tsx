@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Clock, User, Calendar, FileText, CheckCircle2, AlertCircle, Bell, Repeat } from 'lucide-react';
+import { X, Clock, User, Calendar, FileText, CheckCircle2, AlertCircle, Bell, Repeat, Stethoscope } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { useNavigate } from 'react-router-dom';
 import type { Appointment, Doctor, Patient, AppointmentStatus, AppointmentType, Reminder, RecurrenceFrequency } from '../types/appointments';
 
 interface EventModalProps {
@@ -14,6 +15,7 @@ interface EventModalProps {
 }
 
 const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initialData, doctors, patients }) => {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState<Partial<Appointment>>({
         estado: 'Pendiente',
         es_primera_vez: false,
@@ -46,6 +48,31 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
     );
 
     const selectedPatient = patients.find(p => p.id === formData.id_paciente);
+
+    const handleStartMedicalAttention = () => {
+        if (!formData.id_paciente) {
+            alert('Por favor selecciona un paciente primero');
+            return;
+        }
+
+        if (!formData.id) {
+            alert('Debes guardar la cita primero antes de aplicar atención médica');
+            return;
+        }
+
+        // Construir query params con datos de la cita
+        const params = new URLSearchParams({
+            citaId: formData.id.toString(),
+            pacienteId: formData.id_paciente.toString(),
+            podologoId: formData.id_podologo?.toString() || '',
+            tipoCita: formData.tipo_cita || 'Consulta',
+            fechaCita: formData.fecha_hora_inicio?.toISOString() || '',
+        });
+
+        // Redirigir a atención médica
+        navigate(`/medical-attention?${params.toString()}`);
+        onClose();
+    };
 
     const handleSave = () => {
         if (!formData.id_paciente || !formData.id_podologo || !formData.fecha_hora_inicio || !formData.fecha_hora_fin) {
@@ -387,8 +414,8 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
                                                 regla_recurrencia: { ...formData.regla_recurrencia!, frequency: freq }
                                             })}
                                             className={`px-3 py-1 rounded text-xs font-medium ${formData.regla_recurrencia?.frequency === freq
-                                                    ? 'bg-primary-100 text-primary-700'
-                                                    : 'bg-gray-100 text-gray-600'
+                                                ? 'bg-primary-100 text-primary-700'
+                                                : 'bg-gray-100 text-gray-600'
                                                 }`}
                                         >
                                             {freq === 'DAILY' ? 'Diario' : freq === 'WEEKLY' ? 'Semanal' : 'Mensual'}
@@ -456,19 +483,34 @@ const EventModal: React.FC<EventModalProps> = ({ isOpen, onClose, onSave, initia
 
                 {/* Footer */}
                 <div className="bg-gray-50 px-6 py-4 flex justify-between items-center border-t border-gray-200">
-                    <div className="text-sm text-gray-500">
-                        {!formData.id_paciente || !formData.id_podologo || !formData.fecha_hora_inicio || !formData.fecha_hora_fin ? (
-                            <span className="flex items-center gap-1.5 text-amber-600">
-                                <AlertCircle className="w-4 h-4" />
-                                Completa los campos obligatorios (*)
-                            </span>
-                        ) : (
-                            <span className="flex items-center gap-1.5 text-emerald-600">
-                                <CheckCircle2 className="w-4 h-4" />
-                                Listo para guardar
-                            </span>
+                    <div className="flex items-center gap-3">
+                        <div className="text-sm text-gray-500">
+                            {!formData.id_paciente || !formData.id_podologo || !formData.fecha_hora_inicio || !formData.fecha_hora_fin ? (
+                                <span className="flex items-center gap-1.5 text-amber-600">
+                                    <AlertCircle className="w-4 h-4" />
+                                    Completa los campos obligatorios (*)
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-1.5 text-emerald-600">
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    Listo para guardar
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Botón Aplicar Atención Médica - Solo visible para citas existentes */}
+                        {formData.id && formData.id_paciente && (
+                            <button
+                                onClick={handleStartMedicalAttention}
+                                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg shadow-sm transition-colors"
+                                title="Abrir expediente médico para este paciente"
+                            >
+                                <Stethoscope className="w-4 h-4" />
+                                Aplicar Atención Médica
+                            </button>
                         )}
                     </div>
+
                     <div className="flex gap-3">
                         <button onClick={onClose} className="px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-200 rounded-lg transition-colors">
                             Cancelar

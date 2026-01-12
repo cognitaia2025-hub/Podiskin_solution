@@ -1,33 +1,38 @@
-"""Servicio de Gastos - Lógica de negocio."""
+"""Servicio de Gastos - Lógica de negocio 100% async."""
 
-import psycopg2
-from psycopg2.extras import RealDictCursor
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class GastosService:
-    def __init__(self):
-        self.conn = None
+    """Servicio asíncrono para gestión de gastos."""
 
-    def _get_connection(self):
-        if self.conn is None or self.conn.closed:
-            self.conn = psycopg2.connect(
-                host=os.getenv("DB_HOST", "127.0.0.1"),
-                port=int(os.getenv("DB_PORT", "5432")),
-                database=os.getenv("DB_NAME", "podoskin_db"),
-                user=os.getenv("DB_USER", "podoskin_user"),
-                password=os.getenv("DB_PASSWORD", "podoskin_password_123"),
-            )
-        return self.conn
-
-    def get_all(
-        self, categoria: str = None, desde: datetime = None, hasta: datetime = None
+    async def get_all(
+        self,
+        categoria: str = None,
+        desde: datetime = None,
+        hasta: datetime = None,
     ) -> List[Dict[str, Any]]:
+        """
+        Obtiene todos los gastos con filtros opcionales.
+
+        Args:
+            categoria: Filtrar por categoría
+            desde: Fecha inicio
+            hasta: Fecha fin
+
+        Returns:
+            Lista de gastos
+        """
+        from db import get_connection, release_connection
+
+        conn = None
         try:
-            conn = self._get_connection()
-            cur = conn.cursor()
+            conn = await get_connection()
+
             query = """
                 SELECT id, categoria, concepto, monto, fecha_gasto,
                        metodo_pago, factura_disponible, folio_factura,
@@ -35,69 +40,87 @@ class GastosService:
                 FROM gastos WHERE 1=1
             """
             params = []
+
             if categoria:
-                query += " AND categoria = %s"
+                query += " AND categoria = $" + str(len(params) + 1)
                 params.append(categoria)
             if desde:
-                query += " AND fecha_gasto >= %s"
+                query += " AND fecha_gasto >= $" + str(len(params) + 1)
                 params.append(desde)
             if hasta:
-                query += " AND fecha_gasto <= %s"
+                query += " AND fecha_gasto <= $" + str(len(params) + 1)
                 params.append(hasta)
-            query += " ORDER BY fecha_gasto DESC"
-            cur.execute(query, params)
-            columns = [
-                "id",
-                "categoria",
-                "concepto",
-                "monto",
-                "fecha_gasto",
-                "metodo_pago",
-                "factura_disponible",
-                "folio_factura",
-                "registrado_por",
-                "notas",
-                "fecha_registro",
-            ]
-            return [dict(zip(columns, row)) for row in cur.fetchall()]
-        except Exception as e:
-            # Si la tabla no existe o hay error, retornar array vacío
-            print(f"Error en get_all gastos: {e}")
-            return []
 
-    def get_resumen(self) -> List[Dict[str, Any]]:
+            query += " ORDER BY fecha_gasto DESC"
+
+            gastos = await conn.fetch(query, *params)
+            return [dict(g) for g in gastos] if gastos else []
+
+        except Exception as e:
+            logger.error(f"Error en get_all gastos: {e}")
+            return []
+        finally:
+            if conn:
+                await release_connection(conn)
+
+    async def get_resumen(self) -> List[Dict[str, Any]]:
+        """
+        Obtiene resumen de gastos por categoría.
+
+        Returns:
+            Lista con resumen por categoría
+        """
+        from db import get_connection, release_connection
+
+        conn = None
         try:
-            conn = self._get_connection()
-            cur = conn.cursor()
-            cur.execute(
+            conn = await get_connection()
+
+            resumen = await conn.fetch(
                 """
                 SELECT categoria, COUNT(*) as cantidad, SUM(monto) as total
                 FROM gastos GROUP BY categoria ORDER BY total DESC
             """
             )
-            return [
-                {
-                    "categoria": r[0],
-                    "cantidad": r[1],
-                    "total": float(r[2]) if r[2] else 0,
-                }
-                for r in cur.fetchall()
-            ]
-        except Exception as e:
-            print(f"Error en get_resumen gastos: {e}")
-            return []
 
-    def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        conn = self._get_connection()
-        cur = conn.cursor()
-        cur.execute(
-            """
-            INSERT INTO gastos (categoria, concepto, monto, fecha_gasto,
-                metodo_pago, factura_disponible, folio_factura,
-                registrado_por, notas)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-        """,
-            (
+            return [dict(r) for r in resumen] if resumen else []
+
+        except Exception as e:
+            logger.error(f"Error en get_resumen gastos: {e}")
+            return []
+        finally:
+            if conn:
+                await release_connection(conn)
+
+    async def create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Crea un nuevo gasto.
+
+        Args:
+            data: Datos del gasto
+
+        Returns:
+            Gasto creado
+
+        Raises:
+            Exception: Si hay error en la creación
+        """
+        from db import get_connection, release_connection
+
+        conn = None
+        try:
+            conn = await get_connection()
+
+            new_gasto = await conn.fetchrow(
+                """
+                INSERT INTO gastos (categoria, concepto, monto, fecha_gasto,
+                    metodo_pago, factura_disponible, folio_factura,
+                    registrado_por, notas)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                RETURNING id, categoria, concepto, monto, fecha_gasto,
+                          metodo_pago, factura_disponible, folio_factura,
+                          registrado_por, notas, fecha_registro
+                """,
                 data["categoria"],
                 data["concepto"],
                 data["monto"],
@@ -107,11 +130,17 @@ class GastosService:
                 data.get("folio_factura"),
                 data.get("registrado_por"),
                 data.get("notas"),
-            ),
-        )
-        new_id = cur.fetchone()[0]
-        conn.commit()
-        return {"id": new_id, **data}
+            )
+
+            return dict(new_gasto) if new_gasto else None
+
+        except Exception as e:
+            logger.error(f"Error creating gasto: {e}")
+            raise
+        finally:
+            if conn:
+                await release_connection(conn)
 
 
+# Instancia global del servicio
 gastos_service = GastosService()

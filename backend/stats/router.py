@@ -8,7 +8,6 @@ from typing import List, Optional
 from datetime import datetime, timedelta, date
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from pydantic import BaseModel
-from psycopg.rows import dict_row
 import logging
 
 from auth.middleware import get_current_user
@@ -120,130 +119,119 @@ async def get_dashboard_stats(current_user=Depends(get_current_user)):
         month_end = (first_day_month + timedelta(days=32)).replace(day=1)
         future_7days = today_start + timedelta(days=7)
 
-        async with conn.cursor() as cur:
-            # Contar pacientes totales y activos
-            await cur.execute("SELECT COUNT(*) FROM pacientes WHERE activo = true")
-            total_patients = (await cur.fetchone())[0] or 0
+        # Contar pacientes totales y activos
+        total_patients = await conn.fetchval(
+            "SELECT COUNT(*) FROM pacientes WHERE activo = true"
+        ) or 0
 
-            # Pacientes nuevos este mes
-            await cur.execute(
-                "SELECT COUNT(*) FROM pacientes WHERE fecha_registro >= %s AND activo = true",
-                (first_day_month,),
-            )
-            new_patients_month = (await cur.fetchone())[0] or 0
+        # Pacientes nuevos este mes
+        new_patients_month = await conn.fetchval(
+            "SELECT COUNT(*) FROM pacientes WHERE fecha_registro >= $1 AND activo = true",
+            first_day_month,
+        ) or 0
 
-            # Citas de hoy
-            await cur.execute(
-                "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= %s AND fecha_hora_inicio < %s",
-                (today_start, today_end),
-            )
-            appt_today = (await cur.fetchone())[0] or 0
+        # Citas de hoy
+        appt_today = await conn.fetchval(
+            "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= $1 AND fecha_hora_inicio < $2",
+            today_start, today_end,
+        ) or 0
 
-            # Citas de esta semana
-            await cur.execute(
-                "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= %s AND fecha_hora_inicio < %s",
-                (week_start, week_end),
-            )
-            appt_week = (await cur.fetchone())[0] or 0
+        # Citas de esta semana
+        appt_week = await conn.fetchval(
+            "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= $1 AND fecha_hora_inicio < $2",
+            week_start, week_end,
+        ) or 0
 
-            # Citas de este mes
-            await cur.execute(
-                "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= %s AND fecha_hora_inicio < %s",
-                (first_day_month, month_end),
-            )
-            appt_month = (await cur.fetchone())[0] or 0
+        # Citas de este mes
+        appt_month = await conn.fetchval(
+            "SELECT COUNT(*) FROM citas WHERE fecha_hora_inicio >= $1 AND fecha_hora_inicio < $2",
+            first_day_month, month_end,
+        ) or 0
 
-            # Citas por estado
-            await cur.execute(
-                """
-                SELECT estado, COUNT(*) as cantidad
-                FROM citas
-                WHERE fecha_hora_inicio >= %s
-                GROUP BY estado
-                """,
-                (first_day_month,),
-            )
-            status_rows = await cur.fetchall()
-            status_dict = {row[0]: row[1] for row in status_rows}
+        # Citas por estado
+        status_rows = await conn.fetch(
+            """
+            SELECT estado, COUNT(*) as cantidad
+            FROM citas
+            WHERE fecha_hora_inicio >= $1
+            GROUP BY estado
+            """,
+            first_day_month,
+        )
+        status_dict = {row["estado"]: row["cantidad"] for row in status_rows}
 
-            # Próximas citas (siguientes 7 días)
-            await cur.execute(
-                """
-                SELECT COUNT(*) FROM citas 
-                WHERE fecha_hora_inicio >= %s AND fecha_hora_inicio < %s
-                AND estado NOT IN ('cancelada', 'completada')
-                """,
-                (today_start, future_7days),
-            )
-            upcoming = (await cur.fetchone())[0] or 0
+        # Próximas citas (siguientes 7 días)
+        upcoming = await conn.fetchval(
+            """
+            SELECT COUNT(*) FROM citas 
+            WHERE fecha_hora_inicio >= $1 AND fecha_hora_inicio < $2
+            AND estado NOT IN ('cancelada', 'completada')
+            """,
+            today_start, future_7days,
+        ) or 0
 
-            # Top tratamientos (5 más frecuentes del mes)
-            await cur.execute(
-                """
-                SELECT t.nombre_servicio, COUNT(dc.id) as cantidad
-                FROM detalle_cita dc
-                INNER JOIN tratamientos t ON dc.id_tratamiento = t.id
-                INNER JOIN citas c ON dc.id_cita = c.id
-                WHERE c.fecha_hora_inicio >= %s
-                AND c.estado != 'cancelada'
-                GROUP BY t.id, t.nombre_servicio
-                ORDER BY cantidad DESC
-                LIMIT 5
-                """,
-                (first_day_month,),
-            )
-            top_treatments_rows = await cur.fetchall()
-            top_treatments = [
-                TopTreatment(nombre=row[0], cantidad=row[1])
-                for row in top_treatments_rows
-            ]
+        # Top tratamientos (5 más frecuentes del mes)
+        top_treatments_rows = await conn.fetch(
+            """
+            SELECT t.nombre_servicio, COUNT(dc.id) as cantidad
+            FROM detalle_cita dc
+            INNER JOIN tratamientos t ON dc.id_tratamiento = t.id
+            INNER JOIN citas c ON dc.id_cita = c.id
+            WHERE c.fecha_hora_inicio >= $1
+            AND c.estado != 'cancelada'
+            GROUP BY t.id, t.nombre_servicio
+            ORDER BY cantidad DESC
+            LIMIT 5
+            """,
+            first_day_month,
+        )
+        top_treatments = [
+            TopTreatment(nombre=row["nombre_servicio"], cantidad=row["cantidad"])
+            for row in top_treatments_rows
+        ]
 
-            # Calcular porcentaje de ocupación basado en horarios
-            # Ocupación = (horas con citas) / (horas disponibles) * 100
-            # Calculamos para la semana actual
-            await cur.execute(
-                """
-                WITH horarios_disponibles AS (
-                    -- Calcular slots disponibles por día
-                    SELECT 
-                        dia_semana,
-                        SUM(
-                            EXTRACT(EPOCH FROM (hora_fin - hora_inicio)) / 
-                            (duracion_cita_minutos * 60)
-                        ) as slots_disponibles
-                    FROM horarios_trabajo
-                    WHERE activo = true
-                    AND (fecha_fin_vigencia IS NULL OR fecha_fin_vigencia >= CURRENT_DATE)
-                    GROUP BY dia_semana
-                ),
-                citas_semana AS (
-                    -- Contar citas de esta semana
-                    SELECT 
-                        EXTRACT(DOW FROM fecha_hora_inicio)::integer as dia_semana,
-                        COUNT(*) as citas_realizadas
-                    FROM citas
-                    WHERE fecha_hora_inicio >= %s 
-                    AND fecha_hora_inicio < %s
-                    AND estado NOT IN ('cancelada', 'no_asistio')
-                    GROUP BY dia_semana
-                )
+        # Calcular porcentaje de ocupación basado en horarios
+        # Ocupación = (horas con citas) / (horas disponibles) * 100
+        # Calculamos para la semana actual
+        ocupacion_row = await conn.fetchrow(
+            """
+            WITH horarios_disponibles AS (
+                -- Calcular slots disponibles por día
                 SELECT 
-                    COALESCE(SUM(cs.citas_realizadas), 0) as total_citas,
-                    COALESCE(SUM(hd.slots_disponibles), 0) as total_slots
-                FROM horarios_disponibles hd
-                LEFT JOIN citas_semana cs ON hd.dia_semana = cs.dia_semana
-                """,
-                (week_start, week_end),
+                    dia_semana,
+                    SUM(
+                        EXTRACT(EPOCH FROM (hora_fin - hora_inicio)) / 
+                        (duracion_cita_minutos * 60)
+                    ) as slots_disponibles
+                FROM horarios_trabajo
+                WHERE activo = true
+                AND (fecha_fin_vigencia IS NULL OR fecha_fin_vigencia >= CURRENT_DATE)
+                GROUP BY dia_semana
+            ),
+            citas_semana AS (
+                -- Contar citas de esta semana
+                SELECT 
+                    EXTRACT(DOW FROM fecha_hora_inicio)::integer as dia_semana,
+                    COUNT(*) as citas_realizadas
+                FROM citas
+                WHERE fecha_hora_inicio >= $1 
+                AND fecha_hora_inicio < $2
+                AND estado NOT IN ('cancelada', 'no_asistio')
+                GROUP BY dia_semana
             )
-            ocupacion_row = await cur.fetchone()
-            total_citas = ocupacion_row[0] or 0
-            total_slots = ocupacion_row[1] or 0
-            ocupacion_porcentaje = (
-                (total_citas / total_slots * 100) if total_slots > 0 else 0.0
-            )
-
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
+            SELECT 
+                COALESCE(SUM(cs.citas_realizadas), 0) as total_citas,
+                COALESCE(SUM(hd.slots_disponibles), 0) as total_slots
+            FROM horarios_disponibles hd
+            LEFT JOIN citas_semana cs ON hd.dia_semana = cs.dia_semana
+            """,
+            week_start, week_end,
+        )
+        total_citas = ocupacion_row["total_citas"] or 0
+        total_slots = ocupacion_row["total_slots"] or 0
+        ocupacion_porcentaje = (
+            (total_citas / total_slots * 100) if total_slots > 0 else 0.0
+        )
 
         # Ingresos (si no hay tabla de pagos, retornar 0)
         revenue_today = 0
@@ -278,8 +266,6 @@ async def get_dashboard_stats(current_user=Depends(get_current_user)):
         logger.warning(
             f"Error obteniendo estadísticas (retornando valores vacíos): {e}"
         )
-        if conn:
-            await conn.rollback()
 
         # Retornar estadísticas vacías en lugar de error 500
         return DashboardStats(
@@ -320,25 +306,20 @@ async def get_appointments_trend(
 
         start_date = datetime.now() - timedelta(days=days)
 
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT 
-                    fecha_hora_inicio::date as fecha,
-                    COUNT(*) as cantidad,
-                    COUNT(*) FILTER (WHERE estado = 'completada') as completadas,
-                    COUNT(*) FILTER (WHERE estado = 'cancelada') as canceladas
-                FROM citas
-                WHERE fecha_hora_inicio >= %s
-                GROUP BY fecha_hora_inicio::date
-                ORDER BY fecha
-                """,
-                (start_date,),
-            )
-            rows = await cur.fetchall()
-
-        # Cerrar transacción de solo lectura
-        await conn.rollback()
+        rows = await conn.fetch(
+            """
+            SELECT 
+                fecha_hora_inicio::date as fecha,
+                COUNT(*) as cantidad,
+                COUNT(*) FILTER (WHERE estado = 'completada') as completadas,
+                COUNT(*) FILTER (WHERE estado = 'cancelada') as canceladas
+            FROM citas
+            WHERE fecha_hora_inicio >= $1
+            GROUP BY fecha_hora_inicio::date
+            ORDER BY fecha
+            """,
+            start_date,
+        )
 
         return [
             AppointmentTrend(
@@ -354,8 +335,6 @@ async def get_appointments_trend(
         logger.warning(
             f"Error obteniendo tendencia de citas (retornando lista vacía): {e}"
         )
-        if conn:
-            await conn.rollback()
         # Retornar lista vacía en lugar de error 500
         return []
     finally:
@@ -478,35 +457,32 @@ async def get_metricas_financieras(
 
         # ===== GASTOS POR CATEGORÍA =====
         try:
-            async with conn.transaction():
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT 
-                            COALESCE(categoria::text, 'OTROS') as categoria,
-                            SUM(monto) as monto_total,
-                            COUNT(*) as cantidad_gastos
-                        FROM gastos
-                        WHERE fecha_gasto >= %s AND fecha_gasto < %s
-                        GROUP BY categoria
-                        ORDER BY monto_total DESC
-                        """,
-                        (fecha_inicio, fecha_fin),
-                    )
-                    gastos_rows = await cur.fetchall()
+            gastos_rows = await conn.fetch(
+                """
+                SELECT 
+                    COALESCE(categoria::text, 'OTROS') as categoria,
+                    SUM(monto) as monto_total,
+                    COUNT(*) as cantidad_gastos
+                FROM gastos
+                WHERE fecha_gasto >= $1 AND fecha_gasto < $2
+                GROUP BY categoria
+                ORDER BY monto_total DESC
+                """,
+                fecha_inicio, fecha_fin,
+            )
         except Exception as e:
             logger.error(f"Error consultando gastos: {e}")
             gastos_rows = []
 
-        total_gastos = sum(row[1] for row in gastos_rows)
+        total_gastos = sum(row["monto_total"] for row in gastos_rows)
 
         gastos_por_categoria = [
             GastoPorCategoria(
-                categoria=row[0],
-                monto_total=float(row[1]),
-                cantidad_gastos=row[2],
+                categoria=row["categoria"],
+                monto_total=float(row["monto_total"]),
+                cantidad_gastos=row["cantidad_gastos"],
                 porcentaje=(
-                    (float(row[1]) / total_gastos * 100) if total_gastos > 0 else 0
+                    (float(row["monto_total"]) / total_gastos * 100) if total_gastos > 0 else 0
                 ),
             )
             for row in gastos_rows
@@ -528,35 +504,30 @@ async def get_metricas_financieras(
 
         # ===== INGRESOS DEL MES =====
         try:
-            async with conn.transaction():
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT COALESCE(SUM(monto_pagado), 0) 
-                        FROM pagos
-                        WHERE fecha_pago >= %s AND fecha_pago < %s
-                        """,
-                        (fecha_inicio, fecha_fin),
-                    )
-                    ingresos_mes = float((await cur.fetchone())[0] or 0)
+            ingresos_mes = await conn.fetchval(
+                """
+                SELECT COALESCE(SUM(monto_pagado), 0) 
+                FROM pagos
+                WHERE fecha_pago >= $1 AND fecha_pago < $2
+                """,
+                fecha_inicio, fecha_fin,
+            )
+            ingresos_mes = float(ingresos_mes or 0)
         except Exception as e:
             logger.error(f"Error consultando pagos: {e}")
             ingresos_mes = 0.0
 
         # ===== PACIENTES ATENDIDOS =====
         try:
-            async with conn.transaction():
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT COUNT(DISTINCT id_paciente)
-                        FROM citas
-                        WHERE fecha_hora_inicio >= %s AND fecha_hora_inicio < %s
-                        AND estado = 'completada'
-                        """,
-                        (fecha_inicio, fecha_fin),
-                    )
-                    total_pacientes_mes = (await cur.fetchone())[0] or 0
+            total_pacientes_mes = await conn.fetchval(
+                """
+                SELECT COUNT(DISTINCT id_paciente)
+                FROM citas
+                WHERE fecha_hora_inicio >= $1 AND fecha_hora_inicio < $2
+                AND estado = 'completada'
+                """,
+                fecha_inicio, fecha_fin,
+            ) or 0
         except Exception as e:
             logger.error(f"Error consultando pacientes atendidos: {e}")
             total_pacientes_mes = 0
@@ -568,35 +539,32 @@ async def get_metricas_financieras(
         # ===== SERVICIOS MÁS RENTABLES =====
         servicios_rentables = []
         try:
-            async with conn.transaction():
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT 
-                            t.nombre_servicio,
-                            t.precio_base,
-                            COUNT(dc.id) as cantidad_veces,
-                            SUM(t.precio_base) as ingresos_generados
-                        FROM detalle_cita dc
-                        INNER JOIN tratamientos t ON dc.id_tratamiento = t.id
-                        INNER JOIN citas c ON dc.id_cita = c.id
-                        WHERE c.fecha_hora_inicio >= %s AND c.fecha_hora_inicio < %s
-                        AND c.estado = 'completada'
-                        GROUP BY t.id, t.nombre_servicio, t.precio_base
-                        ORDER BY ingresos_generados DESC
-                        LIMIT 5
-                        """,
-                        (fecha_inicio, fecha_fin),
-                    )
-                    servicios_rows = await cur.fetchall()
+            servicios_rows = await conn.fetch(
+                """
+                SELECT 
+                    t.nombre_servicio,
+                    t.precio_base,
+                    COUNT(dc.id) as cantidad_veces,
+                    SUM(t.precio_base) as ingresos_generados
+                FROM detalle_cita dc
+                INNER JOIN tratamientos t ON dc.id_tratamiento = t.id
+                INNER JOIN citas c ON dc.id_cita = c.id
+                WHERE c.fecha_hora_inicio >= $1 AND c.fecha_hora_inicio < $2
+                AND c.estado = 'completada'
+                GROUP BY t.id, t.nombre_servicio, t.precio_base
+                ORDER BY ingresos_generados DESC
+                LIMIT 5
+                """,
+                fecha_inicio, fecha_fin,
+            )
 
             servicios_rentables = [
                 ServicioRentable(
-                    nombre=row[0],
-                    precio=float(row[1] or 0),
-                    cantidad_veces_usado=row[2],
-                    ingresos_generados=float(row[3] or 0),
-                    costo_materiales_estimado=float(row[3] or 0) * 0.15,
+                    nombre=row["nombre_servicio"],
+                    precio=float(row["precio_base"] or 0),
+                    cantidad_veces_usado=row["cantidad_veces"],
+                    ingresos_generados=float(row["ingresos_generados"] or 0),
+                    costo_materiales_estimado=float(row["ingresos_generados"] or 0) * 0.15,
                     margen_estimado=85.0,
                 )
                 for row in servicios_rows
@@ -608,37 +576,34 @@ async def get_metricas_financieras(
         # ===== PRODUCTOS CRÍTICOS =====
         productos_criticos = []
         try:
-            async with conn.transaction():
-                async with conn.cursor() as cur:
-                    await cur.execute(
-                        """
-                        SELECT 
-                            id,
-                            nombre,
-                            stock_actual,
-                            stock_minimo,
-                            COALESCE(categoria::text, 'Sin categoría') as categoria,
-                            COALESCE(unidad_medida, 'UNIDAD') as unidad_medida
-                        FROM inventario_productos
-                        WHERE stock_actual < (stock_minimo * 1.3)
-                        AND activo = true
-                        ORDER BY (stock_actual::float / NULLIF(stock_minimo, 0)) ASC
-                        LIMIT 10
-                        """,
-                    )
-                    productos_rows = await cur.fetchall()
+            productos_rows = await conn.fetch(
+                """
+                SELECT 
+                    id,
+                    nombre,
+                    stock_actual,
+                    stock_minimo,
+                    COALESCE(categoria::text, 'Sin categoría') as categoria,
+                    COALESCE(unidad_medida, 'UNIDAD') as unidad_medida
+                FROM inventario_productos
+                WHERE stock_actual < (stock_minimo * 1.3)
+                AND activo = true
+                ORDER BY (stock_actual::float / NULLIF(stock_minimo, 0)) ASC
+                LIMIT 10
+                """,
+            )
 
             productos_criticos = [
                 ProductoCritico(
-                    id=row[0],
-                    nombre=row[1],
-                    stock_actual=float(row[2]),
-                    stock_minimo=row[3],
+                    id=row["id"],
+                    nombre=row["nombre"],
+                    stock_actual=float(row["stock_actual"]),
+                    stock_minimo=row["stock_minimo"],
                     porcentaje_stock=(
-                        (float(row[2]) / row[3] * 100) if row[3] > 0 else 0
+                        (float(row["stock_actual"]) / row["stock_minimo"] * 100) if row["stock_minimo"] > 0 else 0
                     ),
-                    categoria=row[4],
-                    unidad_medida=row[5],
+                    categoria=row["categoria"],
+                    unidad_medida=row["unidad_medida"],
                 )
                 for row in productos_rows
             ]
@@ -668,8 +633,6 @@ async def get_metricas_financieras(
 
     except Exception as e:
         logger.error(f"Error crítico en metricas-financieras: {str(e)}")
-        if conn:
-            await conn.rollback()
 
         # Retornar objeto con ceros en lugar de error 500
         return MetricasFinancieras(

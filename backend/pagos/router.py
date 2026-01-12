@@ -44,7 +44,7 @@ def get_client_ip(request: Request) -> str:
 # ============================================================================
 
 
-@router.get("/", response_model=PagoListResponse)
+@router.get("", response_model=PagoListResponse)
 async def listar_pagos(
     request: Request,
     id_cita: Optional[int] = Query(None, description="Filtrar por ID de cita"),
@@ -99,7 +99,7 @@ async def listar_pagos(
         )
 
 
-@router.post("/", response_model=PagoResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=PagoResponse, status_code=status.HTTP_201_CREATED)
 async def crear_pago(
     request: Request, pago: PagoCreate, current_user: dict = Depends(get_current_user)
 ):

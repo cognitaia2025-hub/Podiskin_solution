@@ -9,8 +9,7 @@ from typing import Optional, List, Tuple
 from decimal import Decimal
 from datetime import date
 
-from auth.database import _get_connection, _return_connection
-from psycopg.rows import dict_row
+from db import get_connection, release_connection, fetch_all, fetch_one, execute, execute_returning
 
 logger = logging.getLogger(__name__)
 
@@ -30,83 +29,71 @@ async def get_all_products(
     Obtiene todos los productos con paginación y filtros.
     Retorna (productos, total_count)
     """
-    conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            # Construir query con filtros
-            where_clauses = []
-            params = []
+        # Construir query con filtros
+        where_clauses = []
+        params = []
+        param_index = 1
 
-            if activo is not None:
-                where_clauses.append("activo = %s")
-                params.append(activo)
+        if activo is not None:
+            where_clauses.append(f"activo = ${param_index}")
+            params.append(activo)
+            param_index += 1
 
-            if categoria:
-                where_clauses.append("categoria = %s")
-                params.append(categoria)
+        if categoria:
+            where_clauses.append(f"categoria = ${param_index}")
+            params.append(categoria)
+            param_index += 1
 
-            where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
+        where_sql = " WHERE " + " AND ".join(where_clauses) if where_clauses else ""
 
-            # Contar total
-            count_query = f"SELECT COUNT(*) FROM inventario_productos{where_sql}"
-            await cur.execute(count_query, params)
-            total = (await cur.fetchone())["count"]
+        # Contar total
+        count_query = f"SELECT COUNT(*) as count FROM inventario_productos{where_sql}"
+        count_result = await fetch_one(count_query, *params)
+        total = count_result["count"] if count_result else 0
 
-            # Obtener productos
-            query = f"""
-                SELECT 
-                    id, codigo_producto, nombre, categoria, 
-                    stock_actual, stock_minimo, stock_maximo, unidad_medida,
-                    costo_unitario, precio_venta, activo
-                FROM inventario_productos
-                {where_sql}
-                ORDER BY nombre
-                LIMIT %s OFFSET %s
-            """
-            params.extend([limit, offset])
-            await cur.execute(query, params)
-            productos = await cur.fetchall()
+        # Obtener productos
+        query = f"""
+            SELECT 
+                id, codigo_producto, nombre, categoria, 
+                stock_actual, stock_minimo, stock_maximo, unidad_medida,
+                costo_unitario, precio_venta, activo
+            FROM inventario_productos
+            {where_sql}
+            ORDER BY nombre
+            LIMIT ${param_index} OFFSET ${param_index + 1}
+        """
+        productos = await fetch_all(query, *params, limit, offset)
 
-            return [dict(p) for p in productos] if productos else [], total
+        return productos, total
     except Exception as e:
         logger.error(f"Error fetching products: {e}")
         return [], 0
-    finally:
-        if conn:
-            await _return_connection(conn)
 
 
 async def get_product_by_id(product_id: int) -> Optional[dict]:
     """
     Obtiene un producto por ID con todos sus detalles.
     """
-    conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT 
-                    id, codigo_producto, codigo_barras, nombre, descripcion,
-                    categoria, subcategoria, stock_actual, stock_minimo, stock_maximo,
-                    unidad_medida, costo_unitario, precio_venta, margen_ganancia,
-                    id_proveedor, tiempo_reposicion_dias, requiere_receta, controlado,
-                    tiene_caducidad, fecha_caducidad, lote, ubicacion_almacen,
-                    activo, fecha_registro, registrado_por
-                FROM inventario_productos
-                WHERE id = %s
-                """,
-                (product_id,),
-            )
-            product = await cur.fetchone()
-            return dict(product) if product else None
+        product = await fetch_one(
+            """
+            SELECT 
+                id, codigo_producto, codigo_barras, nombre, descripcion,
+                categoria, subcategoria, stock_actual, stock_minimo, stock_maximo,
+                unidad_medida, costo_unitario, precio_venta, margen_ganancia,
+                id_proveedor, tiempo_reposicion_dias, requiere_receta, controlado,
+                tiene_caducidad, fecha_caducidad, lote, ubicacion_almacen,
+                activo, fecha_registro, registrado_por
+            FROM inventario_productos
+            WHERE id = $1
+            """,
+            product_id,
+        )
+        return product
     except Exception as e:
         logger.error(f"Error fetching product by id: {e}")
         return None
-    finally:
-        if conn:
-            await _return_connection(conn)
 
 
 async def create_product(
@@ -329,26 +316,19 @@ async def get_low_stock_alerts() -> List[dict]:
     """
     Obtiene productos con stock bajo usando la vista alertas_stock_bajo.
     """
-    conn = None
     try:
-        conn = await _get_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT 
-                    id, codigo_producto, nombre, categoria,
-                    stock_actual, stock_minimo, cantidad_requerida,
-                    proveedor, telefono_proveedor, tiempo_reposicion_dias,
-                    costo_unitario, costo_reposicion
-                FROM alertas_stock_bajo
-                ORDER BY cantidad_requerida DESC
+        alerts = await fetch_all(
             """
-            )
-            alerts = await cur.fetchall()
-            return [dict(a) for a in alerts] if alerts else []
+            SELECT 
+                id, codigo_producto, nombre, categoria,
+                stock_actual, stock_minimo, cantidad_requerida,
+                proveedor, telefono_proveedor, tiempo_reposicion_dias,
+                costo_unitario, costo_reposicion
+            FROM alertas_stock_bajo
+            ORDER BY cantidad_requerida DESC
+        """
+        )
+        return alerts
     except Exception as e:
         logger.error(f"Error fetching low stock alerts: {e}")
         return []
-    finally:
-        if conn:
-            await _return_connection(conn)

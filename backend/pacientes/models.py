@@ -13,8 +13,10 @@ import re
 # PACIENTES MODELS
 # ============================================================================
 
+
 class PacienteBase(BaseModel):
     """Base model for patient data."""
+
     primer_nombre: str = Field(..., min_length=1, max_length=50)
     segundo_nombre: Optional[str] = Field(None, max_length=50)
     primer_apellido: str = Field(..., min_length=1, max_length=50)
@@ -35,7 +37,7 @@ class PacienteBase(BaseModel):
     ocupacion: Optional[str] = None
     estado_civil: Optional[str] = None
     referencia_como_nos_conocio: Optional[str] = Field(None, max_length=255)
-    
+
     @field_validator("curp")
     @classmethod
     def validate_curp(cls, v: Optional[str]) -> Optional[str]:
@@ -43,9 +45,11 @@ class PacienteBase(BaseModel):
         if v is not None and v:
             pattern = r"^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$"
             if not re.match(pattern, v):
-                raise ValueError("CURP format invalid. Expected: 4 letters, 6 digits, H/M, 5 letters, 2 digits")
+                raise ValueError(
+                    "CURP format invalid. Expected: 4 letters, 6 digits, H/M, 5 letters, 2 digits"
+                )
         return v
-    
+
     @field_validator("fecha_nacimiento")
     @classmethod
     def validate_fecha_nacimiento(cls, v: date) -> date:
@@ -53,7 +57,7 @@ class PacienteBase(BaseModel):
         if v > date.today():
             raise ValueError("Birth date cannot be in the future")
         return v
-    
+
     @field_validator("telefono_principal", "telefono_secundario")
     @classmethod
     def validate_telefono(cls, v: Optional[str]) -> Optional[str]:
@@ -66,11 +70,13 @@ class PacienteBase(BaseModel):
 
 class PacienteCreate(PacienteBase):
     """Model for creating a new patient."""
+
     pass
 
 
 class PacienteUpdate(BaseModel):
     """Model for updating an existing patient."""
+
     primer_nombre: Optional[str] = Field(None, min_length=1, max_length=50)
     segundo_nombre: Optional[str] = Field(None, max_length=50)
     primer_apellido: Optional[str] = Field(None, min_length=1, max_length=50)
@@ -96,7 +102,9 @@ class PacienteUpdate(BaseModel):
 
 class PacienteResponse(PacienteBase):
     """Model for patient response."""
+
     id: int
+    codigo_paciente: Optional[str] = None
     nombre_completo: str
     edad: int
     activo: bool
@@ -104,14 +112,16 @@ class PacienteResponse(PacienteBase):
     fecha_modificacion: Optional[datetime] = None
     ultima_cita: Optional[datetime] = None
     total_citas: int = 0
-    
+
     class Config:
         from_attributes = True
 
 
 class PacienteListItem(BaseModel):
     """Model for patient list item (simplified)."""
+
     id: int
+    codigo_paciente: Optional[str] = None
     nombre_completo: str
     telefono_principal: str
     email: Optional[str] = None
@@ -124,6 +134,7 @@ class PacienteListItem(BaseModel):
 
 class PacienteListResponse(BaseModel):
     """Model for paginated patient list response."""
+
     items: List[PacienteListItem]
     total: int
     page: int
@@ -135,8 +146,10 @@ class PacienteListResponse(BaseModel):
 # ALERGIAS MODELS
 # ============================================================================
 
+
 class AlergiaBase(BaseModel):
     """Base model for allergy data."""
+
     tipo_alergeno: Literal["Medicamento", "Alimento", "Ambiental", "Material", "Otro"]
     nombre_alergeno: str = Field(..., min_length=1, max_length=100)
     reaccion: Optional[str] = None
@@ -147,22 +160,25 @@ class AlergiaBase(BaseModel):
 
 class AlergiaCreate(AlergiaBase):
     """Model for creating a new allergy."""
+
     pass
 
 
 class AlergiaResponse(AlergiaBase):
     """Model for allergy response."""
+
     id: int
     id_paciente: int
     activo: bool
     fecha_registro: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class AlergiaListResponse(BaseModel):
     """Model for allergy list response."""
+
     items: List[AlergiaResponse]
     total: int
 
@@ -171,9 +187,13 @@ class AlergiaListResponse(BaseModel):
 # ANTECEDENTES MEDICOS MODELS
 # ============================================================================
 
+
 class AntecedenteBase(BaseModel):
     """Base model for medical history data."""
-    tipo_categoria: Literal["Heredofamiliar", "Patologico", "Quirurgico", "Traumatico", "Transfusional"]
+
+    tipo_categoria: Literal[
+        "Heredofamiliar", "Patologico", "Quirurgico", "Traumatico", "Transfusional"
+    ]
     nombre_enfermedad: str = Field(..., min_length=1, max_length=200)
     parentesco: Optional[str] = Field(None, max_length=50)
     fecha_inicio: Optional[date] = None
@@ -185,21 +205,24 @@ class AntecedenteBase(BaseModel):
 
 class AntecedenteCreate(AntecedenteBase):
     """Model for creating a new medical history entry."""
+
     pass
 
 
 class AntecedenteResponse(AntecedenteBase):
     """Model for medical history response."""
+
     id: int
     id_paciente: int
     activo: bool
     fecha_registro: datetime
-    
+
     class Config:
         from_attributes = True
 
 
 class AntecedenteListResponse(BaseModel):
     """Model for medical history list response."""
+
     items: List[AntecedenteResponse]
     total: int

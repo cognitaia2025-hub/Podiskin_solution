@@ -12,7 +12,7 @@ from catalog import service
 router = APIRouter(prefix="/services", tags=["services"])
 
 
-@router.get("/", response_model=List[ServiceResponse])
+@router.get("", response_model=List[ServiceResponse])
 async def list_services(
     tipo: Optional[str] = Query(
         None, description="Filtrar por tipo: servicio o tratamiento"
@@ -47,7 +47,7 @@ async def get_service(service_id: int):
     return await service.get_service(service_id)
 
 
-@router.post("/", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
 async def create_service(service_in: ServiceCreate):
     return await service.create_service(service_in)
 

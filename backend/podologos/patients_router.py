@@ -9,28 +9,27 @@ from typing import List, Optional
 from pydantic import BaseModel
 from datetime import datetime
 import logging
-import psycopg
-from psycopg.rows import dict_row
 
 from auth.middleware import get_current_user
 from auth.models import User
-from auth.database import CONNINFO  # ✅ Importar connection string
+from db import get_pool, get_connection, release_connection
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/podologos", tags=["Gestión de Pacientes por Podólogo"])
 
+
 # ========================================================================
-# HELPER PARA CONEXIÓN A BD (usando mismo patrón que auth/database.py)
+# HELPER PARA CONEXIÓN A BD (usando pool centralizado AsyncPG)
 # ========================================================================
 
 
 async def get_db_connection():
     """
-    Obtiene una conexión a la base de datos.
-    Usa el mismo CONNINFO que auth/database.py
+    Obtiene una conexión a la base de datos desde el pool centralizado.
     """
-    return await psycopg.AsyncConnection.connect(CONNINFO)
+    pool = get_pool()
+    return await pool.acquire()
 
 
 # ========================================================================
@@ -94,14 +93,11 @@ async def get_podologo_patients(
     conn = None
     try:
         conn = await get_db_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            # Usar función de BD
-            await cur.execute(
-                "SELECT * FROM get_pacientes_podologo(%s)", (podologo_id,)
-            )
-            rows = await cur.fetchall()
-
-        await conn.rollback()  # Cerrar transacción de solo lectura
+        
+        # Usar función de BD con AsyncPG (nota: %s lo cambiamos a $1)
+        rows = await conn.fetch(
+            "SELECT * FROM get_pacientes_podologo($1)", podologo_id
+        )
 
         patients = [
             PatientWithInterino(
@@ -126,15 +122,13 @@ async def get_podologo_patients(
 
     except Exception as e:
         logger.error(f"Error fetching patients for podologo {podologo_id}: {e}")
-        if conn:
-            await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener pacientes: {str(e)}",
         )
     finally:
         if conn:
-            await conn.close()
+            await release_connection(conn)
 
 
 @router.get("/available", response_model=List[AvailablePodologo])
@@ -156,25 +150,20 @@ async def get_available_podologos(
             detail="Solo Admin puede consultar podólogos disponibles",
         )
 
-    conn = None
     try:
         conn = await get_db_connection()
-        async with conn.cursor(row_factory=dict_row) as cur:
-            await cur.execute(
-                """
-                SELECT id, nombre_completo, rol
-                FROM usuarios
-                WHERE rol = 'Podologo'
-                    AND activo = TRUE
-                    AND ($1::INTEGER IS NULL OR id != $1)
-                ORDER BY nombre_completo
-                """,
-                (exclude_podologo_id,),
-            )
-
-            rows = await cur.fetchall()
-
-        await conn.rollback()
+        
+        rows = await conn.fetch(
+            """
+            SELECT id, nombre_completo, rol
+            FROM usuarios
+            WHERE rol = 'Podologo'
+                AND activo = TRUE
+                AND ($1::INTEGER IS NULL OR id != $1)
+            ORDER BY nombre_completo
+            """,
+            exclude_podologo_id,
+        )
 
         podologos = [
             AvailablePodologo(
@@ -187,15 +176,13 @@ async def get_available_podologos(
 
     except Exception as e:
         logger.error(f"Error fetching available podologos: {e}")
-        if conn:
-            await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al obtener podólogos: {str(e)}",
         )
     finally:
         if conn:
-            await conn.close()
+            await release_connection(conn)
 
 
 @router.post("/{podologo_id}/assign-interino")
@@ -221,14 +208,11 @@ async def assign_interino_to_patient(
 
         if assignment.podologo_interino_id is None:
             # Quitar podólogo interino
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    "SELECT quitar_podologo_interino($1)", (assignment.paciente_id,)
-                )
-                result = await cur.fetchone()
-                await conn.commit()
+            result = await conn.fetchval(
+                "SELECT quitar_podologo_interino($1)", assignment.paciente_id
+            )
 
-            if not result or not result[0]:
+            if not result:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
                     detail="No se encontró asignación interina para quitar",
@@ -245,24 +229,17 @@ async def assign_interino_to_patient(
             }
         else:
             # Asignar podólogo interino
-            async with conn.cursor() as cur:
-                await cur.execute(
-                    """
-                    SELECT asignar_podologo_interino($1, $2, $3, $4, $5, $6)
-                    """,
-                    (
-                        assignment.paciente_id,
-                        podologo_id,
-                        assignment.podologo_interino_id,
-                        assignment.fecha_fin,
-                        assignment.motivo,
-                        current_user.id,
-                    ),
-                )
-
-                result = await cur.fetchone()
-                asignacion_id = result[0] if result else None
-                await conn.commit()
+            asignacion_id = await conn.fetchval(
+                """
+                SELECT asignar_podologo_interino($1, $2, $3, $4, $5, $6)
+                """,
+                assignment.paciente_id,
+                podologo_id,
+                assignment.podologo_interino_id,
+                assignment.fecha_fin,
+                assignment.motivo,
+                current_user.id,
+            )
 
             logger.info(
                 f"Admin {current_user.nombre_usuario} asignó podólogo interino "
@@ -277,16 +254,12 @@ async def assign_interino_to_patient(
             }
 
     except HTTPException:
-        if conn:
-            await conn.rollback()
         raise
     except Exception as e:
         logger.error(f"Error asignando podólogo interino: {e}")
-        if conn:
-            await conn.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(e)
         )
     finally:
         if conn:
-            await conn.close()
+            await release_connection(conn)

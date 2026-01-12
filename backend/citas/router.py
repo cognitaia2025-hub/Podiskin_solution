@@ -9,8 +9,10 @@ import logging
 from datetime import date, datetime
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, HTTPException, Query, status, Depends
 from fastapi.responses import JSONResponse
+from auth.middleware import get_current_user
+from auth.models import User
 
 from .models import (
     CitaCreate,
@@ -197,7 +199,7 @@ async def obtener_cita(id_cita: int):
 
 
 @router.post("", response_model=CitaResponse, status_code=status.HTTP_201_CREATED)
-async def crear_cita(cita: CitaCreate):
+async def crear_cita(cita: CitaCreate, current_user: User = Depends(get_current_user)):
     """
     Crea una nueva cita.
     
@@ -220,13 +222,17 @@ async def crear_cita(cita: CitaCreate):
     ```
     """
     try:
-        cita_creada = await service.crear_cita(
+        cita_creada = await service.crear_cita_smart(
             id_paciente=cita.id_paciente,
+            nuevo_paciente=(cita.nuevo_paciente.model_dump() if cita.nuevo_paciente else None),
             id_podologo=cita.id_podologo,
             fecha_hora_inicio=cita.fecha_hora_inicio,
+            fecha_hora_fin=cita.fecha_hora_fin,
             tipo_cita=cita.tipo_cita.value,
             motivo_consulta=cita.motivo_consulta,
             notas_recepcion=cita.notas_recepcion,
+            color_hex=cita.color_hex,
+            creado_por=getattr(current_user, 'id', None),
         )
         
         return format_cita_response(cita_creada)

@@ -73,8 +73,7 @@
 
 | Tecnología | Propósito | Estado |
 |------------|-----------|--------|
-| whatsapp-web.js | WhatsApp (temporal/pruebas) | ⚠️ Temporal |
-| **Twilio WhatsApp API** | WhatsApp (producción) | 🎯 Target - Migrar |
+| **Twilio WhatsApp API** | WhatsApp (producción) | 🎯 Target - Por implementar |
 
 ### 2.6 Infraestructura
 

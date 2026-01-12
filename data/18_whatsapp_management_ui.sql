@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS whatsapp_qr_sessions (
     whatsapp_id TEXT,
     
     -- Metadata
-    proveedor TEXT DEFAULT 'whatsapp-web-js' CHECK (proveedor IN ('whatsapp-web-js', 'twilio', 'whatsapp-business-api', 'otro')),
+    proveedor TEXT DEFAULT 'twilio' CHECK (proveedor IN ('twilio', 'whatsapp-business-api', 'otro')),
     
     -- Timestamps
     fecha_generacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -131,7 +131,7 @@ CREATE INDEX idx_qr_sessions_proveedor ON whatsapp_qr_sessions(proveedor);
 
 -- Comentarios
 COMMENT ON TABLE whatsapp_qr_sessions IS 'Sesiones de QR para sincronización de WhatsApp';
-COMMENT ON COLUMN whatsapp_qr_sessions.proveedor IS 'Proveedor de mensajería (whatsapp-web-js, twilio, etc.)';
+COMMENT ON COLUMN whatsapp_qr_sessions.proveedor IS 'Proveedor de mensajería (twilio, whatsapp-business-api, etc.)';
 
 -- ============================================================================
 -- 3. TABLA: analisis_sentimiento

@@ -265,7 +265,7 @@ Toda la documentación está disponible en la carpeta `docs/`.
 
 El sistema demuestra integraciones con:
 
-- **WhatsApp**: Para comunicación con pacientes
+- **WhatsApp** (Planned): Sistema de IA para comunicación con pacientes - Migración a Twilio API en progreso
 - **Gemini AI**: Para el asistente de voz
 - **Servicios de almacenamiento**: Para respaldos en la nube
 - **Sistemas de facturación**: Para cumplimiento fiscal
